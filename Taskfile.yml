@@ -1,0 +1,29 @@
+# https://taskfile.dev
+
+---
+version: '2'
+
+vars:
+  NAME: long-season
+
+tasks:
+  default:
+    deps: [server]
+
+  server:
+    cmds:
+      - go build -o {{ .NAME }} cmd/server/main.go
+    sources:
+      - ./**/*.go
+      - ./**/*.html
+    generates:
+      - ./{{ .NAME }}
+
+  run:
+    deps: [server]
+    cmds:
+      - ./{{ .NAME }}
+
+  clean:
+    cmds:
+      - rm -f ./{{ .NAME }}
