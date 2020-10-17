@@ -27,3 +27,7 @@ tasks:
   clean:
     cmds:
       - rm -f ./{{ .NAME }}
+
+  lint:
+    cmds:
+      - golint ./...
