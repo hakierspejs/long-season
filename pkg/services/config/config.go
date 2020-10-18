@@ -21,6 +21,9 @@ func Env() *models.Config {
 	}
 }
 
+// DefaultEnv returns content of shell variable
+// assigned to given key. If result is empty, returns
+// fallback value.
 func DefaultEnv(key, fallback string) string {
 	res := os.Getenv(key)
 	if res == "" {
