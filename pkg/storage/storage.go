@@ -9,7 +9,7 @@ import (
 // Factory returns interfaces specific to
 // stored data.
 type Factory interface {
-	Users(ctx context.Context) Users
+	Users() Users
 }
 
 // Users interface handles generic create, read,

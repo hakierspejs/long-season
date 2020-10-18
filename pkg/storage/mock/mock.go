@@ -13,21 +13,21 @@ import (
 
 // Factory returns mock interfaces specific
 // to stored data. Implements storage.Factory interface.
-type Factory struct{}
+type Factory struct {
+	users *UsersStorage
+}
 
 // New returns new mock factory.
 func New() *Factory {
-	return new(Factory)
+	return &Factory{
+		users: newUserStorage(),
+	}
 }
 
 // Users returns storage interface for manipulating
 // users data.
-func (Factory) Users(ctx context.Context) *UsersStorage {
-	return &UsersStorage{
-		data:    make(map[int]models.User),
-		counter: 0,
-		mutex:   new(sync.Mutex),
-	}
+func (f Factory) Users() *UsersStorage {
+	return f.users
 }
 
 // UsersStorage implements storage.Users interface
@@ -36,6 +36,14 @@ type UsersStorage struct {
 	data    map[int]models.User
 	counter int
 	mutex   *sync.Mutex
+}
+
+func newUserStorage() *UsersStorage {
+	return &UsersStorage{
+		data:    make(map[int]models.User),
+		counter: 0,
+		mutex:   new(sync.Mutex),
+	}
 }
 
 // New stores given user data in database and returns
@@ -76,7 +84,7 @@ func (s *UsersStorage) All(ctx context.Context) ([]models.User, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	res := make([]models.User, len(s.data), len(s.data))
+	res := []models.User{}
 	for _, u := range s.data {
 		res = append(res, u)
 	}
@@ -96,4 +104,14 @@ func (s *UsersStorage) Update(ctx context.Context, u models.User) error {
 
 	s.data[u.ID] = u
 	return nil
+}
+
+func (s *UsersStorage) Remove(ctx context.Context, id int) error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	delete(s.data, id)
+
+	return nil
+
 }
