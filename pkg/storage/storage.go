@@ -15,9 +15,11 @@ type Factory interface {
 // Users interface handles generic create, read,
 // update and delete operations on users data.
 type Users interface {
-	New(ctx context.Context, u models.User) error
+	// New stores given user data in database and returns
+	// assigned id.
+	New(ctx context.Context, u models.User) (int, error)
 	Read(ctx context.Context, id int) (*models.User, error)
-	All(ctx context.Context) ([]*models.User, error)
+	All(ctx context.Context) ([]models.User, error)
 	Update(ctx context.Context, u models.User) error
 	Remove(ctx context.Context, id int) error
 }
