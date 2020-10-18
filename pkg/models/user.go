@@ -14,3 +14,17 @@ type User struct {
 	// Password of User hashed with bcrypt algorithm.
 	Password []byte
 }
+
+func (u User) Public() UserPublicData {
+	return UserPublicData{
+		ID:       u.ID,
+		Nickname: u.Nickname,
+		Online:   u.Online,
+	}
+}
+
+type UserPublicData struct {
+	ID       int    `json:"id"`
+	Nickname string `json:"nickname"`
+	Online   bool   `json:"online"`
+}

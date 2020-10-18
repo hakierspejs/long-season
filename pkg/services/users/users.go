@@ -51,6 +51,18 @@ func Update(old models.User, c *Changes) models.User {
 	}
 }
 
+// PublicSlice returns new slice with only public user data,
+// created from given slice containing full user data.
+func PublicSlice(u []models.User) []models.UserPublicData {
+	public := make([]models.UserPublicData, 0, cap(u))
+
+	for _, old := range u {
+		public = append(public, old.Public())
+	}
+
+	return public
+}
+
 // all returns true if all args are true,
 // otherwise returns false.
 func all(args ...bool) bool {
