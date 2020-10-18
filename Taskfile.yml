@@ -31,3 +31,7 @@ tasks:
   lint:
     cmds:
       - golint ./...
+
+  test:
+    cmds:
+      - go test ./...
