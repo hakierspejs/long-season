@@ -4,10 +4,10 @@ import "fmt"
 
 // UsernameTaken is being returned when there is
 // already a user with given username.
-type UsernameTaken string
+type NicknameTaken string
 
 // Error method, which implements error interface.
-func (u UsernameTaken) Error() string {
+func (u NicknameTaken) Error() string {
 	return fmt.Sprintf(
 		"long-season storage: user with \"%s\" username is already registered.",
 		string(u),
@@ -26,8 +26,8 @@ func (id NoID) Error() string {
 }
 
 // ErrUsernameTaken is handy facade for UsernameTaken error.
-func ErrUsernameTaken(username string) error {
-	return UsernameTaken(username)
+func ErrNicknameTaken(username string) error {
+	return NicknameTaken(username)
 }
 
 // ErrNoID is handy facade for NoID error.
