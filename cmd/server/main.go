@@ -25,6 +25,10 @@ func main() {
 	r.Route("/users", func(r chi.Router) {
 		r.Get("/", handlers.UsersAll(factoryStorage.Users()))
 		r.Post("/", handlers.UserCreate(factoryStorage.Users()))
+		r.With(handlers.URLParamInjection("id")).Route("/{id}", func(r chi.Router) {
+			r.Get("/", handlers.UserRead(factoryStorage.Users()))
+			r.Delete("/", handlers.UserRemove(factoryStorage.Users()))
+		})
 	})
 
 	http.ListenAndServe(config.Address(), r)
