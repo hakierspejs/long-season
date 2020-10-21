@@ -4,6 +4,7 @@ package users
 
 import (
 	"bytes"
+	"sort"
 
 	"github.com/hakierspejs/long-season/pkg/models"
 )
@@ -59,6 +60,10 @@ func PublicSlice(u []models.User) []models.UserPublicData {
 	for _, old := range u {
 		public = append(public, old.Public())
 	}
+
+	sort.Slice(public, func(i, j int) bool {
+		return public[i].ID < public[j].ID
+	})
 
 	return public
 }
