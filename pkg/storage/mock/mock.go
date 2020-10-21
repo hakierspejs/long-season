@@ -110,6 +110,11 @@ func (s *UsersStorage) Remove(ctx context.Context, id int) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
+	_, ok := s.data[id]
+	if !ok {
+		return serrors.ErrNoID(id)
+	}
+
 	delete(s.data, id)
 
 	return nil
