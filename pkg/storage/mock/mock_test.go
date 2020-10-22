@@ -14,7 +14,7 @@ func TestNewUsers(t *testing.T) {
 	is := is.New(t)
 
 	ctx := context.Background()
-	s := New().Users(ctx)
+	s := New().Users()
 
 	usersData := []models.User{
 		{
