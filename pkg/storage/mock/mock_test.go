@@ -4,9 +4,10 @@ import (
 	"context"
 	"testing"
 
+	"github.com/matryer/is"
+
 	"github.com/hakierspejs/long-season/pkg/models"
 	"github.com/hakierspejs/long-season/pkg/services/users"
-	"github.com/matryer/is"
 )
 
 func TestNewUsers(t *testing.T) {
