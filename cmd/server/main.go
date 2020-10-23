@@ -1,19 +1,31 @@
 package main
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
+	bolt "go.etcd.io/bbolt"
 
 	"github.com/hakierspejs/long-season/pkg/services/config"
 	"github.com/hakierspejs/long-season/pkg/services/handlers"
-	"github.com/hakierspejs/long-season/pkg/storage/mock"
+	"github.com/hakierspejs/long-season/pkg/storage/memory"
 )
 
 func main() {
 	config := config.Env()
-	factoryStorage := mock.New()
+
+	boltDB, err := bolt.Open(config.DatabasePath, 0666, nil)
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+	defer boltDB.Close()
+
+	factoryStorage, err := memory.New(boltDB)
+	if err != nil {
+		log.Fatal(err.Error())
+	}
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
