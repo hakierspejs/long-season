@@ -106,6 +106,7 @@ func (s *UsersStorage) Update(ctx context.Context, u models.User) error {
 	return nil
 }
 
+// Remove deletes user with given id from storage.
 func (s *UsersStorage) Remove(ctx context.Context, id int) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
