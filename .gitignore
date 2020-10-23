@@ -14,3 +14,6 @@ long-season
 
 # Dependency directories (remove the comment below to include it)
 # vendor/
+
+# Database files
+long-season.db
