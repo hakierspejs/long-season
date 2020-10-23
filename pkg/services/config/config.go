@@ -9,6 +9,7 @@ import (
 const (
 	hostEnv = "LS_HOST"
 	portEnv = "LS_PORT"
+	boltENV = "LS_BOLT_DB"
 )
 
 // Env returns pointer to models.Config which is
@@ -16,8 +17,9 @@ const (
 // Unset variables will be
 func Env() *models.Config {
 	return &models.Config{
-		Host: DefaultEnv(hostEnv, "127.0.0.1"),
-		Port: DefaultEnv(portEnv, "3000"),
+		Host:         DefaultEnv(hostEnv, "127.0.0.1"),
+		Port:         DefaultEnv(portEnv, "3000"),
+		DatabasePath: DefaultEnv(boltENV, "long-season.db"),
 	}
 }
 
