@@ -16,6 +16,7 @@ import (
 )
 
 const (
+	countersBucket     = "ls::counters"
 	usersBucket        = "ls::users"
 	usersBucketCounter = "ls::users::counter"
 )
@@ -55,15 +56,13 @@ type UsersStorage struct {
 	db *bolt.DB
 }
 
-const counterKey = "counter"
-
-func incr(b *bolt.Bucket, key []byte) (int, error) {
-	counterBucket, err := b.CreateBucketIfNotExists(key)
+func incr(tx *bolt.Tx, key []byte) (int, error) {
+	counterBucket, err := tx.CreateBucketIfNotExists([]byte(countersBucket))
 	if err != nil {
 		return 0, fmt.Errorf("cannot create new bucket when incrementing %s: %w", key, err)
 	}
 
-	val := counterBucket.Get([]byte(counterKey))
+	val := counterBucket.Get([]byte(key))
 
 	counter := 0
 
@@ -74,7 +73,7 @@ func incr(b *bolt.Bucket, key []byte) (int, error) {
 		}
 	}
 
-	err = counterBucket.Put([]byte(counterKey), []byte(strconv.Itoa(counter+1)))
+	err = counterBucket.Put([]byte(key), []byte(strconv.Itoa(counter+1)))
 	if err != nil {
 		return counter, fmt.Errorf("cannot put counter into bucket: %w", err)
 	}
@@ -118,7 +117,7 @@ func (s *UsersStorage) New(ctx context.Context, newUser models.User) (int, error
 			return err
 		}
 
-		id, err = incr(b, []byte(usersBucketCounter))
+		id, err = incr(tx, []byte(usersBucketCounter))
 		if err != nil {
 			return err
 		}
@@ -157,7 +156,7 @@ func (s *UsersStorage) Read(ctx context.Context, id int) (*models.User, error) {
 		return gob.NewDecoder(buff).Decode(user)
 	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("reading user with id=%d failed: %w", id, err)
 	}
 
 	return user, nil
@@ -178,7 +177,7 @@ func (s *UsersStorage) All(ctx context.Context) ([]models.User, error) {
 			if _, err := strconv.Atoi(string(k)); err == nil {
 				err := gob.NewDecoder(buff).Decode(user)
 				if err != nil {
-					return err
+					return fmt.Errorf("decoding user from gob failed: %w", err)
 				}
 
 				res = append(res, *user)
@@ -188,7 +187,7 @@ func (s *UsersStorage) All(ctx context.Context) ([]models.User, error) {
 		})
 	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("reading all users failed: %w", err)
 	}
 
 	return res, nil
