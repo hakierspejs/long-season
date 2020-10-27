@@ -21,5 +21,6 @@ type Users interface {
 	Read(ctx context.Context, id int) (*models.User, error)
 	All(ctx context.Context) ([]models.User, error)
 	Update(ctx context.Context, u models.User) error
+	UpdateMany(ctx context.Context, u []models.User) error
 	Remove(ctx context.Context, id int) error
 }

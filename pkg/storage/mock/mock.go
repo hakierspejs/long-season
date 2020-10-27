@@ -106,6 +106,28 @@ func (s *UsersStorage) Update(ctx context.Context, u models.User) error {
 	return nil
 }
 
+// UpdateMany overwrites data of all users in given slice.
+func (s *UsersStorage) UpdateMany(ctx context.Context, u []models.User) error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	// Loop for the first time to ensure that all users
+	// have valid ID to make this operation atomic.
+	for _, user := range u {
+		_, ok := s.data[user.ID]
+		if !ok {
+			return serrors.ErrNoID(user.ID)
+		}
+	}
+
+	// Loop one more time to add users.
+	for _, user := range u {
+		s.data[user.ID] = user
+	}
+
+	return nil
+}
+
 // Remove deletes user with given id from storage.
 func (s *UsersStorage) Remove(ctx context.Context, id int) error {
 	s.mutex.Lock()

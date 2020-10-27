@@ -193,23 +193,43 @@ func (s *UsersStorage) All(ctx context.Context) ([]models.User, error) {
 	return res, nil
 }
 
+// updateOne updates one user in bucket.
+func updateOne(b *bolt.Bucket, u models.User) error {
+	// Check if there is user with given id in database.
+	if b.Get([]byte(strconv.Itoa(u.ID))) == nil {
+		return serrors.ErrNoID(u.ID)
+	}
+
+	buff := bytes.NewBuffer([]byte{})
+	err := gob.NewEncoder(buff).Encode(&u)
+	if err != nil {
+		return err
+	}
+
+	return b.Put([]byte(strconv.Itoa(u.ID)), buff.Bytes())
+}
+
 // Update overwrites existing user data.
 func (s *UsersStorage) Update(ctx context.Context, u models.User) error {
 	return s.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(usersBucket))
+		return updateOne(b, u)
+	})
+}
 
-		// Check if there is user with given id in database.
-		if b.Get([]byte(strconv.Itoa(u.ID))) == nil {
-			return serrors.ErrNoID(u.ID)
+// UpdateMany overwrites data of all users in given slice.
+func (s *UsersStorage) UpdateMany(ctx context.Context, u []models.User) error {
+	return s.db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(usersBucket))
+
+		for _, user := range u {
+			err := updateOne(b, user)
+			if err != nil {
+				return err
+			}
+
 		}
-
-		buff := bytes.NewBuffer([]byte{})
-		err := gob.NewEncoder(buff).Encode(&u)
-		if err != nil {
-			return err
-		}
-
-		return b.Put([]byte(strconv.Itoa(u.ID)), buff.Bytes())
+		return nil
 	})
 }
 
