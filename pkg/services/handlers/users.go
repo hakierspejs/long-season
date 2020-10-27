@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -14,6 +15,7 @@ import (
 	"github.com/hakierspejs/long-season/pkg/models"
 	"github.com/hakierspejs/long-season/pkg/services/users"
 	"github.com/hakierspejs/long-season/pkg/storage"
+	serrors "github.com/hakierspejs/long-season/pkg/storage/errors"
 )
 
 func UserCreate(db storage.Users) http.HandlerFunc {
@@ -154,5 +156,72 @@ func UserRemove(db storage.Users) http.HandlerFunc {
 		}
 
 		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
+// UpdateStatus updates online field of every user id database
+// with MAC address equal to one from slice provided by
+// user in request payload.
+func UpdateStatus(db storage.Users) http.HandlerFunc {
+	type payload struct {
+		Addresses []string `json:"addresses"`
+	}
+
+	return func(w http.ResponseWriter, r *http.Request) {
+		p := new(payload)
+
+		err := json.NewDecoder(r.Body).Decode(p)
+		if err != nil {
+			jsonError(w, &jsonErrorBody{
+				Message: fmt.Sprintf("invalid input: %s", err.Error()),
+				Code:    http.StatusBadRequest,
+				Type:    "bad-request",
+			})
+			return
+		}
+
+		users, err := db.All(r.Context())
+		if err != nil {
+			jsonError(w, &jsonErrorBody{
+				Message: "ooops! things are not going that great after all",
+				Code:    http.StatusInternalServerError,
+				Type:    "internal-server-error",
+			})
+			return
+		}
+
+		updateded := make([]models.User, len(users))
+		for _, user := range users {
+			for _, address := range p.Addresses {
+				if bytes.Equal([]byte(address), user.MAC) {
+					user.Online = true
+					updateded = append(updateded, user)
+				}
+			}
+		}
+
+		err = db.UpdateMany(r.Context(), updateded)
+		if err != nil {
+			switch err.(type) {
+			case serrors.NoID:
+				errNoID := err.(serrors.NoID)
+				jsonError(w, &jsonErrorBody{
+					Message: fmt.Sprintf("there is no user with id equal to %d", errNoID.ID()),
+					Code:    http.StatusNotFound,
+					Type:    "status-not-found",
+				})
+				return
+			default:
+				jsonError(w, &jsonErrorBody{
+					Message: "ooops! things are not going that great after all",
+					Code:    http.StatusInternalServerError,
+					Type:    "internal-server-error",
+				})
+				return
+			}
+		}
+
+		w.WriteHeader(http.StatusOK)
+		return
 	}
 }
