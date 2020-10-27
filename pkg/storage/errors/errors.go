@@ -25,6 +25,11 @@ func (id NoID) Error() string {
 	)
 }
 
+// ID returns invalid id, which is the source of the error.
+func (id NoID) ID() int {
+	return int(id)
+}
+
 // ErrUsernameTaken is handy facade for UsernameTaken error.
 func ErrNicknameTaken(username string) error {
 	return NicknameTaken(username)
