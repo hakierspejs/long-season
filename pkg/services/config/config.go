@@ -7,9 +7,10 @@ import (
 )
 
 const (
-	hostEnv = "LS_HOST"
-	portEnv = "LS_PORT"
-	boltENV = "LS_BOLT_DB"
+	hostEnv      = "LS_HOST"
+	portEnv      = "LS_PORT"
+	boltENV      = "LS_BOLT_DB"
+	jwtSecretEnv = "LS_JWT_SECRET"
 )
 
 // Env returns pointer to models.Config which is
@@ -20,6 +21,7 @@ func Env() *models.Config {
 		Host:         DefaultEnv(hostEnv, "127.0.0.1"),
 		Port:         DefaultEnv(portEnv, "3000"),
 		DatabasePath: DefaultEnv(boltENV, "long-season.db"),
+		JWTSecret:    DefaultEnv(jwtSecretEnv, "default-super-secret"),
 	}
 }
 

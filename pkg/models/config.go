@@ -8,6 +8,7 @@ type Config struct {
 	Host         string
 	Port         string
 	DatabasePath string
+	JWTSecret    string
 }
 
 // Address returns address string that is compatible

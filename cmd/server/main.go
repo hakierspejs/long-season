@@ -1,13 +1,17 @@
 package main
 
 import (
+	"context"
 	"log"
+	"math/rand"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	bolt "go.etcd.io/bbolt"
 
+	"github.com/hakierspejs/long-season/pkg/models"
 	"github.com/hakierspejs/long-season/pkg/services/config"
 	"github.com/hakierspejs/long-season/pkg/services/handlers"
 	"github.com/hakierspejs/long-season/pkg/storage/memory"
@@ -32,6 +36,7 @@ func main() {
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.RequestID)
 
+	rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Hello HS!"))
 	})
@@ -43,6 +48,8 @@ func main() {
 			r.Delete("/", handlers.UserRemove(factoryStorage.Users()))
 		})
 	})
+	r.Post("/login", handlers.ApiAuth(*config, factoryStorage.Users(), rnd))
+	r.With(handlers.AuthMiddleware(*config, false)).Get("/secret", handlers.AuthResource())
 
 	http.ListenAndServe(config.Address(), r)
 }
