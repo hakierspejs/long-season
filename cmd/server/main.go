@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"log"
 	"math/rand"
 	"net/http"
@@ -11,7 +10,6 @@ import (
 	"github.com/go-chi/chi/middleware"
 	bolt "go.etcd.io/bbolt"
 
-	"github.com/hakierspejs/long-season/pkg/models"
 	"github.com/hakierspejs/long-season/pkg/services/config"
 	"github.com/hakierspejs/long-season/pkg/services/handlers"
 	"github.com/hakierspejs/long-season/pkg/storage/memory"
