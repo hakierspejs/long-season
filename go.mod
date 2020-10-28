@@ -9,4 +9,5 @@ require (
 	github.com/go-chi/chi v4.1.2+incompatible
 	github.com/matryer/is v1.4.0
 	go.etcd.io/bbolt v1.3.5
+	golang.org/x/crypto v0.0.0-20201016220609-9e8e0b390897
 )
