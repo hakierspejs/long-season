@@ -1,4 +1,4 @@
-package handlers
+package api
 
 import (
 	"encoding/json"
@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/alioygur/gores"
-	jwtmiddleware "github.com/auth0/go-jwt-middleware"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/hakierspejs/long-season/pkg/models"
 	"github.com/hakierspejs/long-season/pkg/services/utils"
@@ -105,21 +104,6 @@ func ApiAuth(config models.Config, db storage.Users, rnd *rand.Rand) http.Handle
 		gores.JSONIndent(w, http.StatusOK, &response{
 			Token: tokenString,
 		}, defaultPrefix, defaultIndent)
-	}
-}
-
-func AuthMiddleware(config models.Config, optional bool) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		middleware := jwtmiddleware.New(jwtmiddleware.Options{
-			ValidationKeyGetter: func(token *jwt.Token) (interface{}, error) {
-				return []byte(config.JWTSecret), nil
-			},
-			CredentialsOptional: optional,
-			SigningMethod:       jwt.SigningMethodHS256,
-			UserProperty:        "jwt-user",
-		})
-
-		return middleware.Handler(next)
 	}
 }
 

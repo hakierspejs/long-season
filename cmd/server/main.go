@@ -11,7 +11,8 @@ import (
 	bolt "go.etcd.io/bbolt"
 
 	"github.com/hakierspejs/long-season/pkg/services/config"
-	"github.com/hakierspejs/long-season/pkg/services/handlers"
+	"github.com/hakierspejs/long-season/pkg/services/handlers/api/v1"
+	lsmiddleware "github.com/hakierspejs/long-season/pkg/services/middleware"
 	"github.com/hakierspejs/long-season/pkg/storage/memory"
 )
 
@@ -39,15 +40,15 @@ func main() {
 		w.Write([]byte("Hello HS!"))
 	})
 	r.Route("/users", func(r chi.Router) {
-		r.Get("/", handlers.UsersAll(factoryStorage.Users()))
-		r.Post("/", handlers.UserCreate(factoryStorage.Users()))
-		r.With(handlers.URLParamInjection("id")).Route("/{id}", func(r chi.Router) {
-			r.Get("/", handlers.UserRead(factoryStorage.Users()))
-			r.Delete("/", handlers.UserRemove(factoryStorage.Users()))
+		r.Get("/", api.UsersAll(factoryStorage.Users()))
+		r.Post("/", api.UserCreate(factoryStorage.Users()))
+		r.With(lsmiddleware.UserID).Route("/{user-id}", func(r chi.Router) {
+			r.Get("/", api.UserRead(factoryStorage.Users()))
+			r.Delete("/", api.UserRemove(factoryStorage.Users()))
 		})
 	})
-	r.Post("/login", handlers.ApiAuth(*config, factoryStorage.Users(), rnd))
-	r.With(handlers.AuthMiddleware(*config, false)).Get("/secret", handlers.AuthResource())
+	r.Post("/login", api.ApiAuth(*config, factoryStorage.Users(), rnd))
+	r.With(lsmiddleware.JWT(*config, false)).Get("/secret", api.AuthResource())
 
 	http.ListenAndServe(config.Address(), r)
 }

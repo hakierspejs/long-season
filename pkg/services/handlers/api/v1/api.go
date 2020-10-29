@@ -1,19 +1,16 @@
-package handlers
+package api
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
-	"strconv"
 
 	"github.com/alioygur/gores"
-	"github.com/go-chi/chi"
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/hakierspejs/long-season/pkg/models"
+	"github.com/hakierspejs/long-season/pkg/services/params"
 	"github.com/hakierspejs/long-season/pkg/services/users"
 	"github.com/hakierspejs/long-season/pkg/storage"
 	serrors "github.com/hakierspejs/long-season/pkg/storage/errors"
@@ -102,33 +99,9 @@ func UsersAll(db storage.Users) http.HandlerFunc {
 	}
 }
 
-func URLParamInjection(param string) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			value := chi.URLParam(r, param)
-			ctx := context.WithValue(r.Context(), param, value)
-			next.ServeHTTP(w, r.WithContext(ctx))
-		})
-	}
-}
-
-func UserID(r *http.Request) (int, error) {
-	id, ok := r.Context().Value("id").(string)
-	if !ok {
-		return 0, errors.New("ID stored in context has inapropriate type.")
-	}
-
-	res, err := strconv.Atoi(id)
-	if err != nil {
-		return 0, err
-	}
-
-	return res, nil
-}
-
 func UserRead(db storage.Users) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		id, err := UserID(r)
+		id, err := params.UserID(r)
 		if err != nil {
 			// TODO(thinkofher) Implement proper error handling.
 			jsonError(w, &jsonErrorBody{
@@ -156,7 +129,7 @@ func UserRead(db storage.Users) http.HandlerFunc {
 
 func UserRemove(db storage.Users) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		id, err := UserID(r)
+		id, err := params.UserID(r)
 		if err != nil {
 			// TODO(thinkofher) Implement proper error handling.
 			jsonError(w, &jsonErrorBody{
