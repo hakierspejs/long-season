@@ -18,17 +18,23 @@ func TestNewUsers(t *testing.T) {
 
 	usersData := []models.User{
 		{
-			Nickname: "user3000",
+			UserPublicData: models.UserPublicData{
+				Nickname: "user3000",
+			},
 			Password: []byte("71Hk4Rt2WY8xqgYoKxPm"),
 			MAC:      []byte("WihBOiHjxBDhQHLBbPjA"),
 		},
 		{
-			Nickname: "user3001",
+			UserPublicData: models.UserPublicData{
+				Nickname: "user3001",
+			},
 			Password: []byte("u8dXHRi0JNo23JVeHkjh"),
 			MAC:      []byte("rVdzmlKeSu6YWs1TA3Xc"),
 		},
 		{
-			Nickname: "user3002",
+			UserPublicData: models.UserPublicData{
+				Nickname: "user3002",
+			},
 			Password: []byte("6eaOciUcg5EGSTkfQYvL"),
 			MAC:      []byte("k60d9wbIEFILz8RDePol"),
 		},
