@@ -47,9 +47,11 @@ func UserCreate(db storage.Users) http.HandlerFunc {
 		}
 
 		id, err := db.New(r.Context(), models.User{
-			Nickname: p.Nickname,
+			UserPublicData: models.UserPublicData{
+				Nickname: p.Nickname,
+				Online:   false,
+			},
 			Password: pass,
-			Online:   false,
 		})
 		if err != nil {
 			// TODO(thinkofher) Implement proper error handling.
@@ -123,7 +125,7 @@ func UserRead(db storage.Users) http.HandlerFunc {
 			return
 		}
 
-		gores.JSONIndent(w, http.StatusOK, user.Public(), defaultPrefix, defaultIndent)
+		gores.JSONIndent(w, http.StatusOK, user.UserPublicData, defaultPrefix, defaultIndent)
 	}
 }
 

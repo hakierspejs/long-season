@@ -44,21 +44,23 @@ func StrictEquals(a, b models.User) bool {
 // and returns new user model.
 func Update(old models.User, c *Changes) models.User {
 	return models.User{
-		ID:       old.ID,
-		Nickname: updateString(old.Nickname, c.Nickname),
+		UserPublicData: models.UserPublicData{
+			ID:       old.ID,
+			Nickname: updateString(old.Nickname, c.Nickname),
+			Online:   updateNullableBool(old.Online, c.Online),
+		},
 		MAC:      updateByteSlice(old.MAC, c.MAC),
 		Password: updateByteSlice(old.Password, c.Password),
-		Online:   updateNullableBool(old.Online, c.Online),
 	}
 }
 
 // PublicSlice returns new slice with only public user data,
 // created from given slice containing full user data.
 func PublicSlice(u []models.User) []models.UserPublicData {
-	public := make([]models.UserPublicData, 0, cap(u))
+	public := make([]models.UserPublicData, len(u), cap(u))
 
-	for _, old := range u {
-		public = append(public, old.Public())
+	for i, old := range u {
+		public[i] = old.UserPublicData
 	}
 
 	sort.Slice(public, func(i, j int) bool {

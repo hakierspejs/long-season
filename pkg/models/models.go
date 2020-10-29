@@ -11,31 +11,25 @@ func init() {
 
 // User represents single user data stored in storage.
 type User struct {
-	// ID unique to every user.
-	ID int
-	// Nickname represents name that will be exposed to public,
-	// to inform people who is in the hackerspace.
-	Nickname string
-	// Online indicates if player is currently in the hackerspace.
-	Online bool
-	// MAC address of User hashed with bcrypt algorithm.
+	UserPublicData
+
+	// MAC contains the MAC address of the user's device.
 	MAC []byte
 	// Password of User hashed with bcrypt algorithm.
 	Password []byte
 }
 
-func (u User) Public() UserPublicData {
-	return UserPublicData{
-		ID:       u.ID,
-		Nickname: u.Nickname,
-		Online:   u.Online,
-	}
-}
-
+// UserPublicData is subset of User containing
+// only data that can be shown publicly to
+// everybody that will interact with API or website.
 type UserPublicData struct {
-	ID       int    `json:"id"`
+	// ID unique to every user.
+	ID int `json:"id"`
+	// Nickname represents name that will be exposed to public,
+	// to inform people who is in the hackerspace.
 	Nickname string `json:"nickname"`
-	Online   bool   `json:"online"`
+	// Online indicates if player is currently in the hackerspace.
+	Online bool `json:"online"`
 }
 
 // Config represents configuration that is
