@@ -7,6 +7,7 @@ import (
 
 func init() {
 	gob.Register(User{})
+	gob.Register(Device{})
 }
 
 // User represents single user data stored in storage.
@@ -30,6 +31,19 @@ type UserPublicData struct {
 	Nickname string `json:"nickname"`
 	// Online indicates if player is currently in the hackerspace.
 	Online bool `json:"online"`
+}
+
+type Device struct {
+	DevicePublicData
+
+	// MAC contains the MAC address of the device.
+	MAC []byte
+}
+
+type DevicePublicData struct {
+	ID    int    `json:"id"`
+	Tag   string `json:"tag"`
+	Owner string `json:"owner"`
 }
 
 // Config represents configuration that is

@@ -7,6 +7,7 @@ import (
 	jwtmiddleware "github.com/auth0/go-jwt-middleware"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/go-chi/chi"
+
 	"github.com/hakierspejs/long-season/pkg/models"
 )
 

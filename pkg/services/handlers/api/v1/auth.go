@@ -9,10 +9,11 @@ import (
 
 	"github.com/alioygur/gores"
 	"github.com/dgrijalva/jwt-go"
+	"golang.org/x/crypto/bcrypt"
+
 	"github.com/hakierspejs/long-season/pkg/models"
 	"github.com/hakierspejs/long-season/pkg/services/utils"
 	"github.com/hakierspejs/long-season/pkg/storage"
-	"golang.org/x/crypto/bcrypt"
 )
 
 const idLen = 16
