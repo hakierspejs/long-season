@@ -3,22 +3,20 @@ package api
 import (
 	"encoding/json"
 	"fmt"
-	"math/rand"
 	"net/http"
 	"time"
 
 	"github.com/alioygur/gores"
-	"github.com/dgrijalva/jwt-go"
+	"github.com/cristalhq/jwt/v3"
+	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/hakierspejs/long-season/pkg/models"
-	"github.com/hakierspejs/long-season/pkg/services/utils"
+	"github.com/hakierspejs/long-season/pkg/services/result"
 	"github.com/hakierspejs/long-season/pkg/storage"
 )
 
-const idLen = 16
-
-func ApiAuth(config models.Config, db storage.Users, rnd *rand.Rand) http.HandlerFunc {
+func ApiAuth(config models.Config, db storage.Users) http.HandlerFunc {
 	type payload struct {
 		Nickname string `json:"nickname"`
 		Password string `json:"password"`
@@ -29,11 +27,10 @@ func ApiAuth(config models.Config, db storage.Users, rnd *rand.Rand) http.Handle
 	}
 
 	return func(w http.ResponseWriter, r *http.Request) {
-
 		input := new(payload)
 		err := json.NewDecoder(r.Body).Decode(input)
 		if err != nil {
-			jsonError(w, &jsonErrorBody{
+			result.JSONError(w, &result.JSONErrorBody{
 				Message: "could not understand payload",
 				Code:    http.StatusBadRequest,
 				Type:    "bad-request",
@@ -43,7 +40,7 @@ func ApiAuth(config models.Config, db storage.Users, rnd *rand.Rand) http.Handle
 
 		users, err := db.All(r.Context())
 		if err != nil {
-			jsonError(w, &jsonErrorBody{
+			result.JSONError(w, &result.JSONErrorBody{
 				Message: "ooops! things are not going that great after all",
 				Code:    http.StatusInternalServerError,
 				Type:    "internal-server-error",
@@ -62,7 +59,7 @@ func ApiAuth(config models.Config, db storage.Users, rnd *rand.Rand) http.Handle
 		// Check if there is the user with given nickname
 		// in the database.
 		if match == nil {
-			jsonError(w, &jsonErrorBody{
+			result.JSONError(w, &result.JSONErrorBody{
 				Message: "there is no user with given nickname",
 				Code:    http.StatusNotFound,
 				Type:    "not-found",
@@ -75,7 +72,7 @@ func ApiAuth(config models.Config, db storage.Users, rnd *rand.Rand) http.Handle
 			match.Password,
 			[]byte(input.Password),
 		); err != nil {
-			jsonError(w, &jsonErrorBody{
+			result.JSONError(w, &result.JSONErrorBody{
 				Message: "given password does not match",
 				Code:    http.StatusUnauthorized,
 				Type:    "unauthorized",
@@ -83,18 +80,29 @@ func ApiAuth(config models.Config, db storage.Users, rnd *rand.Rand) http.Handle
 			return
 		}
 
-		// Prepare JWT token.
-		token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.StandardClaims{
-			Issuer:    input.Nickname,
-			ExpiresAt: time.Now().Add(time.Hour * 48).Unix(),
-			IssuedAt:  time.Now().Unix(),
-			Id:        utils.RandString(idLen, rnd),
-		})
-
-		// Sign token.
-		tokenString, err := token.SignedString([]byte(config.JWTSecret))
+		signer, err := jwt.NewSignerHS(jwt.HS256, []byte(config.JWTSecret))
 		if err != nil {
-			jsonError(w, &jsonErrorBody{
+			result.JSONError(w, &result.JSONErrorBody{
+				Message: "ooops! things are not going that great after all",
+				Code:    http.StatusInternalServerError,
+				Type:    "internal-server-error",
+			})
+			return
+		}
+
+		builder := jwt.NewBuilder(signer)
+
+		now := time.Now()
+		id := uuid.New()
+
+		token, err := builder.Build(&jwt.StandardClaims{
+			Issuer:    input.Nickname,
+			ExpiresAt: jwt.NewNumericDate(now.Add(time.Hour * 48)),
+			IssuedAt:  jwt.NewNumericDate(now),
+			ID:        id.String(),
+		})
+		if err != nil {
+			result.JSONError(w, &result.JSONErrorBody{
 				Message: "ooops! things are not going that great after all",
 				Code:    http.StatusInternalServerError,
 				Type:    "internal-server-error",
@@ -103,23 +111,17 @@ func ApiAuth(config models.Config, db storage.Users, rnd *rand.Rand) http.Handle
 		}
 
 		gores.JSONIndent(w, http.StatusOK, &response{
-			Token: tokenString,
+			Token: token.String(),
 		}, defaultPrefix, defaultIndent)
 	}
 }
 
 func jwtUser(r *http.Request) (string, error) {
-	token, ok := r.Context().Value("jwt-user").(*jwt.Token)
+	nickname, ok := r.Context().Value("jwt-user").(string)
 	if !ok {
-		return "", fmt.Errorf("failed to retrieve claims from token")
+		return "", fmt.Errorf("failed")
 	}
-
-	claims, ok := token.Claims.(jwt.MapClaims)
-	if !ok {
-		return "", fmt.Errorf("failed to retrieve standard claims")
-	}
-
-	return claims["iss"].(string), nil
+	return nickname, nil
 }
 
 func AuthResource() http.HandlerFunc {
@@ -131,7 +133,7 @@ func AuthResource() http.HandlerFunc {
 		nickname, err := jwtUser(r)
 		if err != nil {
 			fmt.Println(err)
-			jsonError(w, &jsonErrorBody{
+			result.JSONError(w, &result.JSONErrorBody{
 				Message: "You have to provide correct bearer token.",
 				Code:    http.StatusUnauthorized,
 				Type:    "unauthorized",
