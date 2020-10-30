@@ -13,6 +13,8 @@ import (
 	"github.com/hakierspejs/long-season/pkg/services/result"
 )
 
+// JWTOptions contains different fields intended for creating new
+// JWT middleware.
 type JWTOptions struct {
 	// Optional is flag, that will enable ignoring failed attempts
 	// to login.
@@ -103,7 +105,7 @@ func JWT(ops *JWTOptions) func(http.Handler) http.Handler {
 
 // ApiAuth is middleware for authorization of long-season REST api.
 func ApiAuth(config models.Config, optional bool) func(next http.Handler) http.Handler {
-	middleware := JWT(&JWTOptions{
+	return JWT(&JWTOptions{
 		Optional:  optional,
 		Secret:    []byte(config.JWTSecret),
 		Algorithm: jwt.HS256,
@@ -133,11 +135,9 @@ func ApiAuth(config models.Config, optional bool) func(next http.Handler) http.H
 			result.JSONError(w, &result.JSONErrorBody{
 				Code:    http.StatusUnauthorized,
 				Message: msg,
-				Type:    "internal-server-error",
+				Type:    "unauthorized",
 			})
 			return
 		},
 	})
-
-	return middleware
 }
