@@ -2,9 +2,7 @@ package main
 
 import (
 	"log"
-	"math/rand"
 	"net/http"
-	"time"
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
@@ -35,7 +33,6 @@ func main() {
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.RequestID)
 
-	rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Hello HS!"))
 	})
@@ -47,8 +44,8 @@ func main() {
 			r.Delete("/", api.UserRemove(factoryStorage.Users()))
 		})
 	})
-	r.Post("/login", api.ApiAuth(*config, factoryStorage.Users(), rnd))
-	r.With(lsmiddleware.JWT(*config, false)).Get("/secret", api.AuthResource())
+	r.Post("/login", api.ApiAuth(*config, factoryStorage.Users()))
+	r.With(lsmiddleware.ApiAuth(*config, false)).Get("/secret", api.AuthResource())
 
 	http.ListenAndServe(config.Address(), r)
 }

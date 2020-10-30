@@ -11,6 +11,7 @@ import (
 
 	"github.com/hakierspejs/long-season/pkg/models"
 	"github.com/hakierspejs/long-season/pkg/services/params"
+	"github.com/hakierspejs/long-season/pkg/services/result"
 	"github.com/hakierspejs/long-season/pkg/services/users"
 	"github.com/hakierspejs/long-season/pkg/storage"
 	serrors "github.com/hakierspejs/long-season/pkg/storage/errors"
@@ -28,7 +29,7 @@ func UserCreate(db storage.Users) http.HandlerFunc {
 		err := json.NewDecoder(r.Body).Decode(&p)
 		if err != nil {
 			// TODO(thinkofher) Implement proper error handling.
-			jsonError(w, &jsonErrorBody{
+			result.JSONError(w, &result.JSONErrorBody{
 				Message: fmt.Sprintf("decoding payload failed, error: %s", err.Error()),
 				Code:    http.StatusInternalServerError,
 				Type:    "internal-server-error",
@@ -38,7 +39,7 @@ func UserCreate(db storage.Users) http.HandlerFunc {
 
 		pass, err := bcrypt.GenerateFromPassword([]byte(p.Password), bcrypt.DefaultCost)
 		if err != nil {
-			jsonError(w, &jsonErrorBody{
+			result.JSONError(w, &result.JSONErrorBody{
 				Message: fmt.Sprintf("hashing password failed, error: %s", err.Error()),
 				Code:    http.StatusInternalServerError,
 				Type:    "internal-server-error",
@@ -55,7 +56,7 @@ func UserCreate(db storage.Users) http.HandlerFunc {
 		})
 		if err != nil {
 			// TODO(thinkofher) Implement proper error handling.
-			jsonError(w, &jsonErrorBody{
+			result.JSONError(w, &result.JSONErrorBody{
 				Message: fmt.Sprintf("creating new user failed, error: %s", err.Error()),
 				Code:    http.StatusInternalServerError,
 				Type:    "internal-server-error",
@@ -76,7 +77,7 @@ func UsersAll(db storage.Users) http.HandlerFunc {
 
 		if err != nil {
 			// TODO(thinkofher) Implement proper error handling.
-			jsonError(w, &jsonErrorBody{
+			result.JSONError(w, &result.JSONErrorBody{
 				Message: fmt.Sprintf("reading all users failed, error: %s", err.Error()),
 				Code:    http.StatusInternalServerError,
 				Type:    "internal-server-error",
@@ -106,7 +107,7 @@ func UserRead(db storage.Users) http.HandlerFunc {
 		id, err := params.UserID(r)
 		if err != nil {
 			// TODO(thinkofher) Implement proper error handling.
-			jsonError(w, &jsonErrorBody{
+			result.JSONError(w, &result.JSONErrorBody{
 				Message: fmt.Sprintf("reading user id failed, error: %s", err.Error()),
 				Code:    http.StatusInternalServerError,
 				Type:    "internal-server-error",
@@ -117,7 +118,7 @@ func UserRead(db storage.Users) http.HandlerFunc {
 		user, err := db.Read(r.Context(), id)
 		if err != nil {
 			// TODO(thinkofher) Implement proper error handling.
-			jsonError(w, &jsonErrorBody{
+			result.JSONError(w, &result.JSONErrorBody{
 				Message: fmt.Sprintf("reading user failed, error: %s", err.Error()),
 				Code:    http.StatusInternalServerError,
 				Type:    "internal-server-error",
@@ -134,7 +135,7 @@ func UserRemove(db storage.Users) http.HandlerFunc {
 		id, err := params.UserID(r)
 		if err != nil {
 			// TODO(thinkofher) Implement proper error handling.
-			jsonError(w, &jsonErrorBody{
+			result.JSONError(w, &result.JSONErrorBody{
 				Message: fmt.Sprintf("reading user id failed, error: %s", err.Error()),
 				Code:    http.StatusInternalServerError,
 				Type:    "internal-server-error",
@@ -145,7 +146,7 @@ func UserRemove(db storage.Users) http.HandlerFunc {
 		err = db.Remove(r.Context(), id)
 		if err != nil {
 			// TODO(thinkofher) Implement proper error handling.
-			jsonError(w, &jsonErrorBody{
+			result.JSONError(w, &result.JSONErrorBody{
 				Message: fmt.Sprintf("removing user id failed, error: %s", err.Error()),
 				Code:    http.StatusInternalServerError,
 				Type:    "internal-server-error",
@@ -170,7 +171,7 @@ func UpdateStatus(db storage.Users) http.HandlerFunc {
 
 		err := json.NewDecoder(r.Body).Decode(p)
 		if err != nil {
-			jsonError(w, &jsonErrorBody{
+			result.JSONError(w, &result.JSONErrorBody{
 				Message: fmt.Sprintf("invalid input: %s", err.Error()),
 				Code:    http.StatusBadRequest,
 				Type:    "bad-request",
@@ -180,7 +181,7 @@ func UpdateStatus(db storage.Users) http.HandlerFunc {
 
 		users, err := db.All(r.Context())
 		if err != nil {
-			jsonError(w, &jsonErrorBody{
+			result.JSONError(w, &result.JSONErrorBody{
 				Message: "ooops! things are not going that great after all",
 				Code:    http.StatusInternalServerError,
 				Type:    "internal-server-error",
@@ -203,14 +204,14 @@ func UpdateStatus(db storage.Users) http.HandlerFunc {
 			switch err.(type) {
 			case serrors.NoID:
 				errNoID := err.(serrors.NoID)
-				jsonError(w, &jsonErrorBody{
+				result.JSONError(w, &result.JSONErrorBody{
 					Message: fmt.Sprintf("there is no user with id equal to %d", errNoID.ID()),
 					Code:    http.StatusNotFound,
 					Type:    "status-not-found",
 				})
 				return
 			default:
-				jsonError(w, &jsonErrorBody{
+				result.JSONError(w, &result.JSONErrorBody{
 					Message: "ooops! things are not going that great after all",
 					Code:    http.StatusInternalServerError,
 					Type:    "internal-server-error",

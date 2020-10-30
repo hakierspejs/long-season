@@ -11,6 +11,7 @@ const (
 	portEnv      = "LS_PORT"
 	boltENV      = "LS_BOLT_DB"
 	jwtSecretEnv = "LS_JWT_SECRET"
+	appNameEnv   = "LS_APP"
 )
 
 // Env returns pointer to models.Config which is
@@ -22,6 +23,7 @@ func Env() *models.Config {
 		Port:         DefaultEnv(portEnv, "3000"),
 		DatabasePath: DefaultEnv(boltENV, "long-season.db"),
 		JWTSecret:    DefaultEnv(jwtSecretEnv, "default-super-secret"),
+		AppName:      DefaultEnv(appNameEnv, "long-season-backend"),
 	}
 }
 
