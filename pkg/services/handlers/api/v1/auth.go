@@ -95,11 +95,17 @@ func ApiAuth(config models.Config, db storage.Users) http.HandlerFunc {
 		now := time.Now()
 		id := uuid.New()
 
-		token, err := builder.Build(&jwt.StandardClaims{
-			Issuer:    input.Nickname,
-			ExpiresAt: jwt.NewNumericDate(now.Add(time.Hour * 48)),
-			IssuedAt:  jwt.NewNumericDate(now),
-			ID:        id.String(),
+		token, err := builder.Build(&models.Claims{
+			StandardClaims: jwt.StandardClaims{
+				Issuer:    config.AppName,
+				Audience:  []string{"ls-apiv1"},
+				Subject:   "auth",
+				ExpiresAt: jwt.NewNumericDate(now.Add(time.Hour * 48)),
+				IssuedAt:  jwt.NewNumericDate(now),
+				ID:        id.String(),
+			},
+			Nickname: match.Nickname,
+			UserID:   match.ID,
 		})
 		if err != nil {
 			result.JSONError(w, &result.JSONErrorBody{
@@ -116,12 +122,12 @@ func ApiAuth(config models.Config, db storage.Users) http.HandlerFunc {
 	}
 }
 
-func jwtUser(r *http.Request) (string, error) {
-	nickname, ok := r.Context().Value("jwt-user").(string)
+func JWTClaims(r *http.Request) (*models.Claims, error) {
+	claims, ok := r.Context().Value("jwt-user").(*models.Claims)
 	if !ok {
-		return "", fmt.Errorf("failed")
+		return nil, fmt.Errorf("failed")
 	}
-	return nickname, nil
+	return claims, nil
 }
 
 func AuthResource() http.HandlerFunc {
@@ -130,7 +136,7 @@ func AuthResource() http.HandlerFunc {
 	}
 
 	return func(w http.ResponseWriter, r *http.Request) {
-		nickname, err := jwtUser(r)
+		claims, err := JWTClaims(r)
 		if err != nil {
 			fmt.Println(err)
 			result.JSONError(w, &result.JSONErrorBody{
@@ -142,7 +148,7 @@ func AuthResource() http.HandlerFunc {
 		}
 
 		gores.JSONIndent(w, http.StatusOK, &response{
-			Message: fmt.Sprintf("You are authenticated as %s.", nickname),
+			Message: fmt.Sprintf("You are authenticated as %s.", claims.Nickname),
 		}, defaultPrefix, defaultIndent)
 	}
 }

@@ -3,6 +3,8 @@ package models
 import (
 	"encoding/gob"
 	"fmt"
+
+	"github.com/cristalhq/jwt/v3"
 )
 
 func init() {
@@ -53,10 +55,18 @@ type Config struct {
 	Port         string
 	DatabasePath string
 	JWTSecret    string
+	AppName      string
 }
 
 // Address returns address string that is compatible
 // with http.ListenAndServe function.
 func (c Config) Address() string {
 	return fmt.Sprintf("%s:%s", c.Host, c.Port)
+}
+
+// Claims represents custom claims for jwt authentication.
+type Claims struct {
+	jwt.StandardClaims
+	UserID   int    `json:"id"`
+	Nickname string `json:"nck"`
 }

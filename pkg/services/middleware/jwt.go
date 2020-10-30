@@ -82,7 +82,7 @@ func JWT(ops *JWTOptions) func(http.Handler) http.Handler {
 				return
 			}
 
-			newClaims := new(jwt.StandardClaims)
+			newClaims := new(models.Claims)
 			err = json.Unmarshal(newToken.RawClaims(), newClaims)
 			if err != nil {
 				ops.InternalServerError(w, r)
@@ -95,9 +95,7 @@ func JWT(ops *JWTOptions) func(http.Handler) http.Handler {
 				return
 			}
 
-			// TODO(dudekb) create custom claims for long-season application
-			//              and injects them into context.
-			newCtx := context.WithValue(r.Context(), ops.ContextKey, newClaims.Issuer)
+			newCtx := context.WithValue(r.Context(), ops.ContextKey, newClaims)
 			next.ServeHTTP(w, r.WithContext(newCtx))
 		})
 	}
