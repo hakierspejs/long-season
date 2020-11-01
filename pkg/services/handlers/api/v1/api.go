@@ -191,3 +191,152 @@ func UpdateStatus(dbu storage.Users, dbd storage.Devices) http.HandlerFunc {
 		return
 	}
 }
+
+func internalServerError(w http.ResponseWriter) {
+	result.JSONError(w, &result.JSONErrorBody{
+		Message: "ooops! things are not going that great after all",
+		Code:    http.StatusInternalServerError,
+		Type:    "internal-server-error",
+	})
+}
+
+func notFound(w http.ResponseWriter) {
+	result.JSONError(w, &result.JSONErrorBody{
+		Message: "Cannot find requested resources.",
+		Code:    http.StatusNotFound,
+		Type:    "not-found",
+	})
+}
+
+func badRequest(msg string, w http.ResponseWriter) {
+	result.JSONError(w, &result.JSONErrorBody{
+		Message: msg,
+		Code:    http.StatusBadRequest,
+		Type:    "bad-request",
+	})
+}
+
+// DeviceAdd handles creation of new device for requesting user.
+// Make sure to use with middleware.JWT (or another middleware that
+// appends models.Claims to request), because this handler has
+// to know some arbitrary user data.
+func DeviceAdd(db storage.Devices) http.HandlerFunc {
+	type payload struct {
+		Tag string `json:"tag"`
+		MAC string `json:"mac"`
+	}
+
+	return func(w http.ResponseWriter, r *http.Request) {
+		userID, err := requests.UserID(r)
+		if err != nil {
+			notFound(w)
+			return
+		}
+
+		claims, err := requests.JWTClaims(r)
+		if err != nil {
+			// At this point handler should have
+			// been provided with JWT claims, so we
+			// will just return 500.
+			internalServerError(w)
+			return
+		}
+
+		p := new(payload)
+		err = json.NewDecoder(r.Body).Decode(&p)
+		if err != nil {
+			internalServerError(w)
+			return
+		}
+
+		device := models.Device{
+			DevicePublicData: models.DevicePublicData{
+				Owner: claims.Nickname,
+				Tag:   p.Tag,
+			},
+			MAC:     []byte(p.MAC),
+			OwnerID: claims.UserID,
+		}
+
+		_, err = db.New(r.Context(), userID, device)
+		if err != nil {
+			internalServerError(w)
+			return
+		}
+
+		w.WriteHeader(http.StatusCreated)
+	}
+}
+
+type singleDevice struct {
+	ID  int    `json:"id"`
+	Tag string `json:"tag"`
+}
+
+// UserDevices handler responses with list of devices owned by
+// requesting user.
+func UserDevices(db storage.Devices) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		userID, err := requests.UserID(r)
+		if err != nil {
+			notFound(w)
+			return
+		}
+
+		devices, err := db.OfUser(r.Context(), userID)
+		if err != nil {
+			notFound(w)
+			return
+		}
+
+		result := make([]singleDevice, len(devices), cap(devices))
+		for i, device := range devices {
+			result[i] = singleDevice{device.ID, device.Tag}
+		}
+
+		gores.JSONIndent(w, http.StatusOK, result, defaultPrefix, defaultIndent)
+	}
+}
+
+func DeviceRead(db storage.Devices) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		deviceID, err := requests.DeviceID(r)
+		if err != nil {
+			badRequest("invalid device id. please fix your request", w)
+			return
+		}
+
+		userID, err := requests.UserID(r)
+		if err != nil {
+			badRequest("invalid user id. please fix your request", w)
+			return
+		}
+
+		claims, err := requests.JWTClaims(r)
+		if err != nil {
+			// At this point handler should have
+			// been provided with JWT claims, so we
+			// will just return 500.
+			internalServerError(w)
+			return
+		}
+
+		device, err := db.Read(r.Context(), deviceID)
+		if err != nil {
+			internalServerError(w)
+			return
+		}
+
+		// Check if requesting user owns resources.
+		if (device.OwnerID != claims.UserID) && (claims.UserID != userID) {
+			notFound(w)
+			return
+		}
+
+		result := &singleDevice{
+			ID:  device.ID,
+			Tag: device.Tag,
+		}
+		gores.JSONIndent(w, http.StatusOK, result, defaultPrefix, defaultIndent)
+	}
+}
