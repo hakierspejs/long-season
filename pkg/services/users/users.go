@@ -23,7 +23,6 @@ type Changes struct {
 func Equals(a, b models.User) bool {
 	return all(
 		a.Nickname == b.Nickname,
-		bytes.Equal(a.MAC, b.MAC),
 		bytes.Equal(a.Password, b.Password),
 	)
 }
@@ -33,7 +32,6 @@ func Equals(a, b models.User) bool {
 func StrictEquals(a, b models.User) bool {
 	return all(
 		a.Nickname == b.Nickname,
-		bytes.Equal(a.MAC, b.MAC),
 		bytes.Equal(a.Password, b.Password),
 		a.Online == b.Online,
 		a.ID == b.ID,
@@ -49,7 +47,6 @@ func Update(old models.User, c *Changes) models.User {
 			Nickname: updateString(old.Nickname, c.Nickname),
 			Online:   updateNullableBool(old.Online, c.Online),
 		},
-		MAC:      updateByteSlice(old.MAC, c.MAC),
 		Password: updateByteSlice(old.Password, c.Password),
 	}
 }

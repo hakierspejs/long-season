@@ -9,7 +9,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/hakierspejs/long-season/pkg/models"
-	"github.com/hakierspejs/long-season/pkg/services/params"
+	"github.com/hakierspejs/long-season/pkg/services/requests"
 	"github.com/hakierspejs/long-season/pkg/services/result"
 	"github.com/hakierspejs/long-season/pkg/services/users"
 	"github.com/hakierspejs/long-season/pkg/storage"
@@ -102,7 +102,7 @@ func UsersAll(db storage.Users) http.HandlerFunc {
 
 func UserRead(db storage.Users) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		id, err := params.UserID(r)
+		id, err := requests.UserID(r)
 		if err != nil {
 			// TODO(thinkofher) Implement proper error handling.
 			result.JSONError(w, &result.JSONErrorBody{
@@ -130,7 +130,7 @@ func UserRead(db storage.Users) http.HandlerFunc {
 
 func UserRemove(db storage.Users) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		id, err := params.UserID(r)
+		id, err := requests.UserID(r)
 		if err != nil {
 			// TODO(thinkofher) Implement proper error handling.
 			result.JSONError(w, &result.JSONErrorBody{

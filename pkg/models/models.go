@@ -16,8 +16,6 @@ func init() {
 type User struct {
 	UserPublicData
 
-	// MAC contains the MAC address of the user's device.
-	MAC []byte
 	// Password of User hashed with bcrypt algorithm.
 	Password []byte
 }

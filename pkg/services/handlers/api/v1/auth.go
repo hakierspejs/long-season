@@ -12,6 +12,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/hakierspejs/long-season/pkg/models"
+	"github.com/hakierspejs/long-season/pkg/services/requests"
 	"github.com/hakierspejs/long-season/pkg/services/result"
 	"github.com/hakierspejs/long-season/pkg/storage"
 )
@@ -122,21 +123,13 @@ func ApiAuth(config models.Config, db storage.Users) http.HandlerFunc {
 	}
 }
 
-func JWTClaims(r *http.Request) (*models.Claims, error) {
-	claims, ok := r.Context().Value("jwt-user").(*models.Claims)
-	if !ok {
-		return nil, fmt.Errorf("failed")
-	}
-	return claims, nil
-}
-
 func AuthResource() http.HandlerFunc {
 	type response struct {
 		Message string `json:"msg"`
 	}
 
 	return func(w http.ResponseWriter, r *http.Request) {
-		claims, err := JWTClaims(r)
+		claims, err := requests.JWTClaims(r)
 		if err != nil {
 			fmt.Println(err)
 			result.JSONError(w, &result.JSONErrorBody{
