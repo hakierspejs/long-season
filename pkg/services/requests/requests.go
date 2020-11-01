@@ -27,6 +27,8 @@ func UserID(r *http.Request) (int, error) {
 	return res, nil
 }
 
+// JWTClaims retrieves jwt claims specific for long-season from
+// http.Request.
 func JWTClaims(r *http.Request) (*models.Claims, error) {
 	claims, ok := r.Context().Value(config.JWTUserKey).(*models.Claims)
 	if !ok {
