@@ -9,6 +9,7 @@ import (
 	"strconv"
 
 	"github.com/hakierspejs/long-season/pkg/models"
+	"github.com/hakierspejs/long-season/pkg/services/config"
 )
 
 // UserID returns user id from url.
@@ -27,9 +28,9 @@ func UserID(r *http.Request) (int, error) {
 }
 
 func JWTClaims(r *http.Request) (*models.Claims, error) {
-	claims, ok := r.Context().Value("jwt-user").(*models.Claims)
+	claims, ok := r.Context().Value(config.JWTUserKey).(*models.Claims)
 	if !ok {
-		return nil, fmt.Errorf("failed")
+		return nil, fmt.Errorf("long-season: there are no jwt claims in context")
 	}
 	return claims, nil
 }

@@ -10,6 +10,8 @@ import (
 
 	"github.com/cristalhq/jwt/v3"
 	"github.com/hakierspejs/long-season/pkg/models"
+	"github.com/hakierspejs/long-season/pkg/services/config"
+	"github.com/hakierspejs/long-season/pkg/services/requests"
 	"github.com/hakierspejs/long-season/pkg/services/result"
 )
 
@@ -102,10 +104,10 @@ func JWT(ops *JWTOptions) func(http.Handler) http.Handler {
 }
 
 // ApiAuth is middleware for authorization of long-season REST api.
-func ApiAuth(config models.Config, optional bool) func(next http.Handler) http.Handler {
+func ApiAuth(c models.Config, optional bool) func(next http.Handler) http.Handler {
 	return JWT(&JWTOptions{
 		Optional:  optional,
-		Secret:    []byte(config.JWTSecret),
+		Secret:    []byte(c.JWTSecret),
 		Algorithm: jwt.HS256,
 		Extractor: func(r *http.Request) (string, error) {
 			header := r.Header.Get("Authorization")
@@ -120,7 +122,7 @@ func ApiAuth(config models.Config, optional bool) func(next http.Handler) http.H
 			token := strings.TrimPrefix(header, "Bearer ")
 			return token, nil
 		},
-		ContextKey: "jwt-user",
+		ContextKey: config.JWTUserKey,
 		InternalServerError: func(w http.ResponseWriter, r *http.Request) {
 			result.JSONError(w, &result.JSONErrorBody{
 				Code:    http.StatusInternalServerError,
@@ -137,5 +139,37 @@ func ApiAuth(config models.Config, optional bool) func(next http.Handler) http.H
 			})
 			return
 		},
+	})
+}
+
+// Private checks if given user id is equal to user id at JWT claims.
+func Private(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fail := func(w http.ResponseWriter) {
+			result.JSONError(w, &result.JSONErrorBody{
+				Code:    http.StatusUnauthorized,
+				Message: "You are not allowed to operate at requested resources.",
+				Type:    "unauthorized",
+			})
+		}
+
+		userID, err := requests.UserID(r)
+		if err != nil {
+			fail(w)
+			return
+		}
+
+		claims, err := requests.JWTClaims(r)
+		if err != nil {
+			fail(w)
+			return
+		}
+
+		if userID != claims.UserID {
+			fail(w)
+			return
+		}
+
+		next.ServeHTTP(w, r)
 	})
 }

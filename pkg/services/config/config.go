@@ -6,6 +6,9 @@ import (
 	"github.com/hakierspejs/long-season/pkg/models"
 )
 
+// JWTUserKey is key for JWT claims stored in request context.
+const JWTUserKey = "jwt-user"
+
 const (
 	hostEnv      = "LS_HOST"
 	portEnv      = "LS_PORT"
