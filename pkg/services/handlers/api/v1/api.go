@@ -1,7 +1,6 @@
 package api
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -14,7 +13,6 @@ import (
 	"github.com/hakierspejs/long-season/pkg/services/result"
 	"github.com/hakierspejs/long-season/pkg/services/users"
 	"github.com/hakierspejs/long-season/pkg/storage"
-	serrors "github.com/hakierspejs/long-season/pkg/storage/errors"
 )
 
 func UserCreate(db storage.Users) http.HandlerFunc {
@@ -161,7 +159,7 @@ func UserRemove(db storage.Users) http.HandlerFunc {
 // UpdateStatus updates online field of every user id database
 // with MAC address equal to one from slice provided by
 // user in request payload.
-func UpdateStatus(db storage.Users) http.HandlerFunc {
+func UpdateStatus(dbu storage.Users, dbd storage.Devices) http.HandlerFunc {
 	type payload struct {
 		Addresses []string `json:"addresses"`
 	}
@@ -179,7 +177,7 @@ func UpdateStatus(db storage.Users) http.HandlerFunc {
 			return
 		}
 
-		users, err := db.All(r.Context())
+		err = storage.UpdateStatuses(r.Context(), p.Addresses, dbd, dbu)
 		if err != nil {
 			result.JSONError(w, &result.JSONErrorBody{
 				Message: "ooops! things are not going that great after all",
@@ -187,37 +185,6 @@ func UpdateStatus(db storage.Users) http.HandlerFunc {
 				Type:    "internal-server-error",
 			})
 			return
-		}
-
-		updateded := make([]models.User, len(users))
-		for _, user := range users {
-			for _, address := range p.Addresses {
-				if bytes.Equal([]byte(address), user.MAC) {
-					user.Online = true
-					updateded = append(updateded, user)
-				}
-			}
-		}
-
-		err = db.UpdateMany(r.Context(), updateded)
-		if err != nil {
-			switch err.(type) {
-			case serrors.NoID:
-				errNoID := err.(serrors.NoID)
-				result.JSONError(w, &result.JSONErrorBody{
-					Message: fmt.Sprintf("there is no user with id equal to %d", errNoID.ID()),
-					Code:    http.StatusNotFound,
-					Type:    "status-not-found",
-				})
-				return
-			default:
-				result.JSONError(w, &result.JSONErrorBody{
-					Message: "ooops! things are not going that great after all",
-					Code:    http.StatusInternalServerError,
-					Type:    "internal-server-error",
-				})
-				return
-			}
 		}
 
 		w.WriteHeader(http.StatusOK)
