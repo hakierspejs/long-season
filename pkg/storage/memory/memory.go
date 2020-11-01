@@ -26,13 +26,18 @@ const (
 // Factory implements storage.Factory interface for
 // bolt database.
 type Factory struct {
-	users *UsersStorage
+	users   *UsersStorage
+	devices *DevicesStorage
 }
 
 // Users returns storage interface for manipulating
 // users data.
 func (f Factory) Users() *UsersStorage {
 	return f.users
+}
+
+func (f Factory) Devices() *DevicesStorage {
+	return f.devices
 }
 
 // New returns pointer to new memory storage
@@ -48,7 +53,8 @@ func New(db *bolt.DB) (*Factory, error) {
 	}
 
 	return &Factory{
-		users: &UsersStorage{db},
+		users:   &UsersStorage{db},
+		devices: &DevicesStorage{db},
 	}, nil
 }
 
@@ -196,7 +202,7 @@ func (s *UsersStorage) All(ctx context.Context) ([]models.User, error) {
 }
 
 // updateOne updates one user in bucket.
-func updateOne(b *bolt.Bucket, u models.User) error {
+func updateOneUser(b *bolt.Bucket, u models.User) error {
 	// Check if there is user with given id in database.
 	if b.Get([]byte(strconv.Itoa(u.ID))) == nil {
 		return serrors.ErrNoID(u.ID)
@@ -215,7 +221,7 @@ func updateOne(b *bolt.Bucket, u models.User) error {
 func (s *UsersStorage) Update(ctx context.Context, u models.User) error {
 	return s.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(usersBucket))
-		return updateOne(b, u)
+		return updateOneUser(b, u)
 	})
 }
 
@@ -225,7 +231,7 @@ func (s *UsersStorage) UpdateMany(ctx context.Context, u []models.User) error {
 		b := tx.Bucket([]byte(usersBucket))
 
 		for _, user := range u {
-			err := updateOne(b, user)
+			err := updateOneUser(b, user)
 			if err != nil {
 				return err
 			}
@@ -308,6 +314,7 @@ func (d *DevicesStorage) New(ctx context.Context, userID int, newDevice models.D
 	return id, nil
 }
 
+// OfUser returns list of models owned by user with given id.
 func (d *DevicesStorage) OfUser(ctx context.Context, userID int) ([]models.Device, error) {
 	ans := []models.Device{}
 
@@ -349,6 +356,7 @@ func (d *DevicesStorage) OfUser(ctx context.Context, userID int) ([]models.Devic
 	return ans, nil
 }
 
+// Read returns single device data with given ID.
 func (s *DevicesStorage) Read(ctx context.Context, id int) (*models.Device, error) {
 	device := new(models.Device)
 
@@ -366,8 +374,73 @@ func (s *DevicesStorage) Read(ctx context.Context, id int) (*models.Device, erro
 		return gob.NewDecoder(buff).Decode(device)
 	})
 	if err != nil {
-		return nil, fmt.Errorf("reading user with id=%d failed: %w", id, err)
+		return nil, fmt.Errorf("reading device with id=%d failed: %w", id, err)
 	}
 
 	return device, nil
+}
+
+// All returns slice with all devices from storage.
+func (s *DevicesStorage) All(ctx context.Context) ([]models.Device, error) {
+	res := []models.Device{}
+
+	err := s.db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(devicesBucket))
+
+		return b.ForEach(func(k, v []byte) error {
+			device := new(models.Device)
+			buff := bytes.NewBuffer(v)
+
+			// Check if given key is an integer.
+			if _, err := strconv.Atoi(string(k)); err == nil {
+				err := gob.NewDecoder(buff).Decode(device)
+				if err != nil {
+					return fmt.Errorf("decoding device from gob failed: %w", err)
+				}
+
+				res = append(res, *device)
+			}
+
+			return nil
+		})
+	})
+	if err != nil {
+		return nil, fmt.Errorf("reading all devices failed: %w", err)
+	}
+
+	return res, nil
+}
+
+// Update overwrites existing device data.
+func (s *DevicesStorage) Update(ctx context.Context, d models.Device) error {
+	return s.db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(devicesBucket))
+
+		// Check if there is device with given id in database.
+		if b.Get([]byte(strconv.Itoa(d.ID))) == nil {
+			return serrors.ErrNoID(d.ID)
+		}
+
+		buff := bytes.NewBuffer([]byte{})
+		err := gob.NewEncoder(buff).Encode(&d)
+		if err != nil {
+			return err
+		}
+
+		return b.Put([]byte(strconv.Itoa(d.ID)), buff.Bytes())
+	})
+}
+
+// Remove deletes device with given id from storage.
+func (s *DevicesStorage) Remove(ctx context.Context, id int) error {
+	return s.db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(devicesBucket))
+
+		// Check if there is user with given id in database.
+		if b.Get([]byte(strconv.Itoa(id))) == nil {
+			return serrors.ErrNoID(id)
+		}
+
+		return b.Delete([]byte(strconv.Itoa(id)))
+	})
 }

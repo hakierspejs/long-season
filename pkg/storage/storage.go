@@ -10,6 +10,7 @@ import (
 // stored data.
 type Factory interface {
 	Users() Users
+	Devices() Devices
 }
 
 // Users interface handles generic create, read,
