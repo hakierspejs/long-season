@@ -43,10 +43,19 @@ func (f Factory) Devices() *DevicesStorage {
 // New returns pointer to new memory storage
 // Factory.
 func New(db *bolt.DB) (*Factory, error) {
-
+	buckets := []string{
+		usersBucket,
+		devicesBucket,
+	}
 	err := db.Update(func(tx *bolt.Tx) error {
-		_, err := tx.CreateBucketIfNotExists([]byte(usersBucket))
-		return err
+		for _, b := range buckets {
+			_, err := tx.CreateBucketIfNotExists([]byte(b))
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
 	})
 	if err != nil {
 		return nil, err
@@ -266,6 +275,7 @@ type DevicesStorage struct {
 func (d *DevicesStorage) New(ctx context.Context, userID int, newDevice models.Device) (int, error) {
 	var id int
 
+	// TODO(dudekb) Check if there is user with given id.
 	err := d.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(devicesBucket))
 
