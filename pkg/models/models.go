@@ -33,6 +33,9 @@ type UserPublicData struct {
 	Online bool `json:"online"`
 }
 
+// TODO(dudekb) Use net.HardwareAddr instead of []byte for
+//              MAC field at Device struct.
+
 type Device struct {
 	DevicePublicData
 
