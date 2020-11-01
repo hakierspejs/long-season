@@ -16,9 +16,11 @@ import (
 )
 
 const (
-	countersBucket     = "ls::counters"
-	usersBucket        = "ls::users"
-	usersBucketCounter = "ls::users::counter"
+	countersBucket       = "ls::counters"
+	usersBucket          = "ls::users"
+	usersBucketCounter   = "ls::users::counter"
+	devicesBucket        = "ls::devices"
+	devicesBucketCounter = "ls::devices::counter"
 )
 
 // Factory implements storage.Factory interface for
@@ -245,4 +247,127 @@ func (s *UsersStorage) Remove(ctx context.Context, id int) error {
 
 		return b.Delete([]byte(strconv.Itoa(id)))
 	})
+}
+
+// DevicesStorage implements storage.Devices interface
+// for bolt database.
+type DevicesStorage struct {
+	db *bolt.DB
+}
+
+// New stores given devices data in database and returns
+// assigned id.
+func (d *DevicesStorage) New(ctx context.Context, userID int, newDevice models.Device) (int, error) {
+	var id int
+
+	err := d.db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(devicesBucket))
+
+		// Check if there is the device with same owner and tag.
+		err := b.ForEach(func(k, v []byte) error {
+			buff := bytes.NewBuffer(v)
+
+			var device models.Device
+
+			// Check if given key is an integer.
+			if _, err := strconv.Atoi(string(k)); err == nil {
+				err := gob.NewDecoder(buff).Decode(&device)
+				if err != nil {
+					return err
+				}
+
+				if device.Owner == newDevice.Owner && device.Tag == newDevice.Tag {
+					return serrors.ErrDeviceDuplication
+				}
+			}
+
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+
+		id, err = incr(tx, []byte(devicesBucketCounter))
+		if err != nil {
+			return err
+		}
+		newDevice.ID = id
+
+		buff := bytes.NewBuffer([]byte{})
+		err = gob.NewEncoder(buff).Encode(&newDevice)
+		if err != nil {
+			return err
+		}
+
+		return b.Put([]byte(strconv.Itoa(id)), buff.Bytes())
+	})
+	if err != nil {
+		return 0, err
+	}
+
+	return id, nil
+}
+
+func (d *DevicesStorage) OfUser(ctx context.Context, userID int) ([]models.Device, error) {
+	ans := []models.Device{}
+
+	err := d.db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(devicesBucket))
+
+		// Check if there is the device with same owner and tag.
+		err := b.ForEach(func(k, v []byte) error {
+			buff := bytes.NewBuffer(v)
+
+			var device models.Device
+
+			// Check if given key is an integer.
+			if _, err := strconv.Atoi(string(k)); err == nil {
+				err := gob.NewDecoder(buff).Decode(&device)
+				if err != nil {
+					return err
+				}
+
+				if device.OwnerID == userID {
+					ans = append(ans, device)
+				}
+			}
+
+			return nil
+		})
+
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return ans, err
+	}
+
+	return ans, nil
+}
+
+func (s *DevicesStorage) Read(ctx context.Context, id int) (*models.Device, error) {
+	device := new(models.Device)
+
+	err := s.db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(devicesBucket))
+		data := b.Get([]byte(strconv.Itoa(id)))
+
+		if data == nil {
+			return serrors.ErrNoID(id)
+		}
+
+		// TODO(thinkofher) You can move process of decoding outside
+		// of View function to unlock writing to database.
+		buff := bytes.NewBuffer(data)
+		return gob.NewDecoder(buff).Decode(device)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("reading user with id=%d failed: %w", id, err)
+	}
+
+	return device, nil
 }

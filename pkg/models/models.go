@@ -38,6 +38,8 @@ type UserPublicData struct {
 type Device struct {
 	DevicePublicData
 
+	// OwnerID is id of user that owns this device.
+	OwnerID int
 	// MAC contains the MAC address of the device.
 	MAC []byte
 }

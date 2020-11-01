@@ -1,6 +1,9 @@
 package errors
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
 
 // UsernameTaken is being returned when there is
 // already a user with given username.
@@ -14,14 +17,14 @@ func (u NicknameTaken) Error() string {
 	)
 }
 
-// NoID is returned when there is no user with given id
+// NoID is returned when there is no resource with given id
 // stored in database.
 type NoID int
 
 // Error method, which implements error interface.
 func (id NoID) Error() string {
 	return fmt.Sprintf(
-		"long-season storage: there is no user with \"%d\" id.", int(id),
+		"long-season storage: there is no resource with \"%d\" id.", int(id),
 	)
 }
 
@@ -39,3 +42,5 @@ func ErrNicknameTaken(username string) error {
 func ErrNoID(id int) error {
 	return NoID(id)
 }
+
+var ErrDeviceDuplication = errors.New("There is already device with given owner and tag.")
