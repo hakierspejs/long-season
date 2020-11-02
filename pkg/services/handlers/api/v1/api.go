@@ -308,6 +308,10 @@ func UserDevices(db storage.Devices) http.HandlerFunc {
 	}
 }
 
+func sameOwner(userID, deviceOwnerID, claimsID int) bool {
+	return (userID == deviceOwnerID) && (deviceOwnerID == claimsID)
+}
+
 func DeviceRead(db storage.Devices) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		deviceID, err := requests.DeviceID(r)
@@ -342,7 +346,7 @@ func DeviceRead(db storage.Devices) http.HandlerFunc {
 		}
 
 		// Check if requesting user owns resources.
-		if (device.OwnerID != claims.UserID) || (claims.UserID != userID) {
+		if !sameOwner(userID, device.OwnerID, claims.UserID) {
 			notFound(w)
 			return
 		}
@@ -389,7 +393,7 @@ func DeviceRemove(db storage.Devices) http.HandlerFunc {
 		}
 
 		// Check if requesting user owns resources.
-		if (device.OwnerID != claims.UserID) || (claims.UserID != userID) {
+		if !sameOwner(userID, device.OwnerID, claims.UserID) {
 			notFound(w)
 			return
 		}
