@@ -36,14 +36,27 @@ func main() {
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Hello HS!"))
 	})
+
 	r.Route("/users", func(r chi.Router) {
 		r.Get("/", api.UsersAll(factoryStorage.Users()))
 		r.Post("/", api.UserCreate(factoryStorage.Users()))
 		r.With(lsmiddleware.UserID).Route("/{user-id}", func(r chi.Router) {
 			r.Get("/", api.UserRead(factoryStorage.Users()))
 			r.Delete("/", api.UserRemove(factoryStorage.Users()))
+			r.With(
+				lsmiddleware.ApiAuth(*config, false),
+				lsmiddleware.Private,
+			).Route("/devices", func(r chi.Router) {
+				r.Get("/", api.UserDevices(factoryStorage.Devices()))
+				r.Post("/", api.DeviceAdd(factoryStorage.Devices()))
+				r.With(lsmiddleware.DeviceID).Route("/{device-id}", func(r chi.Router) {
+					r.Get("/", api.DeviceRead(factoryStorage.Devices()))
+					r.Delete("/", api.DeviceRemove(factoryStorage.Devices()))
+				})
+			})
 		})
 	})
+
 	r.Post("/login", api.ApiAuth(*config, factoryStorage.Users()))
 	r.With(lsmiddleware.ApiAuth(*config, false)).Get("/secret", api.AuthResource())
 
