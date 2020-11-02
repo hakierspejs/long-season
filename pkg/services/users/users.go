@@ -13,7 +13,6 @@ import (
 // can be applied to models.User
 type Changes struct {
 	Nickname string
-	MAC      []byte
 	Password []byte
 	Online   *bool
 }
