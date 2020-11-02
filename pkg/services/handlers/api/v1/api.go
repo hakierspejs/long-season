@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/hakierspejs/long-season/pkg/services/result"
 	"github.com/hakierspejs/long-season/pkg/services/users"
 	"github.com/hakierspejs/long-season/pkg/storage"
+	serrors "github.com/hakierspejs/long-season/pkg/storage/errors"
 )
 
 func UserCreate(db storage.Users) http.HandlerFunc {
@@ -202,7 +204,7 @@ func internalServerError(w http.ResponseWriter) {
 
 func notFound(w http.ResponseWriter) {
 	result.JSONError(w, &result.JSONErrorBody{
-		Message: "Cannot find requested resources.",
+		Message: "cannot find requested resources",
 		Code:    http.StatusNotFound,
 		Type:    "not-found",
 	})
@@ -259,6 +261,14 @@ func DeviceAdd(db storage.Devices) http.HandlerFunc {
 		}
 
 		_, err = db.New(r.Context(), userID, device)
+		if errors.Is(err, serrors.ErrDeviceDuplication) {
+			result.JSONError(w, &result.JSONErrorBody{
+				Code:    http.StatusConflict,
+				Type:    "conflict",
+				Message: "tag already used",
+			})
+			return
+		}
 		if err != nil {
 			internalServerError(w)
 			return
@@ -322,13 +332,17 @@ func DeviceRead(db storage.Devices) http.HandlerFunc {
 		}
 
 		device, err := db.Read(r.Context(), deviceID)
+		if errors.As(err, &serrors.ErrNoID) {
+			notFound(w)
+			return
+		}
 		if err != nil {
 			internalServerError(w)
 			return
 		}
 
 		// Check if requesting user owns resources.
-		if (device.OwnerID != claims.UserID) && (claims.UserID != userID) {
+		if (device.OwnerID != claims.UserID) || (claims.UserID != userID) {
 			notFound(w)
 			return
 		}
@@ -338,5 +352,58 @@ func DeviceRead(db storage.Devices) http.HandlerFunc {
 			Tag: device.Tag,
 		}
 		gores.JSONIndent(w, http.StatusOK, result, defaultPrefix, defaultIndent)
+	}
+}
+
+func DeviceRemove(db storage.Devices) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		deviceID, err := requests.DeviceID(r)
+		if err != nil {
+			badRequest("invalid device id. please fix your request", w)
+			return
+		}
+
+		userID, err := requests.UserID(r)
+		if err != nil {
+			badRequest("invalid user id. please fix your request", w)
+			return
+		}
+
+		claims, err := requests.JWTClaims(r)
+		if err != nil {
+			// At this point handler should have
+			// been provided with JWT claims, so we
+			// will just return 500.
+			internalServerError(w)
+			return
+		}
+
+		device, err := db.Read(r.Context(), deviceID)
+		if errors.As(err, &serrors.ErrNoID) {
+			notFound(w)
+			return
+		}
+		if err != nil {
+			internalServerError(w)
+			return
+		}
+
+		// Check if requesting user owns resources.
+		if (device.OwnerID != claims.UserID) || (claims.UserID != userID) {
+			notFound(w)
+			return
+		}
+
+		err = db.Remove(r.Context(), deviceID)
+		if errors.As(err, &serrors.ErrNoID) {
+			notFound(w)
+			return
+		}
+		if err != nil {
+			internalServerError(w)
+			return
+		}
+
+		w.WriteHeader(http.StatusNoContent)
 	}
 }
