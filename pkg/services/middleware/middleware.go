@@ -22,3 +22,8 @@ func URLParamInjection(param string) func(http.Handler) http.Handler {
 func UserID(next http.Handler) http.Handler {
 	return URLParamInjection("user-id")(next)
 }
+
+// DeviceID injects user id into request context.
+func DeviceID(next http.Handler) http.Handler {
+	return URLParamInjection("device-id")(next)
+}
