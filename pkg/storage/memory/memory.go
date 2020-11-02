@@ -124,7 +124,7 @@ func (s *UsersStorage) New(ctx context.Context, newUser models.User) (int, error
 				}
 
 				if user.Nickname == newUser.Nickname {
-					return serrors.ErrNicknameTaken(newUser.Nickname)
+					return serrors.ErrNicknameTaken
 				}
 			}
 
@@ -164,7 +164,7 @@ func (s *UsersStorage) Read(ctx context.Context, id int) (*models.User, error) {
 		data := b.Get([]byte(strconv.Itoa(id)))
 
 		if data == nil {
-			return serrors.ErrNoID(id)
+			return serrors.ErrNoID
 		}
 
 		// TODO(thinkofher) You can move process of decoding outside
@@ -214,7 +214,7 @@ func (s *UsersStorage) All(ctx context.Context) ([]models.User, error) {
 func updateOneUser(b *bolt.Bucket, u models.User) error {
 	// Check if there is user with given id in database.
 	if b.Get([]byte(strconv.Itoa(u.ID))) == nil {
-		return serrors.ErrNoID(u.ID)
+		return serrors.ErrNoID
 	}
 
 	buff := bytes.NewBuffer([]byte{})
@@ -257,7 +257,7 @@ func (s *UsersStorage) Remove(ctx context.Context, id int) error {
 
 		// Check if there is user with given id in database.
 		if b.Get([]byte(strconv.Itoa(id))) == nil {
-			return serrors.ErrNoID(id)
+			return serrors.ErrNoID
 		}
 
 		return b.Delete([]byte(strconv.Itoa(id)))
@@ -375,7 +375,7 @@ func (s *DevicesStorage) Read(ctx context.Context, id int) (*models.Device, erro
 		data := b.Get([]byte(strconv.Itoa(id)))
 
 		if data == nil {
-			return serrors.ErrNoID(id)
+			return serrors.ErrNoID
 		}
 
 		// TODO(thinkofher) You can move process of decoding outside
@@ -428,7 +428,7 @@ func (s *DevicesStorage) Update(ctx context.Context, d models.Device) error {
 
 		// Check if there is device with given id in database.
 		if b.Get([]byte(strconv.Itoa(d.ID))) == nil {
-			return serrors.ErrNoID(d.ID)
+			return serrors.ErrNoID
 		}
 
 		buff := bytes.NewBuffer([]byte{})
@@ -448,7 +448,7 @@ func (s *DevicesStorage) Remove(ctx context.Context, id int) error {
 
 		// Check if there is user with given id in database.
 		if b.Get([]byte(strconv.Itoa(id))) == nil {
-			return serrors.ErrNoID(id)
+			return serrors.ErrNoID
 		}
 
 		return b.Delete([]byte(strconv.Itoa(id)))
