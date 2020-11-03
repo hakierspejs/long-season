@@ -3,6 +3,8 @@ package main
 import (
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
@@ -60,6 +62,10 @@ func main() {
 			})
 		})
 	})
+
+	workDir, _ := os.Getwd()
+	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.Dir(filepath.Join(workDir, "static")))))
+	r.Handle("/static/js/*", http.StripPrefix("/static/js/", http.FileServer(http.Dir(filepath.Join(workDir, "static/js")))))
 
 	r.Post("/login", api.ApiAuth(*config, factoryStorage.Users()))
 	r.With(lsmiddleware.ApiAuth(*config, false)).Get("/secret", api.AuthResource())

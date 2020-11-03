@@ -1,0 +1,9 @@
+body {
+  font-family: monospace;
+  background-color: black;
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  color: darkgreen;
+  width: 600px;
+}
