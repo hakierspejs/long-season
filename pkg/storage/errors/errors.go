@@ -1,41 +1,18 @@
 package errors
 
-import "fmt"
+import (
+	"errors"
+)
 
-// UsernameTaken is being returned when there is
-// already a user with given username.
-type NicknameTaken string
+var (
+	// ErrDeviceDuplication is returned, when there is already device with given owner and tag.
+	ErrDeviceDuplication = errors.New("there is already device with given owner and tag")
 
-// Error method, which implements error interface.
-func (u NicknameTaken) Error() string {
-	return fmt.Sprintf(
-		"long-season storage: user with \"%s\" username is already registered.",
-		string(u),
-	)
-}
+	// ErrNoID is returned when there is no resource with given id
+	// stored in database.
+	ErrNoID = errors.New("resource with given id not found")
 
-// NoID is returned when there is no user with given id
-// stored in database.
-type NoID int
-
-// Error method, which implements error interface.
-func (id NoID) Error() string {
-	return fmt.Sprintf(
-		"long-season storage: there is no user with \"%d\" id.", int(id),
-	)
-}
-
-// ID returns invalid id, which is the source of the error.
-func (id NoID) ID() int {
-	return int(id)
-}
-
-// ErrUsernameTaken is handy facade for UsernameTaken error.
-func ErrNicknameTaken(username string) error {
-	return NicknameTaken(username)
-}
-
-// ErrNoID is handy facade for NoID error.
-func ErrNoID(id int) error {
-	return NoID(id)
-}
+	// ErrNicknameTaken is being returned when there is
+	// already a user with given username.
+	ErrNicknameTaken = errors.New("user with given username is already registered")
+)

@@ -7,13 +7,13 @@ import (
 	"sort"
 
 	"github.com/hakierspejs/long-season/pkg/models"
+	"github.com/hakierspejs/long-season/pkg/services/update"
 )
 
 // Changes represents possible changes that
 // can be applied to models.User
 type Changes struct {
 	Nickname string
-	MAC      []byte
 	Password []byte
 	Online   *bool
 }
@@ -23,7 +23,6 @@ type Changes struct {
 func Equals(a, b models.User) bool {
 	return all(
 		a.Nickname == b.Nickname,
-		bytes.Equal(a.MAC, b.MAC),
 		bytes.Equal(a.Password, b.Password),
 	)
 }
@@ -33,7 +32,6 @@ func Equals(a, b models.User) bool {
 func StrictEquals(a, b models.User) bool {
 	return all(
 		a.Nickname == b.Nickname,
-		bytes.Equal(a.MAC, b.MAC),
 		bytes.Equal(a.Password, b.Password),
 		a.Online == b.Online,
 		a.ID == b.ID,
@@ -46,11 +44,10 @@ func Update(old models.User, c *Changes) models.User {
 	return models.User{
 		UserPublicData: models.UserPublicData{
 			ID:       old.ID,
-			Nickname: updateString(old.Nickname, c.Nickname),
-			Online:   updateNullableBool(old.Online, c.Online),
+			Nickname: update.String(old.Nickname, c.Nickname),
+			Online:   update.NullableBool(old.Online, c.Online),
 		},
-		MAC:      updateByteSlice(old.MAC, c.MAC),
-		Password: updateByteSlice(old.Password, c.Password),
+		Password: update.Bytes(old.Password, c.Password),
 	}
 }
 
@@ -79,25 +76,4 @@ func all(args ...bool) bool {
 		}
 	}
 	return true
-}
-
-func updateByteSlice(old, changes []byte) []byte {
-	if len(changes) > 0 {
-		return changes
-	}
-	return old
-}
-
-func updateString(old, changes string) string {
-	if len(changes) > 0 {
-		return changes
-	}
-	return old
-}
-
-func updateNullableBool(old bool, change *bool) bool {
-	if change != nil {
-		return *change
-	}
-	return old
 }
