@@ -10,6 +10,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/hakierspejs/long-season/pkg/models"
+	"github.com/hakierspejs/long-season/pkg/services/devices"
 	"github.com/hakierspejs/long-season/pkg/services/requests"
 	"github.com/hakierspejs/long-season/pkg/services/result"
 	"github.com/hakierspejs/long-season/pkg/services/users"
@@ -228,6 +229,7 @@ func DeviceAdd(db storage.Devices) http.HandlerFunc {
 		MAC string `json:"mac"`
 	}
 
+	// TODO(dudekb) Add Location header.
 	return func(w http.ResponseWriter, r *http.Request) {
 		userID, err := requests.UserID(r)
 		if err != nil {
@@ -409,5 +411,70 @@ func DeviceRemove(db storage.Devices) http.HandlerFunc {
 		}
 
 		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
+func DeviceUpdate(db storage.Devices) http.HandlerFunc {
+	type payload struct {
+		MAC string `json:"mac"`
+		Tag string `json:"tag"`
+	}
+
+	return func(w http.ResponseWriter, r *http.Request) {
+		deviceID, err := requests.DeviceID(r)
+		if err != nil {
+			badRequest("invalid device id. please fix your request", w)
+			return
+		}
+
+		userID, err := requests.UserID(r)
+		if err != nil {
+			badRequest("invalid user id. please fix your request", w)
+			return
+		}
+
+		input := new(payload)
+		err = json.NewDecoder(r.Body).Decode(input)
+		if err != nil {
+			badRequest("invalid input data", w)
+		}
+
+		claims, err := requests.JWTClaims(r)
+		if err != nil {
+			// At this point handler should have
+			// been provided with JWT claims, so we
+			// will just return 500.
+			internalServerError(w)
+			return
+		}
+
+		device, err := db.Read(r.Context(), deviceID)
+		if errors.As(err, &serrors.ErrNoID) {
+			notFound(w)
+			return
+		}
+		if err != nil {
+			internalServerError(w)
+			return
+		}
+
+		// Check if requesting user owns resources.
+		if !sameOwner(userID, device.OwnerID, claims.UserID) {
+			notFound(w)
+			return
+		}
+
+		updated := devices.Update(*device, &devices.Changes{
+			MAC: []byte(input.MAC),
+			Tag: input.Tag,
+		})
+
+		err = db.Update(r.Context(), updated)
+		if err != nil {
+			internalServerError(w)
+			return
+		}
+
+		gores.JSONIndent(w, http.StatusOK, &updated.DevicePublicData, defaultPrefix, defaultIndent)
 	}
 }

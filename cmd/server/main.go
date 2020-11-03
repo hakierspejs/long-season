@@ -52,6 +52,7 @@ func main() {
 				r.With(lsmiddleware.DeviceID).Route("/{device-id}", func(r chi.Router) {
 					r.Get("/", api.DeviceRead(factoryStorage.Devices()))
 					r.Delete("/", api.DeviceRemove(factoryStorage.Devices()))
+					r.Patch("/", api.DeviceUpdate(factoryStorage.Devices()))
 				})
 			})
 		})

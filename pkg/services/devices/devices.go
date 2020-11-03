@@ -25,7 +25,7 @@ func Update(old models.Device, c *Changes) models.Device {
 			Owner: old.Owner,
 			Tag:   update.String(old.Tag, c.Tag),
 		},
-		OwnerID: old.ID,
+		OwnerID: old.OwnerID,
 		MAC:     update.Bytes(old.MAC, c.MAC),
 	}
 }
