@@ -7,6 +7,7 @@ import (
 	"sort"
 
 	"github.com/hakierspejs/long-season/pkg/models"
+	"github.com/hakierspejs/long-season/pkg/services/update"
 )
 
 // Changes represents possible changes that
@@ -43,10 +44,10 @@ func Update(old models.User, c *Changes) models.User {
 	return models.User{
 		UserPublicData: models.UserPublicData{
 			ID:       old.ID,
-			Nickname: updateString(old.Nickname, c.Nickname),
-			Online:   updateNullableBool(old.Online, c.Online),
+			Nickname: update.String(old.Nickname, c.Nickname),
+			Online:   update.NullableBool(old.Online, c.Online),
 		},
-		Password: updateByteSlice(old.Password, c.Password),
+		Password: update.Bytes(old.Password, c.Password),
 	}
 }
 
@@ -75,25 +76,4 @@ func all(args ...bool) bool {
 		}
 	}
 	return true
-}
-
-func updateByteSlice(old, changes []byte) []byte {
-	if len(changes) > 0 {
-		return changes
-	}
-	return old
-}
-
-func updateString(old, changes string) string {
-	if len(changes) > 0 {
-		return changes
-	}
-	return old
-}
-
-func updateNullableBool(old bool, change *bool) bool {
-	if change != nil {
-		return *change
-	}
-	return old
 }
