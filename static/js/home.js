@@ -8,13 +8,13 @@ const usersTemplate = Handlebars.compile(`
 
 const hackerState = {
   closed:       "Hackerspace is closed.",
-  foreverAlone: "There is one person in hackerspace.",
-  party:        (num) => "There are " + num + " people in hackerspace."
+  foreverAlone: "There is one person in the hackerspace.",
+  party:        (num) => "There are " + num + " people in the hackerspace."
 };
 
 const downloadUsers = () => {
   u("#users").text("Loading...");
-  fetch('/users?online=true')
+  fetch('/api/v1/users?online=true')
     .then(response => response.json())
     .then(data => {
       u("#users").html(usersTemplate({ users: data }));
