@@ -1,3 +1,4 @@
+{{ define "layout" }}
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -7,27 +8,20 @@
     <script src="https://cdn.jsdelivr.net/npm/handlebars@4.7.6/dist/handlebars.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/umbrellajs@3.2.3/umbrella.min.js"></script>
     <link rel="stylesheet" href="/static/style.css">
-    <script src="/static/js/index.js" defer></script>
+    {{ block "scripts" . }}{{ end }}
   </head>
   <body>
     <nav class="container">
       <div class="at">hackerspace@lodz:~$</div>
-      <div class="elem"><a href="#">home</a></div>
+      <div class="elem"><a href="/">home</a></div>
       <div class="elem"><a href="#">about</a></div>
       <div class="elem"><a href="#">register</a></div>
-      <div class="elem"><a href="#">login</a></div>
+      <div class="elem"><a href="/login">login</a></div>
     </nav>
     <main>
       <h1>long-season</h1>
-
-      <p id="online">Loading...</p>
-      <details>
-        <summary>Who is online?</summary>
-        <section id="users">
-          Loading...
-        </section>
-      </details>
-
+      {{ block "content" . }}{{ end }}
     </main>
   </body>
 </html>
+{{ end }}

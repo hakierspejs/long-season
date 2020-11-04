@@ -117,6 +117,14 @@ func ApiAuth(config models.Config, db storage.Users) http.HandlerFunc {
 			return
 		}
 
+		http.SetCookie(w, &http.Cookie{
+			Name:     "jwt-token",
+			Expires:  now.Add(time.Hour * 4),
+			Value:    token.String(),
+			HttpOnly: true,
+			Path:     "/",
+		})
+
 		gores.JSONIndent(w, http.StatusOK, &response{
 			Token: token.String(),
 		}, defaultPrefix, defaultIndent)

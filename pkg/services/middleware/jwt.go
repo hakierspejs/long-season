@@ -103,9 +103,8 @@ func JWT(ops *JWTOptions) func(http.Handler) http.Handler {
 	}
 }
 
-// ApiAuth is middleware for authorization of long-season REST api.
-func ApiAuth(c models.Config, optional bool) func(next http.Handler) http.Handler {
-	return JWT(&JWTOptions{
+func defaultJwtOptions(c models.Config, optional bool) JWTOptions {
+	return JWTOptions{
 		Optional:  optional,
 		Secret:    []byte(c.JWTSecret),
 		Algorithm: jwt.HS256,
@@ -139,7 +138,33 @@ func ApiAuth(c models.Config, optional bool) func(next http.Handler) http.Handle
 			})
 			return
 		},
-	})
+	}
+}
+
+// ApiAuth is middleware for authorization of long-season REST api.
+func ApiAuth(c models.Config, optional bool) func(next http.Handler) http.Handler {
+	options := defaultJwtOptions(c, optional)
+	return JWT(&options)
+}
+
+func ViewAuth(c models.Config, optional bool) func(next http.Handler) http.Handler {
+	options := defaultJwtOptions(c, optional)
+	options.Extractor = func(r *http.Request) (string, error) {
+		cookie, err := r.Cookie("jwt-token")
+		if err != nil {
+			return "", err
+		}
+
+		valid := cookie.Expires.Before(time.Now())
+		if !valid {
+			return "", fmt.Errorf("cookie is expired")
+		}
+
+		fmt.Println("jwt-token", cookie.Value)
+		return cookie.Value, nil
+	}
+
+	return JWT(&options)
 }
 
 // Private checks if given user id is equal to user id at JWT claims.

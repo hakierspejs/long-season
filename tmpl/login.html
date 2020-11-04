@@ -1,0 +1,22 @@
+{{ template "layout" }}
+
+{{ define "scripts" }}
+  <script src="/static/js/login.js" defer></script>
+{{ end }}
+
+{{ define "content" }}
+<form id="form">
+  <div>
+    <label for="nickname">login:</label>
+    <input type="text" id="nickname" name="nickname">
+  </div>
+
+  <div>
+    <label for="password">password:</label>
+    <input type="password" id="password" name="password">
+  </div>
+
+  <button type="submit">Submit</button>
+</form>
+<button id="test">Test</button>
+{{ end }}
