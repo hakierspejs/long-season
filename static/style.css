@@ -1,9 +1,65 @@
-body {
+html {
+  background-color: black;
+  background: linear-gradient(to top, darkgreen 5%, black 40%);
+  color: darkgreen;
   font-family: monospace;
+  width: 100%;
+  height: 100%;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+body {
   background-color: black;
   display: block;
-  margin-left: auto;
-  margin-right: auto;
-  color: darkgreen;
-  width: 600px;
+  margin: auto;
+  min-width: 28em;
+  max-width: 48em;
+  padding: 2em;
+}
+
+* {box-sizing: border-box;}
+
+h1::before {
+  content: "$";
+  padding-right: 1rem;
+}
+
+.container {
+  display: flex;
+  flex-flow: row wrap;
+  justify-content: flex-start;
+  align-items: flex-end
+}
+
+.at {
+  flex-grow: 8;
+}
+
+.elem {
+  flex-grow: 1;
+}
+
+.elem::before {
+  content: "[";
+  padding-right: 0.5em;
+}
+
+.elem::after {
+  content: "]";
+  padding-left: 0.5em;
+}
+
+a {
+  color: green;
+}
+
+@media only screen and (max-width: 500px) {
+  .elem {
+    padding-top: 1em;
+  }
+  .container {
+    align-items: flex-start;
+    flex-direction: column;
+  }
 }

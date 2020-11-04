@@ -1,24 +1,34 @@
 const usersTemplate = Handlebars.compile(`
 <ul>
   {{#each users}}
-    <li>{{this.nickname}} is <span>
-      {{#if this.online}}
-        online
-      {{else}}
-        offline
-      {{/if}}
-    </span>
-    </li>
+    <li>{{this.nickname}}</li>
   {{/each}}
 </ul>
 `);
 
+const hackerState = {
+  closed:       "Hackerspace is closed.",
+  foreverAlone: "There is one person in hackerspace.",
+  party:        (num) => "There are " + num + " people in hackerspace."
+};
+
 const downloadUsers = () => {
   u("#users").text("Loading...");
-  fetch('/users')
+  fetch('/users?online=true')
     .then(response => response.json())
     .then(data => {
       u("#users").html(usersTemplate({ users: data }));
+      switch(data.length) {
+        case 0:
+          u("#online").text(hackerState.closed);
+          break;
+        case 1:
+          u("#online").text(hackerState.foreverAlone);
+          break;
+        default:
+          u("#online").text(hackerState.party(data.length));
+          break;
+      }
     })
     .catch(() => {
       u("#users").text("Failed to load users data.");
