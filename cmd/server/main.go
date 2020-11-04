@@ -62,6 +62,7 @@ func main() {
 			})
 		})
 	})
+	r.Put("/update", api.UpdateStatus(factoryStorage.Users(), factoryStorage.Devices()))
 
 	workDir, _ := os.Getwd()
 	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.Dir(filepath.Join(workDir, "static")))))
