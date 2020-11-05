@@ -11,6 +11,7 @@ import (
 	bolt "go.etcd.io/bbolt"
 
 	"github.com/hakierspejs/long-season/pkg/services/config"
+	"github.com/hakierspejs/long-season/pkg/services/handlers"
 	"github.com/hakierspejs/long-season/pkg/services/handlers/api/v1"
 	lsmiddleware "github.com/hakierspejs/long-season/pkg/services/middleware"
 	"github.com/hakierspejs/long-season/pkg/services/ui"
@@ -35,6 +36,7 @@ func main() {
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.RequestID)
+	r.Use(middleware.NoCache)
 
 	r.Get("/", ui.Home())
 	r.Get("/login", ui.LoginPage())
@@ -67,11 +69,12 @@ func main() {
 		r.Put("/update", api.UpdateStatus(factoryStorage.Users(), factoryStorage.Devices()))
 	})
 
-	workDir, _ := os.Getwd()
-	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.Dir(filepath.Join(workDir, "static")))))
-	r.Handle("/static/js/*", http.StripPrefix("/static/js/", http.FileServer(http.Dir(filepath.Join(workDir, "static/js")))))
+	r.With(lsmiddleware.ViewAuth(*config, false)).Get("/who", handlers.Who())
+	r.Get("/logout", ui.Logout())
 
-	r.With(lsmiddleware.ViewAuth(*config, false)).Get("/secret", api.AuthResource())
+	workDir, _ := os.Getwd()
+	filesDir := http.Dir(filepath.Join(workDir, "static"))
+	handlers.FileServer(r, "/static", filesDir)
 
 	http.ListenAndServe(config.Address(), r)
 }
