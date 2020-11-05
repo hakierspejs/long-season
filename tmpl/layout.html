@@ -4,18 +4,17 @@
   <head>
     <meta charset="UTF-8">
     <title>long-season</title>
+    <link rel="stylesheet" href="/static/style.css">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <script src="https://cdn.jsdelivr.net/npm/handlebars@4.7.6/dist/handlebars.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/umbrellajs@3.2.3/umbrella.min.js"></script>
-    <link rel="stylesheet" href="/static/style.css">
+    <script src="/static/js/utils.js"></script>
+    <script src="/static/js/navbar.js"></script>
+    <script src="/static/js/vendor/kel.js"></script>
     {{ block "scripts" . }}{{ end }}
   </head>
   <body>
     <nav class="container">
-      <div class="at">hackerspace@lodz:~$</div>
-      <div class="elem"><a href="/">home</a></div>
-      <div class="elem"><a href="#">register</a></div>
-      <div class="elem"><a href="/login">login</a></div>
     </nav>
     <main>
       <h1>long-season</h1>
