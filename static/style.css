@@ -1,18 +1,14 @@
+/*
+ * Variables with colors used for site theme.
+ */
 :root {
-  --lg-3: #D6FAD4;
-  --lg-2: #1B9B12;
-  --lg-1: #146F0D;
-  --ng-0: #0E4E09;
-  --dg-1: #082C05;
+  --lg-3: #d6fad4;
+  --lg-2: #1b9b12;
+  --lg-1: #146f0d;
+  --ng-0: #0e4e09;
+  --dg-1: #082c05;
   --dg-2: #041603;
-  --dg-3: #020B01;
-}
-
-input {
-  background-color: var(--ng-0);
-  color: var(--lg-3);
-  margin: 0.5ch;
-  padding: 0.5ch;
+  --dg-3: #020b01;
 }
 
 html {
@@ -33,7 +29,9 @@ body {
   padding: 2ch;
 }
 
-* {box-sizing: border-box;}
+* {
+  box-sizing: border-box;
+}
 
 h1::before {
   content: "$";
@@ -58,6 +56,17 @@ button:hover {
   color: var(--dg-3);
   background-color: var(--lg-1);
 }
+
+input {
+  background-color: var(--ng-0);
+  color: var(--lg-3);
+  margin: 0.5ch;
+  padding: 0.5ch;
+}
+
+/*
+ * Grid styles for login form.
+ */
 
 .grid-form {
   max-width: 20ch;
@@ -97,11 +106,20 @@ button:hover {
   grid-area: button;
 }
 
+.err-msg {
+  color: var(--lg-3);
+  margin-bottom: 2ch;
+}
+
+/*
+ * Flexbox styles for navigation bar.
+ */
+
 .container {
   display: flex;
   flex-flow: row wrap;
   justify-content: flex-start;
-  align-items: flex-end
+  align-items: flex-end;
 }
 
 .at {
@@ -122,6 +140,10 @@ button:hover {
   padding-left: 0.5em;
 }
 
+/*
+ * Custom links.
+ */
+
 a {
   color: var(--lg-2);
   text-decoration: none;
@@ -131,6 +153,10 @@ a {
 a:hover {
   text-decoration: underline;
 }
+
+/*
+ * Simple queries for mobile devices.
+ */
 
 @media only screen and (max-width: 500px) {
   .elem {

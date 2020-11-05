@@ -19,7 +19,7 @@ ready(() =>
     store.on(EVENTS.UPDATE, id);
 
     store.on(EVENTS.ERROR, ({ login, password, error }) => {
-      u("#err-msg").text(error);
+      u(".err-msg").text(error);
     });
 
     const err = (msg) => {
