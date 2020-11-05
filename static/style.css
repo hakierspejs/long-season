@@ -1,8 +1,24 @@
+:root {
+  --lg-3: #D6FAD4;
+  --lg-2: #1B9B12;
+  --lg-1: #146F0D;
+  --ng-0: #0E4E09;
+  --dg-1: #082C05;
+  --dg-2: #041603;
+  --dg-3: #020B01;
+}
+
+input {
+  background-color: var(--ng-0);
+  color: var(--lg-3);
+  margin: 0.5ch;
+  padding: 0.5ch;
+}
+
 html {
-  background-color: black;
-  background: linear-gradient(to top, darkgreen 5%, black 40%);
-  color: darkgreen;
-  font-family: monospace;
+  background-color: var(--dg-3);
+  background: linear-gradient(to top, var(--dg-2) 5%, var(--dg-3) 40%);
+  color: var(--lg-1);
   width: 100%;
   height: 100%;
   background-size: cover;
@@ -10,12 +26,11 @@ html {
 }
 
 body {
-  background-color: black;
+  font-family: "Lucida Console", monospace;
   display: block;
   margin: auto;
-  min-width: 28em;
-  max-width: 48em;
-  padding: 2em;
+  max-width: 70ch;
+  padding: 2ch;
 }
 
 * {box-sizing: border-box;}
@@ -23,6 +38,63 @@ body {
 h1::before {
   content: "$";
   padding-right: 1rem;
+}
+
+button {
+  border: 2px solid var(--lg-1);
+  color: var(--lg-3);
+  background-color: var(--ng-0);
+  display: inline-block;
+  padding: 0.5ch;
+  margin: 0.5ch;
+  text-align: center;
+  text-decoration: none;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+button:hover {
+  border: 2px solid var(--ng-0);
+  color: var(--dg-3);
+  background-color: var(--lg-1);
+}
+
+.grid-form {
+  max-width: 20ch;
+  grid-gap: 1ch 1ch;
+  display: grid;
+  grid-template-rows: repeat(3, ch);
+  grid-template-columns: 10ch auto;
+  grid-template-areas:
+    "login-label login-input"
+    "password-label password-input"
+    "button button";
+
+  justify-items: start;
+  align-items: center;
+
+  justify-content: stretch;
+  align-content: space-around;
+}
+
+.login-label {
+  grid-area: login-label;
+}
+
+.login-input {
+  grid-area: login-input;
+}
+
+.password-label {
+  grid-area: password-label;
+}
+
+.password-input {
+  grid-area: password-input;
+}
+
+.button-area {
+  grid-area: button;
 }
 
 .container {
@@ -51,7 +123,13 @@ h1::before {
 }
 
 a {
-  color: green;
+  color: var(--lg-2);
+  text-decoration: none;
+  outline: 0;
+}
+
+a:hover {
+  text-decoration: underline;
 }
 
 @media only screen and (max-width: 500px) {

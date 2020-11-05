@@ -1,4 +1,14 @@
-u("#form").handle('submit', (e) => {
+loginErrorMessages = {
+  401: "password does not match",
+  404: "there is no user with given nickname",
+  "default": "invalid server response, please try again later"
+};
+
+function setErrorMessage(msg) {
+  u("#err-msg").text(msg);
+}
+
+u("#login-form").handle('submit', (e) => {
   let nickname = u("#nickname").first().value;
   let password = u("#password").first().value;
 
@@ -16,18 +26,24 @@ u("#form").handle('submit', (e) => {
     credentials: 'include',
     body: JSON.stringify(data)
   })
-    .then(response => response.json())
-    .then(data => console.log(data));
-});
-
-u("#test").on('click', () => {
-  fetch('/secret', {
-    method: 'GET',
-    credentials: 'same-origin'
-  })
     .then(response => {
-      console.log(response);
-      return response.json();
+      switch(response.status) {
+        case 401:
+          setErrorMessage(loginErrorMessages[response.status]);
+          break;
+        case 404:
+          setErrorMessage(loginErrorMessages[response.status]);
+          break;
+        case 200:
+          window.location.href = "/";
+          break
+        default:
+          setErrorMessage(loginErrorMessages["default"]);
+          break;
+      }
     })
-    .then(data => console.log(data));
+    .catch(() => {
+      setErrorMessage(loginErrorMessages["default"]);
+    });
+
 });
