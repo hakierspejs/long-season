@@ -20,6 +20,13 @@ func LoginPage() http.HandlerFunc {
 	}
 }
 
+func Register() http.HandlerFunc {
+	tmpl := template.Must(template.ParseFiles("tmpl/layout.html", "tmpl/register.html"))
+	return func(w http.ResponseWriter, r *http.Request) {
+		tmpl.ExecuteTemplate(w, "layout", nil)
+	}
+}
+
 func Logout() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		now := time.Now()

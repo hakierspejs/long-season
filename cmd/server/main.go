@@ -71,6 +71,7 @@ func main() {
 
 	r.With(lsmiddleware.ViewAuth(*config, false)).Get("/who", handlers.Who())
 	r.Get("/logout", ui.Logout())
+	r.Get("/register", ui.Register())
 
 	workDir, _ := os.Getwd()
 	filesDir := http.Dir(filepath.Join(workDir, "static"))

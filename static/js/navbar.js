@@ -9,7 +9,7 @@ ready(() =>
       <div class="elem"><a href="#">{{ nickname }}@hsldz</a></div>
       <div class="elem"><a href="/logout">logout</a></div>
     {{else}}
-      <div class="elem"><a href="#">register</a></div>
+      <div class="elem"><a href="/register">register</a></div>
       <div class="elem"><a href="/login">login</a></div>
     {{/if}}
   `);
