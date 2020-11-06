@@ -52,6 +52,7 @@ func ApiAuth(config models.Config, db storage.Users) http.HandlerFunc {
 		for _, user := range users {
 			if user.Nickname == input.Nickname {
 				match = &user
+				break
 			}
 		}
 
