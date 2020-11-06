@@ -74,7 +74,6 @@ fieldset {
  */
 
 .grid-form {
-  max-width: 20ch;
   grid-gap: 1ch 1ch;
   display: grid;
   grid-template-rows: repeat(3, 4ch);
@@ -84,7 +83,7 @@ fieldset {
     "password-label password-input"
     "button button";
 
-  justify-items: start;
+  justify-items: stretch;
   align-items: center;
 
   justify-content: stretch;

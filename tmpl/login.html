@@ -5,17 +5,20 @@
 {{ end }}
 
 {{ define "content" }}
-<div class="err-msg">
-</div>
-<form id="login-form" class="grid-form">
-  <label for="nickname" class="login-label">login:</label>
-  <input type="text" id="nickname" name="nickname" class="login-input">
-
-  <label for="password" class="password-label">password:</label>
-  <input type="password" id="password" name="password" class="password-input">
-
-  <div class="button-area">
-    <button type="submit">submit</button>
+<fieldset>
+  <legend>enter your credentials</legend>
+  <div class="err-msg">
   </div>
-</form>
+  <form id="login-form" class="grid-form">
+    <label for="nickname" class="login-label">login:</label>
+    <input type="text" id="nickname" name="nickname" class="login-input">
+
+    <label for="password" class="password-label">password:</label>
+    <input type="password" id="password" name="password" class="password-input">
+
+    <div class="button-area">
+      <button type="submit">submit</button>
+    </div>
+  </form>
+</fieldset>
 {{ end }}
