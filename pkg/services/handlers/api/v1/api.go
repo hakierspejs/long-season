@@ -18,6 +18,14 @@ import (
 	serrors "github.com/hakierspejs/long-season/pkg/storage/errors"
 )
 
+func conflict(msg string, w http.ResponseWriter) {
+	result.JSONError(w, &result.JSONErrorBody{
+		Message: msg,
+		Code:    http.StatusConflict,
+		Type:    "conflict",
+	})
+}
+
 func UserCreate(db storage.Users) http.HandlerFunc {
 	type payload struct {
 		Nickname string `json:"nickname"`
@@ -55,8 +63,11 @@ func UserCreate(db storage.Users) http.HandlerFunc {
 			},
 			Password: pass,
 		})
+		if errors.Is(err, serrors.ErrNicknameTaken) {
+			conflict("given username is already taken", w)
+			return
+		}
 		if err != nil {
-			// TODO(thinkofher) Implement proper error handling.
 			result.JSONError(w, &result.JSONErrorBody{
 				Message: fmt.Sprintf("creating new user failed, error: %s", err.Error()),
 				Code:    http.StatusInternalServerError,
