@@ -16,10 +16,13 @@ ready(() =>
       default: "invalid server response, please try again later",
     };
 
-    store.on(EVENTS.UPDATE, id);
+    store.on(EVENTS.UPDATE, () => {
+      // Clear error message.
+      u(".err-msg").text("");
+    });
 
     store.on(EVENTS.ERROR, ({ login, password, error }) => {
-      u(".err-msg").text(error);
+      u(".err-msg").text("server error: " + error);
     });
 
     const err = (msg) => {

@@ -17,10 +17,15 @@ ready(() =>
 
     const ERROR_MSGS = {
       404: "invalid input data",
+      409: "given username is already registered",
       default: "invalid server response, please try again later",
     };
 
     store.on(EVENTS.UPDATE, ({ password, confirmPassword }) => {
+      // Clear error message.
+      u(".err-msg").text("");
+
+      // Check if passwords are the same.
       let repeatPassword = u("#r-password").first();
       if (password != confirmPassword) {
         repeatPassword.setCustomValidity("Passwords don't match.");
@@ -30,7 +35,7 @@ ready(() =>
     });
 
     store.on(EVENTS.ERROR, ({ login, password, error }) => {
-      u(".err-msg").text(error);
+      u(".err-msg").text("server error: " + error);
     });
 
     const err = (msg) => {
@@ -58,6 +63,9 @@ ready(() =>
         .then((response) => {
           switch (response.status) {
             case 401:
+              err(ERROR_MSGS[response.status]);
+              break;
+            case 409:
               err(ERROR_MSGS[response.status]);
               break;
             case 200:
