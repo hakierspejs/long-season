@@ -25,3 +25,23 @@ window.ready = function (fn) {
  * @param {Any} arg argument
  */
 window.id = (arg) => arg;
+
+/*!
+ * Just the bare necessities of state management 
+ * (c) 2018 Google LLC, Apache-2.0 License
+ *
+ * https://gist.github.com/developit/a0430c500f5559b715c2dddf9c40948d
+ *
+ * @param {Any} arg argument
+ */
+window.valoo = function (v, cb) {
+  cb = cb || [];
+  return function (c) {
+    if (c === void 0) return v;
+    if (c.call) return cb.splice.bind(cb, cb.push(c) - 1, 1, null);
+    v = c;
+    for (var i = 0, l = cb.length; i < l; i++) {
+      cb[i] && cb[i](v);
+    }
+  };
+};

@@ -1,14 +1,17 @@
 ready(() =>
-  ((u, kel) => {
+  ((u, valoo) => {
     "use strict";
 
-    const store = kel({ login: "", password: "", error: "" });
+    const errorState = valoo("");
+    const loginData = valoo({ login: "", password: "" });
 
-    const EVENTS = {
-      UPDATE: "UPDATE",
-      SUBMIT: "SUBMIT",
-      ERROR: "ERROR",
-    };
+    errorState((msg) => {
+      u(".err-msg").text(msg);
+    });
+
+    loginData(() => {
+      errorState("");
+    });
 
     const ERROR_MSGS = {
       401: "password does not match",
@@ -16,23 +19,11 @@ ready(() =>
       default: "invalid server response, please try again later",
     };
 
-    store.on(EVENTS.UPDATE, () => {
-      // Clear error message.
-      u(".err-msg").text("");
-    });
-
-    store.on(EVENTS.ERROR, ({ login, password, error }) => {
-      u(".err-msg").text("server error: " + error);
-    });
-
     const err = (msg) => {
-      store.emit(EVENTS.ERROR, (store) => ({
-        ...store,
-        error: msg,
-      }));
+      errorState("server error: " + msg);
     };
 
-    store.on(EVENTS.SUBMIT, ({ login, password }) => {
+    const submitData = ({ login, password }) => {
       let data = {
         nickname: login,
         password: password,
@@ -66,28 +57,24 @@ ready(() =>
         .catch(() => {
           err(ERROR_MSGS["default"]);
         });
-    });
+    };
 
     u("#nickname").on("input", (e) => {
-      store.emit(EVENTS.UPDATE, (store) => {
-        return {
-          ...store,
-          login: e.currentTarget.value,
-        };
+      loginData({
+        ...loginData(),
+        login: e.currentTarget.value,
       });
     });
 
     u("#password").on("input", (e) => {
-      store.emit(EVENTS.UPDATE, (store) => {
-        return {
-          ...store,
-          password: e.currentTarget.value,
-        };
+      loginData({
+        ...loginData(),
+        password: e.currentTarget.value,
       });
     });
 
     u("#login-form").handle("submit", (e) => {
-      store.emit(EVENTS.SUBMIT, id);
+      submitData(loginData());
     });
-  })(u, Kel)
+  })(u, valoo)
 );

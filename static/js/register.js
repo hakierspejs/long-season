@@ -1,29 +1,21 @@
 ready(() =>
-  ((u, kel) => {
+  ((u, valoo) => {
     "use strict";
 
-    const store = kel({
+    const errorState = valoo("");
+    const registerData = valoo({
       login: "",
       password: "",
       confirmPassword: "",
-      error: "",
     });
 
-    const EVENTS = {
-      UPDATE: "UPDATE",
-      SUBMIT: "SUBMIT",
-      ERROR: "ERROR",
-    };
+    errorState((msg) => {
+      u(".err-msg").text(msg);
+    });
 
-    const ERROR_MSGS = {
-      404: "invalid input data",
-      409: "given username is already registered",
-      default: "invalid server response, please try again later",
-    };
-
-    store.on(EVENTS.UPDATE, ({ password, confirmPassword }) => {
+    registerData(({ password, confirmPassword }) => {
       // Clear error message.
-      u(".err-msg").text("");
+      errorState("");
 
       // Check if passwords are the same.
       let repeatPassword = u("#r-password").first();
@@ -34,18 +26,17 @@ ready(() =>
       }
     });
 
-    store.on(EVENTS.ERROR, ({ login, password, error }) => {
-      u(".err-msg").text("server error: " + error);
-    });
-
-    const err = (msg) => {
-      store.emit(EVENTS.ERROR, (store) => ({
-        ...store,
-        error: msg,
-      }));
+    const ERROR_MSGS = {
+      404: "invalid input data",
+      409: "given username is already registered",
+      default: "invalid server response, please try again later",
     };
 
-    store.on(EVENTS.SUBMIT, (store) => {
+    const err = (msg) => {
+      errorState("server error: " + msg);
+    };
+
+    const submitData = (store) => {
       let data = {
         nickname: store.login,
         password: store.password,
@@ -79,37 +70,31 @@ ready(() =>
         .catch(() => {
           err(ERROR_MSGS.default);
         });
-    });
+    };
 
     u("#nickname").on("input", (e) => {
-      store.emit(EVENTS.UPDATE, (store) => {
-        return {
-          ...store,
-          login: e.currentTarget.value,
-        };
+      registerData({
+        ...registerData(),
+        login: e.currentTarget.value,
       });
     });
 
     u("#password").on("input", (e) => {
-      store.emit(EVENTS.UPDATE, (store) => {
-        return {
-          ...store,
-          password: e.currentTarget.value,
-        };
+      registerData({
+        ...registerData(),
+        password: e.currentTarget.value,
       });
     });
 
     u("#r-password").on("input", (e) => {
-      store.emit(EVENTS.UPDATE, (store) => {
-        return {
-          ...store,
-          confirmPassword: e.currentTarget.value,
-        };
+      registerData({
+        ...registerData(),
+        confirmPassword: e.currentTarget.value,
       });
     });
 
     u("#register-form").handle("submit", (e) => {
-      store.emit(EVENTS.SUBMIT, id);
+      submitData(registerData());
     });
-  })(u, Kel)
+  })(u, valoo)
 );
