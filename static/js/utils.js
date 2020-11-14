@@ -32,7 +32,8 @@ window.id = (arg) => arg;
  *
  * https://gist.github.com/developit/a0430c500f5559b715c2dddf9c40948d
  *
- * @param {Any} arg argument
+ * @param {Any} v initial value
+ * @param {Array.<Function>} cb array with callback functions
  */
 window.valoo = function (v, cb) {
   cb = cb || [];
