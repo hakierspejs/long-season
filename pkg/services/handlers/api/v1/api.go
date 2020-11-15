@@ -230,6 +230,11 @@ func badRequest(msg string, w http.ResponseWriter) {
 	})
 }
 
+type singleDevice struct {
+	ID  int    `json:"id"`
+	Tag string `json:"tag"`
+}
+
 // DeviceAdd handles creation of new device for requesting user.
 // Make sure to use with middleware.JWT (or another middleware that
 // appends models.Claims to request), because this handler has
@@ -273,7 +278,7 @@ func DeviceAdd(db storage.Devices) http.HandlerFunc {
 			OwnerID: claims.UserID,
 		}
 
-		_, err = db.New(r.Context(), userID, device)
+		newID, err := db.New(r.Context(), userID, device)
 		if errors.Is(err, serrors.ErrDeviceDuplication) {
 			result.JSONError(w, &result.JSONErrorBody{
 				Code:    http.StatusConflict,
@@ -287,13 +292,11 @@ func DeviceAdd(db storage.Devices) http.HandlerFunc {
 			return
 		}
 
-		w.WriteHeader(http.StatusCreated)
+		gores.JSONIndent(w, http.StatusCreated, &singleDevice{
+			ID:  newID,
+			Tag: device.Tag,
+		}, defaultPrefix, defaultIndent)
 	}
-}
-
-type singleDevice struct {
-	ID  int    `json:"id"`
-	Tag string `json:"tag"`
 }
 
 // UserDevices handler responses with list of devices owned by
