@@ -15,6 +15,11 @@ import (
 	"github.com/hakierspejs/long-season/pkg/services/result"
 )
 
+// Extractor is function for extracting JWT token in form of
+// string. Error message should be readable for users and do not
+// contains sensitive data.
+type Extractor func(r *http.Request) (string, error)
+
 // JWTOptions contains different fields intended for creating new
 // JWT middleware.
 type JWTOptions struct {
@@ -35,10 +40,8 @@ type JWTOptions struct {
 	// InternalServerError handles cases when server fails during authorization.
 	InternalServerError http.HandlerFunc
 
-	// Function for extracting JWT token in form of string.
-	// Error message should be readable for users and do not
-	// contains sensitive data.
-	Extractor func(r *http.Request) (string, error)
+	// Functions for extracting JWT token in form of string.
+	Extractors []Extractor
 
 	// ContextKey will be set to JWT claims at request Context
 	// after successful authorization.
@@ -72,7 +75,13 @@ func JWT(ops *JWTOptions) func(http.Handler) http.Handler {
 				return
 			}
 
-			tokenStr, err := ops.Extractor(r)
+			tokenStr := ""
+			for _, f := range ops.Extractors {
+				tokenStr, err = f(r)
+				if err == nil {
+					break
+				}
+			}
 			if err != nil {
 				ops.Unauthorized(err.Error(), w, r)
 				return
@@ -103,24 +112,41 @@ func JWT(ops *JWTOptions) func(http.Handler) http.Handler {
 	}
 }
 
+func apiExtractor(r *http.Request) (string, error) {
+	header := r.Header.Get("Authorization")
+	if header == "" {
+		return "", fmt.Errorf("Authorization header is empty.")
+	}
+
+	if !strings.HasPrefix(header, "Bearer") {
+		return "", fmt.Errorf("JWT authorization header should has `Bearer ` preffix.")
+	}
+
+	token := strings.TrimPrefix(header, "Bearer ")
+	return token, nil
+}
+
+func viewExtractor(r *http.Request) (string, error) {
+	cookie, err := r.Cookie("jwt-token")
+	if err != nil {
+		return "", err
+	}
+
+	valid := cookie.Expires.Before(time.Now())
+	if !valid {
+		return "", fmt.Errorf("cookie is expired")
+	}
+
+	fmt.Println("jwt-token", cookie.Value)
+	return cookie.Value, nil
+}
+
 func defaultJwtOptions(c models.Config, optional bool) JWTOptions {
 	return JWTOptions{
-		Optional:  optional,
-		Secret:    []byte(c.JWTSecret),
-		Algorithm: jwt.HS256,
-		Extractor: func(r *http.Request) (string, error) {
-			header := r.Header.Get("Authorization")
-			if header == "" {
-				return "", fmt.Errorf("Authorization header is empty.")
-			}
-
-			if !strings.HasPrefix(header, "Bearer") {
-				return "", fmt.Errorf("JWT authorization header should has `Bearer ` preffix.")
-			}
-
-			token := strings.TrimPrefix(header, "Bearer ")
-			return token, nil
-		},
+		Optional:   optional,
+		Secret:     []byte(c.JWTSecret),
+		Algorithm:  jwt.HS256,
+		Extractors: []Extractor{apiExtractor, viewExtractor},
 		ContextKey: config.JWTUserKey,
 		InternalServerError: func(w http.ResponseWriter, r *http.Request) {
 			result.JSONError(w, &result.JSONErrorBody{
@@ -144,26 +170,6 @@ func defaultJwtOptions(c models.Config, optional bool) JWTOptions {
 // ApiAuth is middleware for authorization of long-season REST api.
 func ApiAuth(c models.Config, optional bool) func(next http.Handler) http.Handler {
 	options := defaultJwtOptions(c, optional)
-	return JWT(&options)
-}
-
-func ViewAuth(c models.Config, optional bool) func(next http.Handler) http.Handler {
-	options := defaultJwtOptions(c, optional)
-	options.Extractor = func(r *http.Request) (string, error) {
-		cookie, err := r.Cookie("jwt-token")
-		if err != nil {
-			return "", err
-		}
-
-		valid := cookie.Expires.Before(time.Now())
-		if !valid {
-			return "", fmt.Errorf("cookie is expired")
-		}
-
-		fmt.Println("jwt-token", cookie.Value)
-		return cookie.Value, nil
-	}
-
 	return JWT(&options)
 }
 

@@ -69,8 +69,8 @@ func main() {
 		r.Put("/update", api.UpdateStatus(factoryStorage.Users(), factoryStorage.Devices()))
 	})
 
-	r.With(lsmiddleware.ViewAuth(*config, false)).Get("/who", handlers.Who())
-	r.With(lsmiddleware.ViewAuth(*config, false)).Get("/devices", ui.Devices())
+	r.With(lsmiddleware.ApiAuth(*config, false)).Get("/who", handlers.Who())
+	r.With(lsmiddleware.ApiAuth(*config, false)).Get("/devices", ui.Devices())
 	r.Get("/logout", ui.Logout())
 	r.Get("/register", ui.Register())
 
