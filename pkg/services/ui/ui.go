@@ -40,3 +40,10 @@ func Logout() http.HandlerFunc {
 		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 	}
 }
+
+func Devices() http.HandlerFunc {
+	tmpl := template.Must(template.ParseFiles("tmpl/layout.html", "tmpl/devices.html"))
+	return func(w http.ResponseWriter, r *http.Request) {
+		tmpl.ExecuteTemplate(w, "layout", nil)
+	}
+}

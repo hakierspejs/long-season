@@ -33,6 +33,7 @@ body {
   box-sizing: border-box;
 }
 
+h2::before,
 h1::before {
   content: "$";
   padding-right: 1rem;
@@ -187,6 +188,32 @@ a {
 a:hover {
   text-decoration: underline;
 }
+
+.devices {
+  width: 60%;
+}
+
+.device::before {
+  content: ">";
+  flex-grow: 1;
+}
+
+.device {
+  display: flex;
+  flex-flow: row wrap;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+.device-name {
+  flex-grow: 10;
+}
+
+.device-rm {
+  flex-grow: 2;
+  text-align: end;
+}
+
 
 /*
  * Simple queries for mobile devices.

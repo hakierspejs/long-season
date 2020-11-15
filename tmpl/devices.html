@@ -1,0 +1,22 @@
+{{ template "layout" }}
+
+{{ define "scripts" }}
+<script src="/static/js/devices.js" defer></script>
+{{ end }}
+
+{{ define "content" }}
+<form id="device-form">
+  <fieldset>
+    <legend>add new device</legend>
+    <label for="tag-form">tag:</label>
+    <input type="text" id="tag-form" name="tag" required>
+    <label for="mac-form">mac:</label>
+    <input type="text" id="mac-form" name="mac" required>
+    <button type="submit">submit</button>
+  </fieldset>
+</form>
+
+<h2>devices list</h2>
+<section class="devices">
+</section>
+{{ end }}

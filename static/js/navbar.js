@@ -6,7 +6,7 @@ ready(() =>
     <div class="at">hackerspace@lodz:~$</div>
     <div class="elem"><a href="/">home</a></div>
     {{#if nickname}}
-      <div class="elem"><a href="#">{{ nickname }}@hsldz</a></div>
+      <div class="elem"><a href="/devices">{{ nickname }}@hsldz</a></div>
       <div class="elem"><a href="/logout">logout</a></div>
     {{else}}
       <div class="elem"><a href="/register">register</a></div>
