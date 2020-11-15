@@ -175,4 +175,4 @@ ready(() =>
     // Initial fetch devices.
     fetchDevices();
   })(u, Handlebars, valoo)
-)t
+)
