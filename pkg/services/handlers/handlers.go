@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/alioygur/gores"
@@ -21,7 +20,6 @@ func Who() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		claims, err := requests.JWTClaims(r)
 		if err != nil {
-			fmt.Println(err)
 			result.JSONError(w, &result.JSONErrorBody{
 				Message: "You have to provide correct bearer token.",
 				Code:    http.StatusUnauthorized,

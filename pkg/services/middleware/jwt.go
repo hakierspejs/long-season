@@ -137,7 +137,6 @@ func viewExtractor(r *http.Request) (string, error) {
 		return "", fmt.Errorf("cookie is expired")
 	}
 
-	fmt.Println("jwt-token", cookie.Value)
 	return cookie.Value, nil
 }
 
