@@ -1,7 +1,6 @@
 ready(() =>
   ((u, handlebars, valoo) => {
     "use strict";
-
     const devicesTempl = handlebars.compile(`
       {{#each devices}}
         <div class="device">
@@ -12,7 +11,6 @@ ready(() =>
     `);
 
     const emptyDevice = { tag: "", mac: "", id: 0 };
-    const ids = valoo(0);
 
     const devices = valoo([]);
     const currentDevice = valoo(emptyDevice);
@@ -20,16 +18,124 @@ ready(() =>
     const renderDevices = (data) => {
       u(".devices").html(devicesTempl({ devices: data }));
 
-      // TODO(dudekb) Add function for removing devices with given id
       u(".device-rm").on("click", (e) => {
-        devices(
-          devices().filter((device) => device.id != e.currentTarget.dataset.id),
-        );
+        deleteDevice(e.currentTarget.dataset.id);
       });
     };
 
-    // TODO(thinkofher) Add function for fetching devices
+    const checkResponse = (response) => {
+      if (!response.ok) {
+        return Promise.reject(response);
+      }
+      return response;
+    };
 
+    const responseJSON = (response) => response.json();
+
+    const fetchDevices = () => {
+      fetch("/who", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+      })
+        .then(checkResponse)
+        .then(responseJSON)
+        .then((data) => {
+          return fetch("/api/v1/users/" + data.id + "/devices", {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            credentials: "include",
+          });
+        })
+        .then(checkResponse)
+        .then(responseJSON)
+        .then((data) => devices(data))
+        .catch((error) => {
+          // TODO(thinkofher) handle errors
+        });
+    };
+
+    const addDevice = ({ tag, id }) => {
+      // Add given device to devices state
+      devices(
+        devices().concat({
+          tag: tag,
+          id: id,
+        }),
+      );
+    };
+
+    const postDevice = ({ tag, mac }) => {
+      fetch("/who", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+      })
+        .then(checkResponse)
+        .then(responseJSON)
+        .then((data) => {
+          return fetch("/api/v1/users/" + data.id + "/devices", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            credentials: "include",
+            body: JSON.stringify({ tag: tag, mac: mac }),
+          });
+        })
+        .then(checkResponse)
+        .then(responseJSON)
+        .then(addDevice)
+        .catch((error) => {
+          // TODO(thinkofher) handle errors
+        });
+    };
+
+    // removeDevice removes device with given device id
+    // from device state manager.
+    const removeDevice = (deviceID) => {
+      devices(
+        devices().filter((item) => item.id != deviceID),
+      );
+    };
+
+    // deleteDevice
+    const deleteDevice = (deviceID) => {
+      fetch("/who", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+      })
+        .then(checkResponse)
+        .then(responseJSON)
+        .then((data) => {
+          return fetch("/api/v1/users/" + data.id + "/devices/" + deviceID, {
+            method: "DELETE",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            credentials: "include",
+          });
+        })
+        .then(checkResponse)
+        .then(() => {
+          removeDevice(deviceID);
+        })
+        .catch((error) => {
+          // TODO(thinkofher) handle errors
+        });
+    };
+
+    // Listen for changes at devices and render
+    // new devices every time new device is added
     devices(renderDevices);
 
     u("#tag-form").on("input", (e) => {
@@ -47,26 +153,19 @@ ready(() =>
     });
 
     u("#device-form").handle("submit", (e) => {
-      // TODO: Add ajax for adding new device.
+      // Post current device to API
+      postDevice(currentDevice());
 
-      // Add current device to devices state
-      devices(
-        devices().concat({
-          ...currentDevice(),
-          id: ids(),
-        }),
-      );
-
+      // Clear form
       u("#mac-form, #tag-form").each((node, i) => {
-        // u(node).first().value = "";
         node.value = "";
       });
 
       // Empty current device
       currentDevice(emptyDevice);
-
-      // Add one to current id
-      ids(ids() + 1);
     });
+
+    // Initial fetch devices.
+    fetchDevices();
   })(u, Handlebars, valoo)
 );
