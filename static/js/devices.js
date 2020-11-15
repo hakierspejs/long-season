@@ -16,8 +16,10 @@ ready(() =>
     const currentDevice = valoo(emptyDevice);
 
     const renderDevices = (data) => {
+      // Render html with given devices data .devices class
       u(".devices").html(devicesTempl({ devices: data }));
 
+      // Add event handler to every "rm" a href
       u(".device-rm").on("click", (e) => {
         deleteDevice(e.currentTarget.dataset.id);
       });
@@ -105,7 +107,12 @@ ready(() =>
       );
     };
 
-    // deleteDevice
+    // deleteDevice sends delete request to API
+    // to remove device with given ID from
+    // user collection.
+    //
+    // After successful request removes device
+    // with given id from devices storage.
     const deleteDevice = (deviceID) => {
       fetch("/who", {
         method: "GET",
@@ -168,4 +175,4 @@ ready(() =>
     // Initial fetch devices.
     fetchDevices();
   })(u, Handlebars, valoo)
-);
+)t
