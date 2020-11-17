@@ -203,3 +203,18 @@ func Private(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 	})
 }
+
+// RedirectLoggedIn redirects logged in users to homepage.
+// Make sure to inject JWT claims into request context first
+// for proper working.
+func RedirectLoggedIn(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, err := requests.JWTClaims(r)
+		if err == nil {
+			http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}

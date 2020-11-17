@@ -39,7 +39,7 @@ func main() {
 	r.Use(middleware.NoCache)
 
 	r.Get("/", ui.Home())
-	r.Get("/login", ui.LoginPage())
+	r.With(lsmiddleware.ApiAuth(*config, true), lsmiddleware.RedirectLoggedIn).Get("/login", ui.LoginPage())
 
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Route("/users", func(r chi.Router) {
@@ -72,7 +72,7 @@ func main() {
 	r.With(lsmiddleware.ApiAuth(*config, false)).Get("/who", handlers.Who())
 	r.With(lsmiddleware.ApiAuth(*config, false)).Get("/devices", ui.Devices())
 	r.Get("/logout", ui.Logout())
-	r.Get("/register", ui.Register())
+	r.With(lsmiddleware.ApiAuth(*config, true), lsmiddleware.RedirectLoggedIn).Get("/register", ui.Register())
 
 	workDir, _ := os.Getwd()
 	filesDir := http.Dir(filepath.Join(workDir, "static"))
