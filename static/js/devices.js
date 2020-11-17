@@ -12,8 +12,39 @@ ready(() =>
 
     const emptyDevice = { tag: "", mac: "", id: 0 };
 
+    const errorMessage = valoo("");
     const devices = valoo([]);
     const currentDevice = valoo(emptyDevice);
+
+    // Toggle error message when is not empty.
+    errorMessage((msg) => {
+      if (msg) {
+        u(".err-msg").removeClass("hidden");
+        u(".err-msg").text(msg);
+      } else {
+        u(".err-msg").addClass("hidden");
+      }
+    });
+
+    const handleErrors = (error) => {
+      switch (error.status) {
+        case 401:
+          errorMessage(serverError("invalid user data, please login in"));
+          break;
+        case 409:
+          errorMessage(serverError("there is already resource with given tag"));
+          break;
+        default:
+          errorMessage(serverError("internal server error, please try again"));
+          break;
+      }
+    };
+
+    // Clear error message whenever someone enters data for
+    // new device.
+    currentDevice(() => errorMessage(""));
+
+    const serverError = (msg) => "server error: " + msg;
 
     const renderDevices = (data) => {
       // Render html with given devices data .devices class
@@ -56,9 +87,7 @@ ready(() =>
         .then(checkResponse)
         .then(responseJSON)
         .then((data) => devices(data))
-        .catch((error) => {
-          // TODO(thinkofher) handle errors
-        });
+        .catch(handleErrors);
     };
 
     const addDevice = ({ tag, id }) => {
@@ -94,9 +123,7 @@ ready(() =>
         .then(checkResponse)
         .then(responseJSON)
         .then(addDevice)
-        .catch((error) => {
-          // TODO(thinkofher) handle errors
-        });
+        .catch(handleErrors);
     };
 
     // removeDevice removes device with given device id
@@ -136,9 +163,7 @@ ready(() =>
         .then(() => {
           removeDevice(deviceID);
         })
-        .catch((error) => {
-          // TODO(thinkofher) handle errors
-        });
+        .catch(handleErrors);
     };
 
     // Listen for changes at devices and render
@@ -175,4 +200,4 @@ ready(() =>
     // Initial fetch devices.
     fetchDevices();
   })(u, Handlebars, valoo)
-)
+);

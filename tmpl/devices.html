@@ -5,16 +5,24 @@
 {{ end }}
 
 {{ define "content" }}
-<form id="device-form">
-  <fieldset>
-    <legend>add new device</legend>
-    <label for="tag-form">tag:</label>
-    <input type="text" id="tag-form" name="tag" required>
-    <label for="mac-form">mac:</label>
-    <input type="text" id="mac-form" name="mac" required>
-    <button type="submit">submit</button>
-  </fieldset>
-</form>
+<fieldset>
+  <legend>add new device</legend>
+  <div class="err-msg hidden">
+  </div>
+  <form id="device-form">
+    <div class="device-form-elem">
+      <label for="tag-form">tag:</label>
+      <input type="text" id="tag-form" name="tag" required>
+    </div>
+    <div class="device-form-elem">
+      <label for="mac-form">mac:</label>
+      <input type="text" id="mac-form" name="mac" required>
+    </div>
+    <div class="device-form-elem device-submit-button">
+      <button type="submit">submit</button>
+    </div>
+  </form>
+</fieldset>
 
 <h2>devices list</h2>
 <section class="devices">

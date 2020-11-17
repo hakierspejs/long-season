@@ -67,7 +67,13 @@ input {
 
 fieldset {
   border: 2px solid var(--lg-2);
-  max-width: 20ch;
+}
+
+/*
+ * Special class for login and register fieldsets.
+ */
+.account-data {
+  max-width: 60%;
 }
 
 /*
@@ -214,6 +220,30 @@ a:hover {
   text-align: end;
 }
 
+.hidden {
+  display: none;
+}
+
+#device-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+}
+
+.device-form-elem {
+  display: flex;
+  flex-grow: 1;
+  align-items: center;
+  margin: 0.5ch;
+}
+
+.device-form-elem > input {
+  width: 100%;
+}
+
+.device-submit-button {
+  flex-grow: 0;
+}
 
 /*
  * Simple queries for mobile devices.
