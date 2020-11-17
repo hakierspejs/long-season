@@ -1,0 +1,24 @@
+{{ template "layout" }}
+
+{{ define "scripts" }}
+<script src="/static/js/login.js" defer></script>
+{{ end }}
+
+{{ define "content" }}
+<fieldset class="account-data">
+  <legend>enter your credentials</legend>
+  <div class="err-msg">
+  </div>
+  <form id="login-form" class="grid-form">
+    <label for="nickname" class="login-label">login:</label>
+    <input type="text" id="nickname" name="nickname" class="login-input">
+
+    <label for="password" class="password-label">password:</label>
+    <input type="password" id="password" name="password" class="password-input">
+
+    <div class="button-area">
+      <button type="submit">submit</button>
+    </div>
+  </form>
+</fieldset>
+{{ end }}
