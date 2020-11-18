@@ -1,8 +1,10 @@
 package storage
 
 import (
-	"bytes"
 	"context"
+	"net"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 // UpdateStatuses set online user fields, with any device's MAC equal to one
@@ -18,10 +20,20 @@ func UpdateStatuses(ctx context.Context, addresses []string, d Devices, u Users)
 		return err
 	}
 
-	online := map[int]struct{}{}
+	parsedAddresses := []net.HardwareAddr{}
+	var parsedAddress net.HardwareAddr
 	for _, address := range addresses {
+		parsedAddress, err = net.ParseMAC(address)
+		if err != nil {
+			return err
+		}
+		parsedAddresses = append(parsedAddresses, parsedAddress)
+	}
+
+	online := map[int]struct{}{}
+	for _, address := range parsedAddresses {
 		for _, device := range devices {
-			if bytes.Equal([]byte(address), device.MAC) {
+			if err := bcrypt.CompareHashAndPassword(device.MAC, address); err == nil {
 				online[device.OwnerID] = struct{}{}
 			}
 		}

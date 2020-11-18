@@ -28,6 +28,9 @@ ready(() =>
 
     const handleErrors = (error) => {
       switch (error.status) {
+        case 400:
+          errorMessage(serverError("invalid device data"));
+          break;
         case 401:
           errorMessage(serverError("invalid user data, please login in"));
           break;
