@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 
 	"github.com/alioygur/gores"
@@ -269,12 +270,24 @@ func DeviceAdd(db storage.Devices) http.HandlerFunc {
 			return
 		}
 
+		mac, err := net.ParseMAC(p.MAC)
+		if err != nil {
+			badRequest("invalid mac address", w)
+			return
+		}
+
+		hashedMac, err := bcrypt.GenerateFromPassword(mac, bcrypt.DefaultCost)
+		if err != nil {
+			internalServerError(w)
+			return
+		}
+
 		device := models.Device{
 			DevicePublicData: models.DevicePublicData{
 				Owner: claims.Nickname,
 				Tag:   p.Tag,
 			},
-			MAC:     []byte(p.MAC),
+			MAC:     hashedMac,
 			OwnerID: claims.UserID,
 		}
 
@@ -478,8 +491,20 @@ func DeviceUpdate(db storage.Devices) http.HandlerFunc {
 			return
 		}
 
+		mac, err := net.ParseMAC(input.MAC)
+		if err != nil {
+			badRequest("invalid mac address", w)
+			return
+		}
+
+		hashedMac, err := bcrypt.GenerateFromPassword(mac, bcrypt.DefaultCost)
+		if err != nil {
+			internalServerError(w)
+			return
+		}
+
 		updated := devices.Update(*device, &devices.Changes{
-			MAC: []byte(input.MAC),
+			MAC: hashedMac,
 			Tag: input.Tag,
 		})
 
