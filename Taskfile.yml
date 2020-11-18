@@ -5,10 +5,11 @@ version: '2'
 
 vars:
   NAME: long-season
+  NAME_CLI: long-season-cli
 
 tasks:
   default:
-    deps: [server]
+    deps: [server, cli]
 
   server:
     cmds:
@@ -19,6 +20,10 @@ tasks:
     generates:
       - ./{{ .NAME }}
 
+  cli:
+    cmds:
+      - go build -o {{ .NAME_CLI }} cmd/cli/main.go
+
   run:
     deps: [server]
     cmds:
@@ -26,7 +31,7 @@ tasks:
 
   clean:
     cmds:
-      - rm -f ./{{ .NAME }}
+      - rm -f ./{{ .NAME }} ./{{ .NAME_CLI }}
 
   lint:
     cmds:
