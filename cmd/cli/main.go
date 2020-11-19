@@ -11,12 +11,17 @@ import (
 	"os"
 )
 
-func putRequest(url string, data io.Reader) (*http.Response, error) {
+func putRequest(url string, headers map[string]string, data io.Reader) (*http.Response, error) {
 	client := &http.Client{}
 	req, err := http.NewRequest(http.MethodPut, url, data)
 	if err != nil {
 		return nil, err
 	}
+
+	for k, v := range headers {
+		req.Header.Add(k, v)
+	}
+
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
@@ -29,11 +34,13 @@ type body struct {
 }
 
 var (
-	api string
+	api    string
+	apiKey string
 )
 
 func run() error {
 	flag.StringVar(&api, "api", "", "api address")
+	flag.StringVar(&apiKey, "api-key", "", "api key for updating statuses")
 	flag.Parse()
 
 	b := new(body)
@@ -54,7 +61,10 @@ func run() error {
 
 	buff := bytes.NewBuffer(body)
 
-	_, err = putRequest(api+"/api/v1/update", buff)
+	headers := map[string]string{
+		"Authorization": "Status " + apiKey,
+	}
+	_, err = putRequest(api+"/api/v1/update", headers, buff)
 	if err != nil {
 		return err
 	}
