@@ -10,12 +10,23 @@ import (
 const JWTUserKey = "jwt-user"
 
 const (
-	hostEnv         = "LS_HOST"
-	portEnv         = "LS_PORT"
-	boltENV         = "LS_BOLT_DB"
-	jwtSecretEnv    = "LS_JWT_SECRET"
-	updateSecretEnv = "LS_UPDATE_SECRET"
-	appNameEnv      = "LS_APP"
+	hostEnv     = "LS_HOST"
+	defaultHost = "127.0.0.1"
+
+	portEnv     = "LS_PORT"
+	defaultPort = "3000"
+
+	boltENV       = "LS_BOLT_DB"
+	defaultBoltDB = "long-season.db"
+
+	jwtSecretEnv     = "LS_JWT_SECRET"
+	defaultJWTSecret = "default-super-secret"
+
+	updateSecretEnv     = "LS_UPDATE_SECRET"
+	defaultUpdateSecret = "default-super-api-secret"
+
+	appNameEnv     = "LS_APP"
+	defaultAppName = "long-season-backend"
 )
 
 // Env returns pointer to models.Config which is
@@ -23,12 +34,12 @@ const (
 // Unset variables will be
 func Env() *models.Config {
 	return &models.Config{
-		Host:         DefaultEnv(hostEnv, "127.0.0.1"),
-		Port:         DefaultEnv(portEnv, "3000"),
-		DatabasePath: DefaultEnv(boltENV, "long-season.db"),
-		JWTSecret:    DefaultEnv(jwtSecretEnv, "default-super-secret"),
-		UpdateSecret: DefaultEnv(updateSecretEnv, "default-super-api-secret"),
-		AppName:      DefaultEnv(appNameEnv, "long-season-backend"),
+		Host:         DefaultEnv(hostEnv, defaultHost),
+		Port:         DefaultEnv(portEnv, defaultPort),
+		DatabasePath: DefaultEnv(boltENV, defaultBoltDB),
+		JWTSecret:    DefaultEnv(jwtSecretEnv, defaultJWTSecret),
+		UpdateSecret: DefaultEnv(updateSecretEnv, defaultUpdateSecret),
+		AppName:      DefaultEnv(appNameEnv, defaultAppName),
 	}
 }
 
