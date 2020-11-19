@@ -58,6 +58,7 @@ type Config struct {
 	Port         string
 	DatabasePath string
 	JWTSecret    string
+	UpdateSecret string
 	AppName      string
 }
 

@@ -66,7 +66,10 @@ func main() {
 			})
 		})
 		r.Post("/login", api.ApiAuth(*config, factoryStorage.Users()))
-		r.Put("/update", api.UpdateStatus(factoryStorage.Users(), factoryStorage.Devices()))
+		r.With(lsmiddleware.UpdateAuth(config)).Put(
+			"/update",
+			api.UpdateStatus(factoryStorage.Users(), factoryStorage.Devices()),
+		)
 	})
 
 	r.With(lsmiddleware.ApiAuth(*config, false)).Get("/who", handlers.Who())

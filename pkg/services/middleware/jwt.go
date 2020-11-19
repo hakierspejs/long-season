@@ -112,23 +112,27 @@ func JWT(ops *JWTOptions) func(http.Handler) http.Handler {
 	}
 }
 
-func apiExtractor(r *http.Request) (string, error) {
-	header := r.Header.Get("Authorization")
-	if header == "" {
-		return "", fmt.Errorf("Authorization header is empty.")
-	}
+func apiExtractor(prefix string) func(r *http.Request) (string, error) {
+	return func(r *http.Request) (string, error) {
+		header := r.Header.Get("Authorization")
+		if header == "" {
+			// TODO(thinkofher) replace with generic error for very extractor
+			return "", fmt.Errorf("Authorization header is empty.")
+		}
 
-	if !strings.HasPrefix(header, "Bearer") {
-		return "", fmt.Errorf("JWT authorization header should has `Bearer ` preffix.")
-	}
+		if !strings.HasPrefix(header, prefix+" ") {
+			return "", fmt.Errorf("JWT authorization header should has `%s ` prefix.", prefix)
+		}
 
-	token := strings.TrimPrefix(header, "Bearer ")
-	return token, nil
+		token := strings.TrimPrefix(header, prefix+" ")
+		return token, nil
+	}
 }
 
 func viewExtractor(r *http.Request) (string, error) {
 	cookie, err := r.Cookie("jwt-token")
 	if err != nil {
+		// TODO(thinkofher) replace with generic error for very extractor
 		return "", err
 	}
 
@@ -145,7 +149,7 @@ func defaultJwtOptions(c models.Config, optional bool) JWTOptions {
 		Optional:   optional,
 		Secret:     []byte(c.JWTSecret),
 		Algorithm:  jwt.HS256,
-		Extractors: []Extractor{apiExtractor, viewExtractor},
+		Extractors: []Extractor{apiExtractor("Bearer"), viewExtractor},
 		ContextKey: config.JWTUserKey,
 		InternalServerError: func(w http.ResponseWriter, r *http.Request) {
 			result.JSONError(w, &result.JSONErrorBody{
