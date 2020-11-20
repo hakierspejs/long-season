@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"os"
@@ -14,6 +15,7 @@ import (
 	"github.com/hakierspejs/long-season/pkg/services/handlers"
 	"github.com/hakierspejs/long-season/pkg/services/handlers/api/v1"
 	lsmiddleware "github.com/hakierspejs/long-season/pkg/services/middleware"
+	"github.com/hakierspejs/long-season/pkg/services/status"
 	"github.com/hakierspejs/long-season/pkg/services/ui"
 	"github.com/hakierspejs/long-season/pkg/storage/memory"
 )
@@ -31,6 +33,9 @@ func main() {
 	if err != nil {
 		log.Fatal(err.Error())
 	}
+
+	ctx := context.Background()
+	macChannel, macDeamon := status.NewDaemon(ctx, factoryStorage.Devices(), factoryStorage.Users())
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
@@ -68,7 +73,7 @@ func main() {
 		r.Post("/login", api.ApiAuth(*config, factoryStorage.Users()))
 		r.With(lsmiddleware.UpdateAuth(config)).Put(
 			"/update",
-			api.UpdateStatus(factoryStorage.Users(), factoryStorage.Devices()),
+			api.UpdateStatus(macChannel),
 		)
 	})
 
@@ -80,6 +85,9 @@ func main() {
 	workDir, _ := os.Getwd()
 	filesDir := http.Dir(filepath.Join(workDir, "static"))
 	handlers.FileServer(r, "/static", filesDir)
+
+	// start daemon for updating mac addresses
+	go macDeamon()
 
 	http.ListenAndServe(config.Address(), r)
 }

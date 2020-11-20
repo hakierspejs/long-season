@@ -174,7 +174,7 @@ func UserRemove(db storage.Users) http.HandlerFunc {
 // UpdateStatus updates online field of every user id database
 // with MAC address equal to one from slice provided by
 // user in request payload.
-func UpdateStatus(dbu storage.Users, dbd storage.Devices) http.HandlerFunc {
+func UpdateStatus(ch chan<- []net.HardwareAddr) http.HandlerFunc {
 	type payload struct {
 		Addresses []string `json:"addresses"`
 	}
@@ -192,17 +192,20 @@ func UpdateStatus(dbu storage.Users, dbd storage.Devices) http.HandlerFunc {
 			return
 		}
 
-		err = storage.UpdateStatuses(r.Context(), p.Addresses, dbd, dbu)
-		if err != nil {
-			result.JSONError(w, &result.JSONErrorBody{
-				Message: "ooops! things are not going that great after all",
-				Code:    http.StatusInternalServerError,
-				Type:    "internal-server-error",
-			})
-			return
+		parsedAddresses := []net.HardwareAddr{}
+		for _, address := range p.Addresses {
+			parsedAddress, err := net.ParseMAC(address)
+			if err != nil {
+				badRequest("invalid mac address", w)
+				return
+			}
+			parsedAddresses = append(parsedAddresses, parsedAddress)
 		}
 
-		w.WriteHeader(http.StatusOK)
+		// Send parsed addresses to deamon running in the background
+		ch <- parsedAddresses
+
+		w.WriteHeader(http.StatusAccepted)
 		return
 	}
 }
