@@ -33,15 +33,12 @@ type UserPublicData struct {
 	Online bool `json:"online"`
 }
 
-// TODO(dudekb) Use net.HardwareAddr instead of []byte for
-//              MAC field at Device struct.
-
 type Device struct {
 	DevicePublicData
 
 	// OwnerID is id of user that owns this device.
 	OwnerID int
-	// MAC contains the MAC address of the device.
+	// MAC contains hashed MAC address of the device.
 	MAC []byte
 }
 

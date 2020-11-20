@@ -249,7 +249,7 @@ func DeviceAdd(db storage.Devices) http.HandlerFunc {
 		MAC string `json:"mac"`
 	}
 
-	// TODO(dudekb) Add Location header.
+	// TODO(thinkofher) Add Location header.
 	return func(w http.ResponseWriter, r *http.Request) {
 		userID, err := requests.UserID(r)
 		if err != nil {

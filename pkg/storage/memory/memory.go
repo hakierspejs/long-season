@@ -275,7 +275,7 @@ type DevicesStorage struct {
 func (d *DevicesStorage) New(ctx context.Context, userID int, newDevice models.Device) (int, error) {
 	var id int
 
-	// TODO(dudekb) Check if there is user with given id.
+	// TODO(thinkofher) Check if there is user with given id.
 	err := d.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(devicesBucket))
 
