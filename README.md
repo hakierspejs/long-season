@@ -6,7 +6,7 @@ The long-awaited web service for checking who is currently hacking at hackerspac
 
 ## How it's working?
 
-Basically: users are adding MAC addresses of their devices to their profile and administrator of `long-season` has to check online devices at his local network (you can achieve this with `nmap`) and send them to specified endpoint. That's it folks. For more question check [FAQ](./docs/FAQ.md) or open new issue.
+Basically: users are adding MAC addresses of their devices to their profile and administrator of `long-season` has to check online devices at his local network (you can achieve this with `nmap`) and send their MAC addresses to specified endpoint. That's it folks. For more question check [FAQ](./docs/FAQ.md) or open new issue.
 
 ## Installing
 
