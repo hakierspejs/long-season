@@ -54,7 +54,7 @@ func (s *UsersStorage) New(ctx context.Context, newUser models.User) (int, error
 
 	for _, u := range s.data {
 		if u.Nickname == newUser.Nickname {
-			return 0, serrors.ErrNicknameTaken(u.Nickname)
+			return 0, serrors.ErrNicknameTaken
 		}
 	}
 
@@ -73,7 +73,7 @@ func (s *UsersStorage) Read(ctx context.Context, id int) (*models.User, error) {
 
 	user, ok := s.data[id]
 	if !ok {
-		return nil, serrors.ErrNoID(id)
+		return nil, serrors.ErrNoID
 	}
 
 	return &user, nil
@@ -99,7 +99,7 @@ func (s *UsersStorage) Update(ctx context.Context, u models.User) error {
 
 	_, ok := s.data[u.ID]
 	if !ok {
-		return serrors.ErrNoID(u.ID)
+		return serrors.ErrNoID
 	}
 
 	s.data[u.ID] = u
@@ -116,7 +116,7 @@ func (s *UsersStorage) UpdateMany(ctx context.Context, u []models.User) error {
 	for _, user := range u {
 		_, ok := s.data[user.ID]
 		if !ok {
-			return serrors.ErrNoID(user.ID)
+			return serrors.ErrNoID
 		}
 	}
 
@@ -135,7 +135,7 @@ func (s *UsersStorage) Remove(ctx context.Context, id int) error {
 
 	_, ok := s.data[id]
 	if !ok {
-		return serrors.ErrNoID(id)
+		return serrors.ErrNoID
 	}
 
 	delete(s.data, id)
