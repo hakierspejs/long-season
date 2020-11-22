@@ -1,5 +1,10 @@
 # long-season
 
+[![GitHub Workflow Status](https://img.shields.io/github/workflow/status/hakierspejs/long-season/Go)](https://github.com/hakierspejs/long-season/actions)
+[![Docker Pulls](https://img.shields.io/docker/pulls/thinkofher/long-season)](https://hub.docker.com/r/thinkofher/long-season)
+[![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/hakierspejs/long-season)](https://github.com/hakierspejs/long-season/blob/main/go.mod)
+[![PkgGoDev](https://pkg.go.dev/badge/github.com/hakierspejs/long-season)](https://pkg.go.dev/github.com/hakierspejs/long-season)
+
 The long-awaited web service for checking who is currently hacking at hackerspace (or doing anything else anywhere). `long-season` provides simple, responsive web user interface and REST API, for interacting with service without need for using browser. `long-season` is fully fledged, you don't need to setup external database or download interpreter. Everything you need is within this repository or included in docker image.
 
 **Although long-season is now usable, it is still in early development stage.**
