@@ -1,0 +1,52 @@
+env:
+  - GO111MODULE=on
+  - CGO_ENABLED=0
+
+builds:
+  - main: ./cmd/cli/main.go
+    id: "cli"
+    binary: long-season-cli
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm
+      - arm64
+    goarm:
+      - 6
+      - 7
+    ignore:
+      - goos: windows
+        goarch: arm
+      - goos: windows
+        goarch: arm64
+      - goos: darwin
+        goarch: arm64
+      - goos: darwin
+        goarch: arm
+
+  - main: ./cmd/server/main.go
+    id: "server"
+    binary: long-season
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm
+      - arm64
+    goarm:
+      - 6
+      - 7
+    ignore:
+      - goos: windows
+        goarch: arm
+      - goos: windows
+        goarch: arm64
+      - goos: darwin
+        goarch: arm64
+      - goos: darwin
+        goarch: arm
