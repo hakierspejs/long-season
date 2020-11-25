@@ -35,8 +35,8 @@ jobs:
 
     - name: Embedding Files
       run: |
-        - env GO111MODULE=off go get 4d63.com/embedfiles
-        - embedfiles -out=pkg/static/files.gen.go -pkg=static tmpl static
+        env GO111MODULE=off go get 4d63.com/embedfiles
+        embedfiles -out=pkg/static/files.gen.go -pkg=static tmpl static
 
     - name: Build
       run: |
