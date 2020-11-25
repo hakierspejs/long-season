@@ -33,6 +33,11 @@ jobs:
       run: |
         if [ $(gofmt -l -s . | wc -l) -ne 0 ]; then echo "gofmt failed"; exit 1; fi
 
+    - name: Embedding Files
+      run: |
+        - env GO111MODULE=off go get 4d63.com/embedfiles
+        - embedfiles -out=pkg/static/files.gen.go -pkg=static tmpl static
+
     - name: Build
       run: |
         go build -v ./cmd/server/main.go

@@ -2,6 +2,11 @@ env:
   - GO111MODULE=on
   - CGO_ENABLED=0
 
+before:
+  hooks:
+    - env GO111MODULE=off go get 4d63.com/embedfiles
+    - embedfiles -out=pkg/static/files.gen.go -pkg=static tmpl static
+
 builds:
   - main: ./cmd/cli/main.go
     id: "cli"
