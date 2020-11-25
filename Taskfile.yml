@@ -12,6 +12,7 @@ tasks:
     deps: [server, cli]
 
   server:
+    deps: [gen]
     cmds:
       - go build -o {{ .NAME }} cmd/server/main.go
     sources:
@@ -29,9 +30,20 @@ tasks:
     cmds:
       - ./{{ .NAME }}
 
+  gen:
+    cmds:
+      - embedfiles -out=pkg/static/files.gen.go -pkg=static tmpl static
+    sources:
+      - ./**/*.html
+      - ./**/*.css
+      - ./**/*.js
+    generates:
+      - ./pkg/static/files.gen.go
+
   clean:
     cmds:
       - rm -f ./{{ .NAME }} ./{{ .NAME_CLI }}
+      - rm -f ./pkg/static/files.gen.go
 
   lint:
     cmds:

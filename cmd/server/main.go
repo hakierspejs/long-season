@@ -4,8 +4,6 @@ import (
 	"context"
 	"log"
 	"net/http"
-	"os"
-	"path/filepath"
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
@@ -82,9 +80,7 @@ func main() {
 	r.Get("/logout", ui.Logout())
 	r.With(lsmiddleware.ApiAuth(*config, true), lsmiddleware.RedirectLoggedIn).Get("/register", ui.Register())
 
-	workDir, _ := os.Getwd()
-	filesDir := http.Dir(filepath.Join(workDir, "static"))
-	handlers.FileServer(r, "/static", filesDir)
+	handlers.EmbeddedFileServer(r, "/static")
 
 	// start daemon for updating mac addresses
 	go macDeamon()
