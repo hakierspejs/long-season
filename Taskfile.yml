@@ -37,7 +37,7 @@ tasks:
   gen:
     deps: [tools]
     cmds:
-      - embedfiles -out=pkg/static/files.gen.go -pkg=static tmpl static
+      - embedfiles -out=pkg/static/files.gen.go -pkg=static web
     sources:
       - ./**/*.html
       - ./**/*.css
@@ -55,5 +55,6 @@ tasks:
       - golint ./...
 
   test:
+    deps: [gen]
     cmds:
       - go test ./...
