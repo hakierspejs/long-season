@@ -54,7 +54,7 @@ func EmbeddedFileServer(r chi.Router, path string) {
 			w.Header().Add("Content-Type", "text/js")
 		}
 
-		file, err := static.Open(filepath)
+		file, err := static.Open("web/" + filepath)
 		if err != nil {
 			http.NotFound(w, r)
 			return

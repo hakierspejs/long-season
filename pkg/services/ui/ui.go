@@ -12,7 +12,7 @@ import (
 func embeddedTemplate(path string) (*template.Template, error) {
 	str := new(strings.Builder)
 
-	b, err := static.Open("tmpl/layout.html")
+	b, err := static.Open("web/tmpl/layout.html")
 	if err != nil {
 		return nil, err
 	}
@@ -34,21 +34,21 @@ func embeddedTemplate(path string) (*template.Template, error) {
 }
 
 func Home() http.HandlerFunc {
-	tmpl := template.Must(embeddedTemplate("tmpl/home.html"))
+	tmpl := template.Must(embeddedTemplate("web/tmpl/home.html"))
 	return func(w http.ResponseWriter, r *http.Request) {
 		tmpl.ExecuteTemplate(w, "layout", nil)
 	}
 }
 
 func LoginPage() http.HandlerFunc {
-	tmpl := template.Must(embeddedTemplate("tmpl/login.html"))
+	tmpl := template.Must(embeddedTemplate("web/tmpl/login.html"))
 	return func(w http.ResponseWriter, r *http.Request) {
 		tmpl.ExecuteTemplate(w, "layout", nil)
 	}
 }
 
 func Register() http.HandlerFunc {
-	tmpl := template.Must(embeddedTemplate("tmpl/register.html"))
+	tmpl := template.Must(embeddedTemplate("web/tmpl/register.html"))
 	return func(w http.ResponseWriter, r *http.Request) {
 		tmpl.ExecuteTemplate(w, "layout", nil)
 	}
@@ -69,7 +69,7 @@ func Logout() http.HandlerFunc {
 }
 
 func Devices() http.HandlerFunc {
-	tmpl := template.Must(embeddedTemplate("tmpl/devices.html"))
+	tmpl := template.Must(embeddedTemplate("web/tmpl/devices.html"))
 	return func(w http.ResponseWriter, r *http.Request) {
 		tmpl.ExecuteTemplate(w, "layout", nil)
 	}
