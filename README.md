@@ -1,8 +1,10 @@
 # long-season
 
-[![GitHub Workflow Status](https://img.shields.io/github/workflow/status/hakierspejs/long-season/Go)](https://github.com/hakierspejs/long-season/actions)
-[![Docker Pulls](https://img.shields.io/docker/pulls/thinkofher/long-season)](https://hub.docker.com/r/thinkofher/long-season)
-[![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/hakierspejs/long-season)](https://github.com/hakierspejs/long-season/blob/main/go.mod)
+[![GitHub Workflow Status](https://img.shields.io/github/workflow/status/hakierspejs/long-season/Go?style=flat-square)](https://github.com/hakierspejs/long-season/actions)
+[![Go Report Card](https://goreportcard.com/badge/github.com/hakierspejs/long-season?style=flat-square)](https://goreportcard.com/report/github.com/hakierspejs/long-season)
+[![Docker Pulls](https://img.shields.io/docker/pulls/thinkofher/long-season?style=flat-square)](https://hub.docker.com/r/thinkofher/long-season)
+[![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/hakierspejs/long-season?style=flat-square)](https://github.com/hakierspejs/long-season/blob/main/go.mod)
+[![GitHub release (latest by date)](https://img.shields.io/github/v/release/hakierspejs/long-season?style=flat-square)](https://github.com/hakierspejs/long-season/releases)
 [![PkgGoDev](https://pkg.go.dev/badge/github.com/hakierspejs/long-season)](https://pkg.go.dev/github.com/hakierspejs/long-season)
 
 The long-awaited web service for checking who is currently hacking at hackerspace (or doing anything else anywhere). `long-season` provides simple, responsive web user interface and REST API, for interacting with service without need for using browser. `long-season` is fully fledged, you don't need to setup external database or download interpreter. Everything you need is within this repository or included in docker image.
