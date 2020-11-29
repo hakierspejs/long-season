@@ -5,11 +5,15 @@ import (
 	"strings"
 
 	"github.com/go-chi/chi"
+
+	"github.com/hakierspejs/long-season/pkg/models"
+	"github.com/hakierspejs/long-season/pkg/services/config"
 )
 
-// FileServer conveniently sets up a http.FileServer handler to serve
-// static files from a http.FileSystem.
-func FileServer(r chi.Router, path string, root http.FileSystem) {
+// FileServer sets up handler to serve static files within given URL path.
+func FileServer(r chi.Router, path string, c *models.Config) {
+	opener := config.MakeOpener(c)
+
 	if strings.ContainsAny(path, "{}*") {
 		panic("FileServer does not permit any URL parameters.")
 	}
@@ -21,9 +25,21 @@ func FileServer(r chi.Router, path string, root http.FileSystem) {
 	path += "*"
 
 	r.Get(path, func(w http.ResponseWriter, r *http.Request) {
-		rctx := chi.RouteContext(r.Context())
-		pathPrefix := strings.TrimSuffix(rctx.RoutePattern(), "/*")
-		fs := http.StripPrefix(pathPrefix, http.FileServer(root))
-		fs.ServeHTTP(w, r)
+		filepath := strings.TrimPrefix(r.URL.Path, "/")
+
+		if strings.HasSuffix(filepath, ".css") {
+			w.Header().Add("Content-Type", "text/css")
+		}
+
+		if strings.HasSuffix(filepath, ".js") {
+			w.Header().Add("Content-Type", "text/js")
+		}
+
+		file, err := opener("web/" + filepath)
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+		w.Write(file)
 	})
 }

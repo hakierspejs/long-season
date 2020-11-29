@@ -51,6 +51,7 @@ type DevicePublicData struct {
 // Config represents configuration that is
 // being used by server.
 type Config struct {
+	Debug        bool
 	Host         string
 	Port         string
 	DatabasePath string

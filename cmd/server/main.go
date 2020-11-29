@@ -4,8 +4,6 @@ import (
 	"context"
 	"log"
 	"net/http"
-	"os"
-	"path/filepath"
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
@@ -43,8 +41,8 @@ func main() {
 	r.Use(middleware.RequestID)
 	r.Use(middleware.NoCache)
 
-	r.Get("/", ui.Home())
-	r.With(lsmiddleware.ApiAuth(*config, true), lsmiddleware.RedirectLoggedIn).Get("/login", ui.LoginPage())
+	r.Get("/", ui.Home(config))
+	r.With(lsmiddleware.ApiAuth(*config, true), lsmiddleware.RedirectLoggedIn).Get("/login", ui.LoginPage(config))
 
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Route("/users", func(r chi.Router) {
@@ -78,13 +76,11 @@ func main() {
 	})
 
 	r.With(lsmiddleware.ApiAuth(*config, false)).Get("/who", handlers.Who())
-	r.With(lsmiddleware.ApiAuth(*config, false)).Get("/devices", ui.Devices())
+	r.With(lsmiddleware.ApiAuth(*config, false)).Get("/devices", ui.Devices(config))
 	r.Get("/logout", ui.Logout())
-	r.With(lsmiddleware.ApiAuth(*config, true), lsmiddleware.RedirectLoggedIn).Get("/register", ui.Register())
+	r.With(lsmiddleware.ApiAuth(*config, true), lsmiddleware.RedirectLoggedIn).Get("/register", ui.Register(config))
 
-	workDir, _ := os.Getwd()
-	filesDir := http.Dir(filepath.Join(workDir, "static"))
-	handlers.FileServer(r, "/static", filesDir)
+	handlers.FileServer(r, "/static", config)
 
 	// start daemon for updating mac addresses
 	go macDeamon()
