@@ -110,7 +110,8 @@ func UsersAll(db storage.Users) http.HandlerFunc {
 			}
 			result = filtered
 		}
-
+		
+		(*w).Header().Set("Access-Control-Allow-Origin", "*")
 		gores.JSONIndent(w, http.StatusOK, result, defaultPrefix, defaultIndent)
 	}
 }
