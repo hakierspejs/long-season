@@ -4,9 +4,11 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
+	"github.com/go-chi/cors"
 	bolt "go.etcd.io/bbolt"
 
 	"github.com/hakierspejs/long-season/pkg/services/config"
@@ -35,6 +37,21 @@ func main() {
 	ctx := context.Background()
 	macChannel, macDeamon := status.NewDaemon(ctx, factoryStorage.Devices(), factoryStorage.Users())
 
+	// CORS (Cross-Origin Resource Sharing) middleware that enables public
+	// access to GET/OPTIONS requests. Used to expose APIs to XHR consumers in
+	// other domains.
+	publicCors := cors.New(cors.Options{
+		AllowedOrigins: []string{"*"},
+		AllowedMethods: []string{"GET", "OPTIONS"},
+	})
+	// Logging CORS is useful to understand why a preflight request was denied.
+	// This is not the healthiest way to log in chi, but even with this CORS
+	// middleware being chi-specific, it doesn't seem to be able to do it in
+	// any nicer (ie. request-oriented) way.
+	if config.Debug {
+		publicCors.Log = log.New(os.Stdout, "CORS ", 0)
+	}
+
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
@@ -46,6 +63,13 @@ func main() {
 
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Route("/users", func(r chi.Router) {
+			// Use CORS to allow GET/OPTIONS to GET /api/v1/users from
+			// anywhere.
+			// This technically wraps a nil handler around publicCors, but the
+			// nil handler never gets called. This is weirdness stemming from
+			// how go-chi/cors is supposed to be applied globally to the entire
+			// application, and not to particular endpoints.
+			r.With(publicCors.Handler).Options("/", nil)
 			r.Get("/", api.UsersAll(factoryStorage.Users()))
 			r.Post("/", api.UserCreate(factoryStorage.Users()))
 
