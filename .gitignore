@@ -1,6 +1,7 @@
 # Binaries for programs and plugins
 long-season
 long-season-cli
+embedfiles
 *.exe
 *.exe~
 *.dll
@@ -21,3 +22,6 @@ long-season.db
 
 # embedded go file
 pkg/static/files.gen.go
+
+# vim crap
+**swp
