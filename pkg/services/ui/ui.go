@@ -6,13 +6,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hakierspejs/long-season/pkg/static"
+	"github.com/hakierspejs/long-season/pkg/models"
+	"github.com/hakierspejs/long-season/pkg/services/config"
 )
 
-func embeddedTemplate(path string) (*template.Template, error) {
+func renderWithOpener(path string, readFunc config.Opener) (*template.Template, error) {
 	str := new(strings.Builder)
 
-	b, err := static.Open("web/tmpl/layout.html")
+	b, err := readFunc("web/tmpl/layout.html")
 	if err != nil {
 		return nil, err
 	}
@@ -21,7 +22,7 @@ func embeddedTemplate(path string) (*template.Template, error) {
 		return nil, err
 	}
 
-	b, err = static.Open(path)
+	b, err = readFunc(path)
 	if err != nil {
 		return nil, err
 	}
@@ -33,22 +34,26 @@ func embeddedTemplate(path string) (*template.Template, error) {
 	return template.New("ui").Parse(str.String())
 }
 
-func Home() http.HandlerFunc {
-	tmpl := template.Must(embeddedTemplate("web/tmpl/home.html"))
+func renderTemplate(c *models.Config, path string) (*template.Template, error) {
+	return renderWithOpener(path, config.MakeOpener(c))
+}
+
+func Home(c *models.Config) http.HandlerFunc {
+	tmpl := template.Must(renderTemplate(c, "web/tmpl/home.html"))
 	return func(w http.ResponseWriter, r *http.Request) {
 		tmpl.ExecuteTemplate(w, "layout", nil)
 	}
 }
 
-func LoginPage() http.HandlerFunc {
-	tmpl := template.Must(embeddedTemplate("web/tmpl/login.html"))
+func LoginPage(c *models.Config) http.HandlerFunc {
+	tmpl := template.Must(renderTemplate(c, "web/tmpl/login.html"))
 	return func(w http.ResponseWriter, r *http.Request) {
 		tmpl.ExecuteTemplate(w, "layout", nil)
 	}
 }
 
-func Register() http.HandlerFunc {
-	tmpl := template.Must(embeddedTemplate("web/tmpl/register.html"))
+func Register(c *models.Config) http.HandlerFunc {
+	tmpl := template.Must(renderTemplate(c, "web/tmpl/register.html"))
 	return func(w http.ResponseWriter, r *http.Request) {
 		tmpl.ExecuteTemplate(w, "layout", nil)
 	}
@@ -68,8 +73,8 @@ func Logout() http.HandlerFunc {
 	}
 }
 
-func Devices() http.HandlerFunc {
-	tmpl := template.Must(embeddedTemplate("web/tmpl/devices.html"))
+func Devices(c *models.Config) http.HandlerFunc {
+	tmpl := template.Must(renderTemplate(c, "web/tmpl/devices.html"))
 	return func(w http.ResponseWriter, r *http.Request) {
 		tmpl.ExecuteTemplate(w, "layout", nil)
 	}
