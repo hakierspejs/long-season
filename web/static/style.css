@@ -69,6 +69,10 @@ fieldset {
   border: 2px solid var(--lg-2);
 }
 
+legend {
+  padding: 0 1ch;
+}
+
 /*
  * Special class for login and register fieldsets.
  */
@@ -169,6 +173,7 @@ fieldset {
 
 .elem {
   flex-grow: 1;
+  text-align: right;
 }
 
 .elem::before {
@@ -256,5 +261,11 @@ a:hover {
   .container {
     align-items: flex-start;
     flex-direction: column;
+  }
+}
+
+@media only screen and (min-width: 700px) {
+  h1 {
+    margin-left: -2ch;
   }
 }
