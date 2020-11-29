@@ -70,7 +70,7 @@ func main() {
 			// how go-chi/cors is supposed to be applied globally to the entire
 			// application, and not to particular endpoints.
 			r.With(publicCors.Handler).Options("/", nil)
-			r.Get("/", api.UsersAll(factoryStorage.Users()))
+			r.With(publicCors.Handler).Get("/", api.UsersAll(factoryStorage.Users()))
 			r.Post("/", api.UserCreate(factoryStorage.Users()))
 
 			r.With(lsmiddleware.UserID).Route("/{user-id}", func(r chi.Router) {
