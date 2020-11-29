@@ -16,7 +16,8 @@ WORKDIR $SRC
 COPY . .
 
 RUN go get -d -v ./...
-RUN embedfiles -out=pkg/static/files.gen.go -pkg=static tmpl static
+RUN embedfiles -out=pkg/static/files.gen.go -pkg=static web
+
 
 RUN go build -o "long-season" ./cmd/server/main.go \
     && mv "long-season" $GOPATH/bin/
