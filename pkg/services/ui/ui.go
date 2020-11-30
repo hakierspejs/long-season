@@ -1,62 +1,97 @@
 package ui
 
 import (
-	"html/template"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/hakierspejs/long-season/pkg/models"
-	"github.com/hakierspejs/long-season/pkg/services/config"
+	"github.com/hakierspejs/long-season/pkg/services/single"
 )
 
-func renderWithOpener(path string, readFunc config.Opener) (*template.Template, error) {
-	str := new(strings.Builder)
-
-	b, err := readFunc("web/tmpl/layout.html")
+func must(err error) {
 	if err != nil {
-		return nil, err
+		panic(err)
 	}
-	_, err = str.Write(b)
-	if err != nil {
-		return nil, err
-	}
-
-	b, err = readFunc(path)
-	if err != nil {
-		return nil, err
-	}
-	_, err = str.Write(b)
-	if err != nil {
-		return nil, err
-	}
-
-	return template.New("ui").Parse(str.String())
 }
 
-func renderTemplate(c *models.Config, path string) (*template.Template, error) {
-	return renderWithOpener(path, config.MakeOpener(c))
+func withVendor(a single.Assets) single.Assets {
+	vendorScripts := []string{
+		"web/static/vendor/handlebars.min.js",
+		"web/static/vendor/umbrella.min.js",
+	}
+	vendorStyles := []string{
+		"web/static/vendor/normalize.css",
+	}
+	return single.Assets{
+		Content: a.Content,
+		Scripts: append(vendorScripts, a.Scripts...),
+		Styles:  append(vendorStyles, a.Styles...),
+	}
+}
+
+func page(c *models.Config, a single.Assets) http.HandlerFunc {
+	p := single.New(c, withVendor(a))
+	exec, err := p.Executor()
+	must(err)
+	return func(w http.ResponseWriter, r *http.Request) {
+		exec(w)
+	}
 }
 
 func Home(c *models.Config) http.HandlerFunc {
-	tmpl := template.Must(renderTemplate(c, "web/tmpl/home.html"))
-	return func(w http.ResponseWriter, r *http.Request) {
-		tmpl.ExecuteTemplate(w, "layout", nil)
-	}
+	return page(c, single.Assets{
+		Content: "web/tmpl/home.html",
+		Scripts: []string{
+			"web/static/js/utils.js",
+			"web/static/js/navbar.js",
+			"web/static/js/home.js",
+		},
+		Styles: []string{
+			"web/static/style.css",
+		},
+	})
 }
 
 func LoginPage(c *models.Config) http.HandlerFunc {
-	tmpl := template.Must(renderTemplate(c, "web/tmpl/login.html"))
-	return func(w http.ResponseWriter, r *http.Request) {
-		tmpl.ExecuteTemplate(w, "layout", nil)
-	}
+	return page(c, single.Assets{
+		Content: "web/tmpl/login.html",
+		Scripts: []string{
+			"web/static/js/utils.js",
+			"web/static/js/navbar.js",
+			"web/static/js/login.js",
+		},
+		Styles: []string{
+			"web/static/style.css",
+		},
+	})
 }
 
 func Register(c *models.Config) http.HandlerFunc {
-	tmpl := template.Must(renderTemplate(c, "web/tmpl/register.html"))
-	return func(w http.ResponseWriter, r *http.Request) {
-		tmpl.ExecuteTemplate(w, "layout", nil)
-	}
+	return page(c, single.Assets{
+		Content: "web/tmpl/register.html",
+		Scripts: []string{
+			"web/static/js/utils.js",
+			"web/static/js/navbar.js",
+			"web/static/js/register.js",
+		},
+		Styles: []string{
+			"web/static/style.css",
+		},
+	})
+}
+
+func Devices(c *models.Config) http.HandlerFunc {
+	return page(c, single.Assets{
+		Content: "web/tmpl/devices.html",
+		Scripts: []string{
+			"web/static/js/utils.js",
+			"web/static/js/navbar.js",
+			"web/static/js/devices.js",
+		},
+		Styles: []string{
+			"web/static/style.css",
+		},
+	})
 }
 
 func Logout() http.HandlerFunc {
@@ -70,12 +105,5 @@ func Logout() http.HandlerFunc {
 			Path:     "/",
 		})
 		http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
-	}
-}
-
-func Devices(c *models.Config) http.HandlerFunc {
-	tmpl := template.Must(renderTemplate(c, "web/tmpl/devices.html"))
-	return func(w http.ResponseWriter, r *http.Request) {
-		tmpl.ExecuteTemplate(w, "layout", nil)
 	}
 }
