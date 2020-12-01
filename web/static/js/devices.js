@@ -1,17 +1,29 @@
 ready(() =>
-  ((u, handlebars, valoo) => {
+  ((u, el, valoo) => {
     "use strict";
-    const devicesTempl = handlebars.compile(`
-      {{#each devices}}
-        <div class="device">
-          <div class="device-name">{{this.tag}}</div>
-          <a class="device-rm" data-id="{{this.id}}">rm</a>
-        </div>
-      {{/each}}
-    `);
 
+    // Returns single device component.
+    const deviceComp = ({ tag, id }) =>
+      el(
+        "div",
+        { "class": "device" },
+        el("div", { "class": "device-name" }, tag),
+        el("a", {
+          "class": "device-rm",
+          onClick: () => deleteDevice(id),
+        }, "rm"),
+      );
+
+    // Returns array with devices components constructed from
+    // given aray with devices objects.
+    const devicesComp = (devices) => {
+      return devices.map(deviceComp);
+    };
+
+    // Default device data.
     const emptyDevice = { tag: "", mac: "", id: 0 };
 
+    // Global data storages.
     const errorMessage = valoo("");
     const devices = valoo([]);
     const currentDevice = valoo(emptyDevice);
@@ -50,13 +62,12 @@ ready(() =>
     const serverError = (msg) => "server error: " + msg;
 
     const renderDevices = (data) => {
-      // Render html with given devices data .devices class
-      u(".devices").html(devicesTempl({ devices: data }));
+      let node = u(".devices");
+      // Clear current rendered devices.
+      node.empty();
 
-      // Add event handler to every "rm" a href
-      u(".device-rm").on("click", (e) => {
-        deleteDevice(e.currentTarget.dataset.id);
-      });
+      // Render new devices.
+      node.append(devicesComp(data));
     };
 
     const checkResponse = (response) => {
@@ -202,5 +213,5 @@ ready(() =>
 
     // Initial fetch devices.
     fetchDevices();
-  })(u, Handlebars, valoo)
+  })(u, el, valoo)
 );

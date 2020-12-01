@@ -1,14 +1,15 @@
 ready(() =>
-  ((u, handlebars) => {
+  ((u, el) => {
     "use strict";
 
-    const usersTemplate = handlebars.compile(`
-      <ul>
-        {{#each users}}
-          <li>{{this.nickname}}</li>
-        {{/each}}
-      </ul>
-    `);
+    const usersComp = (users) =>
+      el(
+        "ul",
+        null,
+        ...(
+          users.map((user) => el("li", null, user.nickname))
+        ),
+      );
 
     const HACKER_STATE = {
       CLOSED: "Hackerspace is closed.",
@@ -19,7 +20,8 @@ ready(() =>
     const users = valoo([]);
 
     users((data) => {
-      u("#users").html(usersTemplate({ users: data }));
+      let usersNode = u("#users");
+      usersNode.replace(usersComp(data));
       switch (data.length) {
         case 0:
           u("#online").text(HACKER_STATE.CLOSED);
@@ -45,5 +47,5 @@ ready(() =>
 
     downloadUsers();
     window.setInterval(downloadUsers, 1000 * 60 * 2);
-  })(u, Handlebars)
+  })(u, el)
 );

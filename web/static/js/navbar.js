@@ -1,18 +1,36 @@
 ready(() =>
-  ((u, handlebars) => {
+  ((u, el) => {
     "use strict";
 
-    const navbar = handlebars.compile(`
-    <div class="at">hackerspace@lodz:~$</div>
-    <div class="elem"><a href="/">home</a></div>
-    {{#if nickname}}
-      <div class="elem"><a href="/devices">{{ nickname }}@hsldz</a></div>
-      <div class="elem"><a href="/logout">logout</a></div>
-    {{else}}
-      <div class="elem"><a href="/register">register</a></div>
-      <div class="elem"><a href="/login">login</a></div>
-    {{/if}}
-  `);
+    const elem = (...children) =>
+      el(
+        "div",
+        { "class": "elem" },
+        ...children,
+      );
+
+    const a = (link, ...children) =>
+      el(
+        "a",
+        { href: link },
+        ...children,
+      );
+
+    const navbar = ({ nickname }) => {
+      return [
+        el("div", { "class": "at" }, "hackerspace@lodz:~$"),
+        elem(a("/", "home")),
+        ...(nickname
+          ? [
+            elem(a("/devices", `${nickname}@hsldz`)),
+            elem(a("/logout", "logout")),
+          ]
+          : [
+            elem(a("/register", "register")),
+            elem(a("/login", "login")),
+          ]),
+      ];
+    };
 
     fetch("/who", {
       method: "GET",
@@ -28,10 +46,14 @@ ready(() =>
         return Promise.reject(response);
       })
       .then((data) => {
-        u("nav").html(navbar(data));
+        let nav = u("nav");
+        nav.empty();
+        nav.append(navbar(data));
       })
       .catch((error) => {
-        u("nav").html(navbar({}));
+        let nav = u("nav");
+        nav.empty();
+        nav.append(navbar({}));
       });
-  })(u, Handlebars)
+  })(u, el)
 );
