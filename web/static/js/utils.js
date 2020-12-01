@@ -46,3 +46,47 @@ window.valoo = function (v, cb) {
     }
   };
 };
+
+/*!
+ * Creates new HTMLElement with given tag, props and children.
+ *
+ * Implemented to use instead of HTML templates, because you can
+ * use regulra JavaScript to generate nodes.
+ *
+ * @param {String} tag Html tag like: div, p, b etc
+ * @param {Object} props Dictionary with properties for new element
+ * @param {Array.<HTMLElement|String>} children
+ * @return {HTMLElement} Created node
+ */
+window.el = function (tag, props, ...children) {
+  if (typeof tag === "undefined") return false;
+
+  // Pass empty string if children is undefined.
+  if (typeof children === "undefined") children = [""];
+
+  const result = document.createElement(tag);
+
+  if (typeof props === "object") {
+    for (const key in props) {
+      let eventName = key.match(/^on([A-Z]\w+)$/);
+      // If key matches some event name, add event listener with given function
+      // for matched event.
+      if (eventName) {
+        result.addEventListener(eventName[1].toLowerCase(), props[key]);
+      } // Otherwise set regular attribute.
+      else {
+        result.setAttribute(key, props[key]);
+      }
+    }
+  }
+
+  // For each child, add to new element. If child is not
+  // HTMLElement, create new text node.
+  children.forEach((child) => {
+    result.appendChild(
+      child instanceof HTMLElement ? child : document.createTextNode(child),
+    );
+  });
+
+  return result;
+};
