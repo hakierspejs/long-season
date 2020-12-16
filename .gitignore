@@ -1,6 +1,6 @@
 # Binaries for programs and plugins
 long-season
-long-season-cli
+short-season
 *.exe
 *.exe~
 *.dll
