@@ -9,7 +9,11 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/hakierspejs/long-season/pkg/models"
+	"github.com/hakierspejs/long-season/pkg/storage/memory"
+
 	"github.com/urfave/cli/v2"
+	bolt "go.etcd.io/bbolt"
 )
 
 func putRequest(url string, headers map[string]string, data io.Reader) (*http.Response, error) {
@@ -32,6 +36,23 @@ func putRequest(url string, headers map[string]string, data io.Reader) (*http.Re
 
 type body struct {
 	Addresses []string `json:"addresses"`
+}
+
+func usersStorage(boltPath string) (*memory.UsersStorage, func(), error) {
+	boltDB, err := bolt.Open(boltPath, 0666, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	closer := func() {
+		boltDB.Close()
+	}
+
+	factoryStorage, err := memory.New(boltDB)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return factoryStorage.Users(), closer, nil
 }
 
 func app() *cli.App {
@@ -89,10 +110,64 @@ func app() *cli.App {
 			{
 				Name:  "admin",
 				Usage: "set of administration tools for managing content of long-season database",
-				Flags: []cli.Flag{},
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:    "database",
+						Aliases: []string{"d", "db"},
+						Usage:   "path to bolt database",
+						Value:   "long-season.db",
+					},
+				},
+				Action: func(ctx *cli.Context) error {
+					return cli.ShowCommandHelp(ctx, ctx.Command.Name)
+				},
 				Subcommands: []*cli.Command{
 					{
-						Name: "users",
+						Name:  "users",
+						Usage: "show users stored in given database",
+						Flags: []cli.Flag{
+							&cli.IntFlag{
+								Name:       "user-id",
+								Aliases:    []string{"id", "i"},
+								HasBeenSet: false,
+								Required:   false,
+							},
+						},
+						Action: func(ctx *cli.Context) error {
+							dbPath := ctx.String("database")
+
+							storage, closer, err := usersStorage(dbPath)
+							defer closer()
+							if err != nil {
+								return err
+							}
+
+							users, err := storage.All(ctx.Context)
+							if err != nil {
+								return err
+							}
+
+							var user *models.User = nil
+							if ctx.IsSet("user-id") {
+								target := ctx.Int("user-id")
+								for _, u := range users {
+									if u.ID == target {
+										user = new(models.User)
+										*user = u
+									}
+								}
+
+								if user == nil {
+									return cli.Exit("there is no user with given id", 1)
+								}
+							}
+
+							if user != nil {
+								return json.NewEncoder(os.Stdout).Encode(user)
+							}
+
+							return json.NewEncoder(os.Stdout).Encode(&users)
+						},
 						Subcommands: []*cli.Command{
 							{
 								Name: "delete",
