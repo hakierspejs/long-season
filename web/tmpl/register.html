@@ -11,7 +11,7 @@
   </div>
   <form id="register-form" class="grid-form-register">
     <label for="nickname" class="login-label">login:</label>
-    <input type="text" id="nickname" name="nickname" class="login-input" minlength="4" maxlength="32" required>
+    <input type="text" id="nickname" name="nickname" class="login-input" minlength="4" maxlength="32" pattern="[A-Za-z0-9]+" required>
 
     <label for="password" class="password-label">password:</label>
     <input type="password" id="password" name="password" class="password-input" minlength="6" maxlength="50" required>
