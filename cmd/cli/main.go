@@ -4,13 +4,15 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 
 	"github.com/hakierspejs/long-season/pkg/models"
+	"github.com/hakierspejs/long-season/pkg/services/users"
 	"github.com/hakierspejs/long-season/pkg/storage/memory"
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/urfave/cli/v2"
 	bolt "go.etcd.io/bbolt"
@@ -38,7 +40,12 @@ type body struct {
 	Addresses []string `json:"addresses"`
 }
 
-func usersStorage(boltPath string) (*memory.UsersStorage, func(), error) {
+func usersStorage(ctx *cli.Context) (*memory.UsersStorage, func(), error) {
+	if ctx.String("database") == "" {
+		return nil, nil, fmt.Errorf("database flag is not set. see admin command.")
+	}
+
+	boltPath := ctx.String("database")
 	boltDB, err := bolt.Open(boltPath, 0666, nil)
 	if err != nil {
 		return nil, nil, err
@@ -134,13 +141,11 @@ func app() *cli.App {
 							},
 						},
 						Action: func(ctx *cli.Context) error {
-							dbPath := ctx.String("database")
-
-							storage, closer, err := usersStorage(dbPath)
-							defer closer()
+							storage, closer, err := usersStorage(ctx)
 							if err != nil {
 								return err
 							}
+							defer closer()
 
 							users, err := storage.All(ctx.Context)
 							if err != nil {
@@ -170,13 +175,124 @@ func app() *cli.App {
 						},
 						Subcommands: []*cli.Command{
 							{
-								Name: "delete",
+								Name:    "delete",
+								Aliases: []string{"d"},
+								Usage:   "delete user with given id",
+								Action: func(ctx *cli.Context) error {
+									if !ctx.IsSet("user-id") {
+										return fmt.Errorf("set user-id flag with users subcommand")
+									}
+
+									storage, closer, err := usersStorage(ctx)
+									defer closer()
+									if err != nil {
+										return err
+									}
+
+									return storage.Remove(ctx.Context, ctx.Int("user-id"))
+								},
 							},
 							{
-								Name: "add",
+								Name:    "add",
+								Aliases: []string{"a"},
+								Usage:   "add new user",
+								Flags: []cli.Flag{
+									&cli.StringFlag{
+										Name:     "nickname",
+										Aliases:  []string{"n"},
+										Usage:    "nickname for new user",
+										Required: true,
+									},
+									&cli.StringFlag{
+										Name:     "password",
+										Aliases:  []string{"p"},
+										Usage:    "password for new user",
+										Required: true,
+									},
+								},
+								Action: func(ctx *cli.Context) error {
+									if !ctx.IsSet("nickname") || !ctx.IsSet("password") {
+										return fmt.Errorf("please set nickname and password for new user")
+									}
+
+									newNickname := ctx.String("nickname")
+									newPassword := ctx.String("password")
+
+									storage, closer, err := usersStorage(ctx)
+									if err != nil {
+										return err
+									}
+									defer closer()
+
+									hashedPassword, err := bcrypt.GenerateFromPassword(
+										[]byte(newPassword), bcrypt.DefaultCost,
+									)
+									if err != nil {
+										return err
+									}
+
+									_, err = storage.New(ctx.Context, models.User{
+										UserPublicData: models.UserPublicData{
+											Nickname: newNickname,
+											Online:   false,
+										},
+										Password: hashedPassword,
+									})
+									return err
+								},
 							},
 							{
-								Name: "edit",
+								Name:    "edit",
+								Aliases: []string{"e"},
+								Usage:   "edit user with given id",
+								Flags: []cli.Flag{
+									&cli.StringFlag{
+										Name:    "nickname",
+										Aliases: []string{"n"},
+										Usage:   "value of new nickname for user with given id",
+										Value:   "",
+									},
+									&cli.StringFlag{
+										Name:    "password",
+										Aliases: []string{"p"},
+										Usage:   "value of new password for user with given id",
+										Value:   "",
+									},
+								},
+								Action: func(ctx *cli.Context) error {
+									if !ctx.IsSet("user-id") {
+										return fmt.Errorf("set user-id flag with users subcommand")
+									}
+
+									storage, closer, err := usersStorage(ctx)
+									defer closer()
+									if err != nil {
+										return err
+									}
+
+									user, err := storage.Read(ctx.Context, ctx.Int("user-id"))
+									if err != nil {
+										return err
+									}
+
+									newHashedPassword := []byte{}
+									if newPassword := ctx.String("password"); newPassword != "" {
+										newHashedPassword, err = bcrypt.GenerateFromPassword(
+											[]byte(newPassword), bcrypt.DefaultCost,
+										)
+										if err != nil {
+											return err
+										}
+									}
+
+									newUser := users.Update(*user, &users.Changes{
+										Nickname: ctx.String("nickname"),
+										Password: newHashedPassword,
+										Online:   nil,
+									})
+
+									return storage.Update(ctx.Context, newUser)
+								},
 							},
 						},
 					},
@@ -188,6 +304,7 @@ func app() *cli.App {
 
 func main() {
 	if err := app().Run(os.Args); err != nil {
-		log.Fatal(err)
+		fmt.Fprintf(os.Stderr, "short-season: %s\n", err.Error())
+		os.Exit(1)
 	}
 }
