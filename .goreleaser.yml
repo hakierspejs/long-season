@@ -10,7 +10,7 @@ before:
 builds:
   - main: ./cmd/cli/main.go
     id: "cli"
-    binary: long-season-cli
+    binary: short-season
     goos:
       - linux
       - darwin

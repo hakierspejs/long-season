@@ -5,7 +5,7 @@ version: '2'
 
 vars:
   NAME: long-season
-  NAME_CLI: long-season-cli
+  NAME_CLI: short-season
 
 tasks:
   default:
