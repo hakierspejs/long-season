@@ -98,6 +98,90 @@ func incr(tx *bolt.Tx, key []byte) (int, error) {
 	return counter, nil
 }
 
+const (
+	userIDKey       = "ls::user::id"
+	userNicknameKey = "ls::user::nickname"
+	userPasswordKey = "ls::user::password"
+	userOnlineKey   = "ls::user::online"
+)
+
+func boolToBytes(b bool) []byte {
+	if b {
+		return []byte{1}
+	} else {
+		return []byte{0}
+	}
+}
+
+func bytesToBool(b []byte) bool {
+	return b[0] > 0
+}
+
+func userFromBucket(b *bolt.Bucket) (*models.User, error) {
+	result := new(models.User)
+
+	fail := func() (*models.User, error) {
+		return nil, serrors.ErrNoID
+	}
+
+	idBytes := b.Get([]byte(userIDKey))
+	if idBytes == nil {
+		return fail()
+	}
+
+	id, err := strconv.Atoi(string(idBytes))
+	if err != nil {
+		return nil, err
+	}
+	result.ID = id
+
+	nickname := b.Get([]byte(userNicknameKey))
+	if nickname == nil {
+		return fail()
+	}
+	result.Nickname = string(nickname)
+
+	password := b.Get([]byte(userPasswordKey))
+	if password == nil {
+		return fail()
+	}
+	result.Password = password
+
+	online := b.Get([]byte(userOnlineKey))
+	if online == nil {
+		return fail()
+	}
+	result.Online = bytesToBool(online)
+
+	return result, nil
+}
+
+func userBucketKey(id int) []byte {
+	return []byte(fmt.Sprintf("ls::user::%d", id))
+}
+
+func storeUserInBucket(user models.User, b *bolt.Bucket) error {
+	userBucket, err := b.CreateBucketIfNotExists(userBucketKey(user.ID))
+	if err != nil {
+		return err
+	}
+
+	id := []byte(strconv.Itoa(user.ID))
+	if err := userBucket.Put([]byte(userIDKey), id); err != nil {
+		return err
+	}
+
+	if err := userBucket.Put([]byte(userNicknameKey), []byte(user.Nickname)); err != nil {
+		return err
+	}
+
+	if err := userBucket.Put([]byte(userPasswordKey), user.Password); err != nil {
+		return err
+	}
+
+	return userBucket.Put([]byte(userOnlineKey), boolToBytes(user.Online))
+}
+
 // New stores given user data in database and returns
 // assigned id.
 func (s *UsersStorage) New(ctx context.Context, newUser models.User) (int, error) {
@@ -112,20 +196,15 @@ func (s *UsersStorage) New(ctx context.Context, newUser models.User) (int, error
 		// and change O(n) time of checking if nickname is occupied
 		// to O(1).
 		err := b.ForEach(func(k, v []byte) error {
-			buff := bytes.NewBuffer(v)
+			userBucket := b.Bucket(k)
 
-			var user models.User
+			user, err := userFromBucket(userBucket)
+			if err != nil {
+				return err
+			}
 
-			// Check if given key is an integer.
-			if _, err := strconv.Atoi(string(k)); err == nil {
-				err := gob.NewDecoder(buff).Decode(&user)
-				if err != nil {
-					return err
-				}
-
-				if user.Nickname == newUser.Nickname {
-					return serrors.ErrNicknameTaken
-				}
+			if user.Nickname == newUser.Nickname {
+				return serrors.ErrNicknameTaken
 			}
 
 			return nil
@@ -140,13 +219,7 @@ func (s *UsersStorage) New(ctx context.Context, newUser models.User) (int, error
 		}
 		newUser.ID = id
 
-		buff := bytes.NewBuffer([]byte{})
-		err = gob.NewEncoder(buff).Encode(&newUser)
-		if err != nil {
-			return err
-		}
-
-		return b.Put([]byte(strconv.Itoa(id)), buff.Bytes())
+		return storeUserInBucket(newUser, b)
 	})
 	if err != nil {
 		return 0, err
@@ -161,16 +234,15 @@ func (s *UsersStorage) Read(ctx context.Context, id int) (*models.User, error) {
 
 	err := s.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(usersBucket))
-		data := b.Get([]byte(strconv.Itoa(id)))
-
-		if data == nil {
+		bucketKey := userBucketKey(id)
+		userBucket := b.Bucket(bucketKey)
+		if userBucket == nil {
 			return serrors.ErrNoID
 		}
 
-		// TODO(thinkofher) You can move process of decoding outside
-		// of View function to unlock writing to database.
-		buff := bytes.NewBuffer(data)
-		return gob.NewDecoder(buff).Decode(user)
+		var err error
+		user, err = userFromBucket(userBucket)
+		return err
 	})
 	if err != nil {
 		return nil, fmt.Errorf("reading user with id=%d failed: %w", id, err)
@@ -187,19 +259,17 @@ func (s *UsersStorage) All(ctx context.Context) ([]models.User, error) {
 		b := tx.Bucket([]byte(usersBucket))
 
 		return b.ForEach(func(k, v []byte) error {
-			user := new(models.User)
-			buff := bytes.NewBuffer(v)
-
-			// Check if given key is an integer.
-			if _, err := strconv.Atoi(string(k)); err == nil {
-				err := gob.NewDecoder(buff).Decode(user)
-				if err != nil {
-					return fmt.Errorf("decoding user from gob failed: %w", err)
-				}
-
-				res = append(res, *user)
+			userBucket := b.Bucket(k)
+			if userBucket == nil {
+				return serrors.ErrNoID
 			}
 
+			user, err := userFromBucket(userBucket)
+			if err != nil {
+				return err
+			}
+
+			res = append(res, *user)
 			return nil
 		})
 	})
@@ -213,17 +283,11 @@ func (s *UsersStorage) All(ctx context.Context) ([]models.User, error) {
 // updateOne updates one user in bucket.
 func updateOneUser(b *bolt.Bucket, u models.User) error {
 	// Check if there is user with given id in database.
-	if b.Get([]byte(strconv.Itoa(u.ID))) == nil {
+	if b.Bucket(userBucketKey(u.ID)) == nil {
 		return serrors.ErrNoID
 	}
 
-	buff := bytes.NewBuffer([]byte{})
-	err := gob.NewEncoder(buff).Encode(&u)
-	if err != nil {
-		return err
-	}
-
-	return b.Put([]byte(strconv.Itoa(u.ID)), buff.Bytes())
+	return storeUserInBucket(u, b)
 }
 
 // Update overwrites existing user data.
@@ -255,12 +319,13 @@ func (s *UsersStorage) Remove(ctx context.Context, id int) error {
 	return s.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(usersBucket))
 
+		key := userBucketKey(id)
 		// Check if there is user with given id in database.
-		if b.Get([]byte(strconv.Itoa(id))) == nil {
+		if b.Bucket(key) == nil {
 			return serrors.ErrNoID
 		}
 
-		return b.Delete([]byte(strconv.Itoa(id)))
+		return b.DeleteBucket(key)
 	})
 }
 
