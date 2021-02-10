@@ -160,6 +160,11 @@ func userBucketKey(id int) []byte {
 	return []byte(fmt.Sprintf("ls::user::%d", id))
 }
 
+type bucketMapping struct {
+	key   []byte
+	value []byte
+}
+
 func storeUserInBucket(user models.User, b *bolt.Bucket) error {
 	// TODO(thinkofher) Wrap errors with fmt.Errorf and "%w".
 	userBucket, err := b.CreateBucketIfNotExists(userBucketKey(user.ID))
@@ -170,10 +175,7 @@ func storeUserInBucket(user models.User, b *bolt.Bucket) error {
 	id := []byte(strconv.Itoa(user.ID))
 
 	// keys and values for user data model
-	kvs := []struct {
-		key   []byte
-		value []byte
-	}{
+	kvs := []bucketMapping{
 		{[]byte(userIDKey), id},
 		{[]byte(userNicknameKey), []byte(user.Nickname)},
 		{[]byte(userPasswordKey), user.Password},
@@ -340,6 +342,96 @@ func (s *UsersStorage) Remove(ctx context.Context, id int) error {
 // for bolt database.
 type DevicesStorage struct {
 	db *bolt.DB
+}
+
+const (
+	deviceIDKey      = "ls::device::id"
+	deviceTagKey     = "ls::device::tag"
+	deviceOwnerKey   = "ls::device::owner"
+	deviceOwnerIDKey = "ls::device::owner::id"
+	deviceMACKey     = "ls::device::mac"
+)
+
+func deviceBucketKey(id int) []byte {
+	return []byte(fmt.Sprintf("ls::device::%d", id))
+}
+
+func deviceFromBucket(b *bolt.Bucket) (*models.Device, error) {
+	result := new(models.Device)
+
+	fail := func() (*models.Device, error) {
+		return nil, serrors.ErrNoID
+	}
+
+	deviceIDBytes := b.Get([]byte(deviceIDKey))
+	if deviceIDBytes == nil {
+		return fail()
+	}
+
+	deviceID, err := strconv.Atoi(string(deviceIDBytes))
+	if err != nil {
+		return nil, err
+	}
+	result.ID = deviceID
+
+	ownerIDBytes := b.Get([]byte(deviceOwnerIDKey))
+	if ownerIDBytes == nil {
+		return fail()
+	}
+
+	ownerID, err := strconv.Atoi(string(ownerIDBytes))
+	if err != nil {
+		return nil, err
+	}
+	result.OwnerID = ownerID
+
+	tag := b.Get([]byte(deviceTagKey))
+	if tag == nil {
+		return fail()
+	}
+	result.Tag = string(tag)
+
+	mac := b.Get([]byte(deviceMACKey))
+	if mac == nil {
+		return fail()
+	}
+	result.MAC = mac
+
+	owner := b.Get([]byte(deviceOwnerKey))
+	if owner == nil {
+		return fail()
+	}
+	result.Owner = string(owner)
+
+	return result, nil
+}
+
+func storeDeviceInBucket(device models.Device, b *bolt.Bucket) error {
+	// TODO(thinkofher) Wrap errors with fmt.Errorf and "%w".
+	deviceBucket, err := b.CreateBucketIfNotExists(deviceBucketKey(device.ID))
+	if err != nil {
+		return err
+	}
+
+	deviceID := []byte(strconv.Itoa(device.ID))
+	ownerID := []byte(strconv.Itoa(device.OwnerID))
+
+	// keys and values for device data model
+	kvs := []bucketMapping{
+		{[]byte(deviceIDKey), deviceID},
+		{[]byte(deviceOwnerIDKey), ownerID},
+		{[]byte(deviceOwnerKey), []byte(device.Owner)},
+		{[]byte(deviceTagKey), []byte(device.Tag)},
+		{[]byte(deviceMACKey), device.MAC},
+	}
+
+	for _, item := range kvs {
+		if err := deviceBucket.Put(item.key, item.value); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // New stores given devices data in database and returns
