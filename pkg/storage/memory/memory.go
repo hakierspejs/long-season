@@ -161,6 +161,7 @@ func userBucketKey(id int) []byte {
 }
 
 func storeUserInBucket(user models.User, b *bolt.Bucket) error {
+	// TODO(thinkofher) Wrap errors with fmt.Errorf and "%w".
 	userBucket, err := b.CreateBucketIfNotExists(userBucketKey(user.ID))
 	if err != nil {
 		return err
