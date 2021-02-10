@@ -168,19 +168,25 @@ func storeUserInBucket(user models.User, b *bolt.Bucket) error {
 	}
 
 	id := []byte(strconv.Itoa(user.ID))
-	if err := userBucket.Put([]byte(userIDKey), id); err != nil {
-		return err
+
+	// keys and values for user data model
+	kvs := []struct {
+		key   []byte
+		value []byte
+	}{
+		{[]byte(userIDKey), id},
+		{[]byte(userNicknameKey), []byte(user.Nickname)},
+		{[]byte(userPasswordKey), user.Password},
+		{[]byte(userOnlineKey), boolToBytes(user.Online)},
 	}
 
-	if err := userBucket.Put([]byte(userNicknameKey), []byte(user.Nickname)); err != nil {
-		return err
+	for _, item := range kvs {
+		if err := userBucket.Put(item.key, item.value); err != nil {
+			return err
+		}
 	}
 
-	if err := userBucket.Put([]byte(userPasswordKey), user.Password); err != nil {
-		return err
-	}
-
-	return userBucket.Put([]byte(userOnlineKey), boolToBytes(user.Online))
+	return nil
 }
 
 // New stores given user data in database and returns
