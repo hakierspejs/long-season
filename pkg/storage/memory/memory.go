@@ -165,6 +165,9 @@ type bucketMapping struct {
 	value []byte
 }
 
+// storeUserInBucket stores given user model in given bucket, by
+// creating sub-bucket with appropriate user bucket key according to
+// given user's id.
 func storeUserInBucket(user models.User, b *bolt.Bucket) error {
 	// TODO(thinkofher) Wrap errors with fmt.Errorf and "%w".
 	userBucket, err := b.CreateBucketIfNotExists(userBucketKey(user.ID))
