@@ -3,9 +3,7 @@
 package memory
 
 import (
-	"bytes"
 	"context"
-	"encoding/gob"
 	"fmt"
 	"strconv"
 
@@ -448,20 +446,15 @@ func (d *DevicesStorage) New(ctx context.Context, userID int, newDevice models.D
 
 		// Check if there is the device with same owner and tag.
 		err := b.ForEach(func(k, v []byte) error {
-			buff := bytes.NewBuffer(v)
+			deviceBucket := b.Bucket(k)
 
-			var device models.Device
+			device, err := deviceFromBucket(deviceBucket)
+			if err != nil {
+				return err
+			}
 
-			// Check if given key is an integer.
-			if _, err := strconv.Atoi(string(k)); err == nil {
-				err := gob.NewDecoder(buff).Decode(&device)
-				if err != nil {
-					return err
-				}
-
-				if device.Owner == newDevice.Owner && device.Tag == newDevice.Tag {
-					return serrors.ErrDeviceDuplication
-				}
+			if device.Owner == newDevice.Owner && device.Tag == newDevice.Tag {
+				return serrors.ErrDeviceDuplication
 			}
 
 			return nil
@@ -476,13 +469,7 @@ func (d *DevicesStorage) New(ctx context.Context, userID int, newDevice models.D
 		}
 		newDevice.ID = id
 
-		buff := bytes.NewBuffer([]byte{})
-		err = gob.NewEncoder(buff).Encode(&newDevice)
-		if err != nil {
-			return err
-		}
-
-		return b.Put([]byte(strconv.Itoa(id)), buff.Bytes())
+		return storeDeviceInBucket(newDevice, b)
 	})
 	if err != nil {
 		return 0, err
@@ -500,20 +487,15 @@ func (d *DevicesStorage) OfUser(ctx context.Context, userID int) ([]models.Devic
 
 		// Check if there is the device with same owner and tag.
 		err := b.ForEach(func(k, v []byte) error {
-			buff := bytes.NewBuffer(v)
+			deviceBucket := b.Bucket(k)
 
-			var device models.Device
+			device, err := deviceFromBucket(deviceBucket)
+			if err != nil {
+				return err
+			}
 
-			// Check if given key is an integer.
-			if _, err := strconv.Atoi(string(k)); err == nil {
-				err := gob.NewDecoder(buff).Decode(&device)
-				if err != nil {
-					return err
-				}
-
-				if device.OwnerID == userID {
-					ans = append(ans, device)
-				}
+			if device.OwnerID == userID {
+				ans = append(ans, *device)
 			}
 
 			return nil
@@ -539,16 +521,15 @@ func (s *DevicesStorage) Read(ctx context.Context, id int) (*models.Device, erro
 
 	err := s.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(devicesBucket))
-		data := b.Get([]byte(strconv.Itoa(id)))
-
-		if data == nil {
+		bucketKey := deviceBucketKey(id)
+		deviceBucket := b.Bucket(bucketKey)
+		if deviceBucket == nil {
 			return serrors.ErrNoID
 		}
 
-		// TODO(thinkofher) You can move process of decoding outside
-		// of View function to unlock writing to database.
-		buff := bytes.NewBuffer(data)
-		return gob.NewDecoder(buff).Decode(device)
+		var err error
+		device, err = deviceFromBucket(deviceBucket)
+		return err
 	})
 	if err != nil {
 		return nil, fmt.Errorf("reading device with id=%d failed: %w", id, err)
@@ -565,19 +546,17 @@ func (s *DevicesStorage) All(ctx context.Context) ([]models.Device, error) {
 		b := tx.Bucket([]byte(devicesBucket))
 
 		return b.ForEach(func(k, v []byte) error {
-			device := new(models.Device)
-			buff := bytes.NewBuffer(v)
-
-			// Check if given key is an integer.
-			if _, err := strconv.Atoi(string(k)); err == nil {
-				err := gob.NewDecoder(buff).Decode(device)
-				if err != nil {
-					return fmt.Errorf("decoding device from gob failed: %w", err)
-				}
-
-				res = append(res, *device)
+			deviceBucket := b.Bucket(k)
+			if deviceBucket == nil {
+				return serrors.ErrNoID
 			}
 
+			device, err := deviceFromBucket(deviceBucket)
+			if err != nil {
+				return err
+			}
+
+			res = append(res, *device)
 			return nil
 		})
 	})
@@ -594,17 +573,11 @@ func (s *DevicesStorage) Update(ctx context.Context, d models.Device) error {
 		b := tx.Bucket([]byte(devicesBucket))
 
 		// Check if there is device with given id in database.
-		if b.Get([]byte(strconv.Itoa(d.ID))) == nil {
+		if b.Bucket(deviceBucketKey(d.ID)) == nil {
 			return serrors.ErrNoID
 		}
 
-		buff := bytes.NewBuffer([]byte{})
-		err := gob.NewEncoder(buff).Encode(&d)
-		if err != nil {
-			return err
-		}
-
-		return b.Put([]byte(strconv.Itoa(d.ID)), buff.Bytes())
+		return storeDeviceInBucket(d, b)
 	})
 }
 
@@ -613,11 +586,12 @@ func (s *DevicesStorage) Remove(ctx context.Context, id int) error {
 	return s.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(devicesBucket))
 
-		// Check if there is user with given id in database.
-		if b.Get([]byte(strconv.Itoa(id))) == nil {
+		key := deviceBucketKey(id)
+		// Check if there is device with given id in database.
+		if b.Bucket(key) == nil {
 			return serrors.ErrNoID
 		}
 
-		return b.Delete([]byte(strconv.Itoa(id)))
+		return b.DeleteBucket(key)
 	})
 }
