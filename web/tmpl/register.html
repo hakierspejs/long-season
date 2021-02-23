@@ -5,23 +5,27 @@
 {{ end }}
 
 {{ define "content" }}
-<fieldset class="account-data">
-  <legend>create new account</legend>
-  <div class="err-msg">
+<form id="register-form">
+    <p><strong class="err-msg"></strong></p>
+
+    <p>
+      <label for="nickname">Login</label><br>
+      <input type="text" id="nickname" name="nickname" class="login-input" minlength="4" maxlength="32" pattern="[A-Za-z0-9]+" required>
+    </p>
+
+    <p>
+      <label for="password" class="password-label">Password</label><br>
+      <input type="password" id="password" name="password" class="password-input" minlength="6" maxlength="50" required>
+    </p>
+
+    <p>
+      <label for="r-password" class="r-password-label">Repeat Password</label><br>
+      <input type="password" id="r-password" name="r-password" class="r-password-input">
+    </p>
+
+    <button type="submit">Submit</button>
+    <button disabled="disabled">Disabled</button>
   </div>
-  <form id="register-form" class="grid-form-register">
-    <label for="nickname" class="login-label">login:</label>
-    <input type="text" id="nickname" name="nickname" class="login-input" minlength="4" maxlength="32" pattern="[A-Za-z0-9]+" required>
+</form>
 
-    <label for="password" class="password-label">password:</label>
-    <input type="password" id="password" name="password" class="password-input" minlength="6" maxlength="50" required>
-
-    <label for="r-password" class="r-password-label">repeat password:</label>
-    <input type="password" id="r-password" name="r-password" class="r-password-input">
-
-    <div class="button-area">
-      <button type="submit">submit</button>
-    </div>
-  </form>
-</fieldset>
 {{ end }}
