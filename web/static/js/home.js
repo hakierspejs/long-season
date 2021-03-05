@@ -19,7 +19,11 @@ ready(() =>
     };
 
     const onlineTitle = (length) =>
-      length > 0 ? el("h3", null, "Who is online?") : null;
+      el(
+        "h3",
+        length > 0 ? null : { style: "display:none;" },
+        "Who is online?",
+      );
 
     const usersComp = (users) =>
       el(
