@@ -3,26 +3,35 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8">
+    <meta name="color-scheme" content="dark light">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>long-season</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/normalize.css@8.0.1/normalize.css">
+    <link rel="stylesheet" href="https://cdn.simplecss.org/simple.min.css">
     <link rel="stylesheet" href="/static/style.css">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
     <script src="https://cdn.jsdelivr.net/npm/umbrellajs@3.2.3/umbrella.min.js"></script>
     <script src="/static/js/utils.js"></script>
     <script src="/static/js/navbar.js"></script>
     {{ block "scripts" . }}{{ end }}
   </head>
   <body>
-    <nav class="container">
-      <div class="at">hackerspace@lodz:~$</div>
-      <div class="elem"><a href="/">home</a></div>
-      <div class="elem"><a href="/register">register</a></div>
-      <div class="elem"><a href="/login">login</a></div>
-    </nav>
+    <header>
+      <h1>hs@lodz:~$</h1>
+
+      <nav>
+        <a href="/">Home</a>
+        <a href="/register">Register</a>
+        <a href="/login">Login</a>
+      </nav>
+    </header>
+
     <main>
-      <h1>long-season</h1>
       {{ block "content" . }}{{ end }}
     </main>
+
+    <footer>
+      <p><a href="https://github.com/hakierspejs/long-season">long-season</a> created by <a href="https://hs-ldz.pl">hakierspejs lodz</a></p>
+    </footer>
   </body>
 </html>
 {{ end }}

@@ -32,4 +32,4 @@ jobs:
           deno-version: ${{ matrix.deno }} # tests across multiple Deno versions
 
       - name: Format Check
-        run: deno fmt --check ./static/js
+        run: deno fmt --check ./web/static/js

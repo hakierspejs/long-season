@@ -5,20 +5,19 @@
 {{ end }}
 
 {{ define "content" }}
-<fieldset class="account-data">
-  <legend>enter your credentials</legend>
-  <div class="err-msg">
+<form id="login-form">
+  <p><strong class="err-msg"></strong></p>
+  <p>
+    <label for="nickname">Nickname</label><br>
+    <input type="text" id="nickname" name="nickname">
+  </p>
+
+  <p>
+    <label for="password">Password</label><br>
+    <input type="password" id="password" name="password">
+  </p>
+
+  <button type="submit">Submit</button>
   </div>
-  <form id="login-form" class="grid-form">
-    <label for="nickname" class="login-label">login:</label>
-    <input type="text" id="nickname" name="nickname" class="login-input">
-
-    <label for="password" class="password-label">password:</label>
-    <input type="password" id="password" name="password" class="password-input">
-
-    <div class="button-area">
-      <button type="submit">submit</button>
-    </div>
-  </form>
-</fieldset>
+</form>
 {{ end }}

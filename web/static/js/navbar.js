@@ -2,13 +2,6 @@ ready(() =>
   ((u, el) => {
     "use strict";
 
-    const elem = (...children) =>
-      el(
-        "div",
-        { "class": "elem" },
-        ...children,
-      );
-
     const a = (link, ...children) =>
       el(
         "a",
@@ -18,16 +11,15 @@ ready(() =>
 
     const navbar = ({ nickname }) => {
       return [
-        el("div", { "class": "at" }, "hackerspace@lodz:~$"),
-        elem(a("/", "home")),
+        a("/", "Home"),
         ...(nickname
           ? [
-            elem(a("/devices", `${nickname}@hsldz`)),
-            elem(a("/logout", "logout")),
+            a("/devices", `${nickname}@lodz`),
+            a("/logout", "Logout"),
           ]
           : [
-            elem(a("/register", "register")),
-            elem(a("/login", "login")),
+            a("/register", "Register"),
+            a("/login", "Login"),
           ]),
       ];
     };
