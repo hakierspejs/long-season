@@ -171,6 +171,68 @@ func UserRemove(db storage.Users) http.HandlerFunc {
 	}
 }
 
+func UserUpdate(db storage.Users) http.HandlerFunc {
+	type payload struct {
+		Private *bool `json:"private,omitempty"`
+	}
+
+	type response struct {
+		payload
+		models.UserPublicData
+	}
+	return func(w http.ResponseWriter, r *http.Request) {
+		userID, err := requests.UserID(r)
+		if err != nil {
+			notFound(w)
+			return
+		}
+
+		p := new(payload)
+		if err := json.NewDecoder(r.Body).Decode(p); err != nil {
+			result.JSONError(w, &result.JSONErrorBody{
+				Message: fmt.Sprintf("invalid input: %s", err.Error()),
+				Code:    http.StatusBadRequest,
+				Type:    "bad-request",
+			})
+			return
+		}
+
+		if p.Private == nil {
+			gores.JSONIndent(w, http.StatusCreated, struct{}{},
+				defaultPrefix, defaultIndent)
+			return
+		}
+
+		data, err := db.Read(r.Context(), userID)
+		switch {
+		case errors.As(err, &serrors.ErrNoID):
+			notFound(w)
+			return
+		case err != nil:
+			internalServerError(w)
+			return
+		}
+		data.Private = *p.Private
+
+		err = db.Update(r.Context(), *data)
+		switch {
+		case errors.As(err, &serrors.ErrNoID):
+			notFound(w)
+			return
+		case err != nil:
+			internalServerError(w)
+			return
+		}
+
+		gores.JSONIndent(w, http.StatusOK, &response{
+			payload: payload{
+				Private: p.Private,
+			},
+			UserPublicData: data.UserPublicData,
+		}, defaultPrefix, defaultIndent)
+	}
+}
+
 // UpdateStatus updates online field of every user id database
 // with MAC address equal to one from slice provided by
 // user in request payload.

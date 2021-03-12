@@ -85,6 +85,11 @@ func main() {
 				r.With(
 					lsmiddleware.ApiAuth(*config, false),
 					lsmiddleware.Private,
+				).Patch("/", api.UserUpdate(factoryStorage.Users()))
+
+				r.With(
+					lsmiddleware.ApiAuth(*config, false),
+					lsmiddleware.Private,
 				).Route("/devices", func(r chi.Router) {
 					r.Get("/", api.UserDevices(factoryStorage.Devices()))
 					r.Post("/", api.DeviceAdd(factoryStorage.Devices()))
