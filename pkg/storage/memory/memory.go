@@ -3,9 +3,7 @@
 package memory
 
 import (
-	"bytes"
 	"context"
-	"encoding/gob"
 	"fmt"
 	"strconv"
 
@@ -98,6 +96,102 @@ func incr(tx *bolt.Tx, key []byte) (int, error) {
 	return counter, nil
 }
 
+const (
+	userIDKey       = "ls::user::id"
+	userNicknameKey = "ls::user::nickname"
+	userPasswordKey = "ls::user::password"
+	userOnlineKey   = "ls::user::online"
+)
+
+func boolToBytes(b bool) []byte {
+	if b {
+		return []byte{1}
+	} else {
+		return []byte{0}
+	}
+}
+
+func bytesToBool(b []byte) bool {
+	return b[0] > 0
+}
+
+func userFromBucket(b *bolt.Bucket) (*models.User, error) {
+	result := new(models.User)
+
+	fail := func() (*models.User, error) {
+		return nil, serrors.ErrNoID
+	}
+
+	idBytes := b.Get([]byte(userIDKey))
+	if idBytes == nil {
+		return fail()
+	}
+
+	id, err := strconv.Atoi(string(idBytes))
+	if err != nil {
+		return nil, err
+	}
+	result.ID = id
+
+	nickname := b.Get([]byte(userNicknameKey))
+	if nickname == nil {
+		return fail()
+	}
+	result.Nickname = string(nickname)
+
+	password := b.Get([]byte(userPasswordKey))
+	if password == nil {
+		return fail()
+	}
+	result.Password = password
+
+	online := b.Get([]byte(userOnlineKey))
+	if online == nil {
+		return fail()
+	}
+	result.Online = bytesToBool(online)
+
+	return result, nil
+}
+
+func userBucketKey(id int) []byte {
+	return []byte(fmt.Sprintf("ls::user::%d", id))
+}
+
+type bucketMapping struct {
+	key   []byte
+	value []byte
+}
+
+// storeUserInBucket stores given user model in given bucket, by
+// creating sub-bucket with appropriate user bucket key according to
+// given user's id.
+func storeUserInBucket(user models.User, b *bolt.Bucket) error {
+	// TODO(thinkofher) Wrap errors with fmt.Errorf and "%w".
+	userBucket, err := b.CreateBucketIfNotExists(userBucketKey(user.ID))
+	if err != nil {
+		return err
+	}
+
+	id := []byte(strconv.Itoa(user.ID))
+
+	// keys and values for user data model
+	kvs := []bucketMapping{
+		{[]byte(userIDKey), id},
+		{[]byte(userNicknameKey), []byte(user.Nickname)},
+		{[]byte(userPasswordKey), user.Password},
+		{[]byte(userOnlineKey), boolToBytes(user.Online)},
+	}
+
+	for _, item := range kvs {
+		if err := userBucket.Put(item.key, item.value); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // New stores given user data in database and returns
 // assigned id.
 func (s *UsersStorage) New(ctx context.Context, newUser models.User) (int, error) {
@@ -112,20 +206,15 @@ func (s *UsersStorage) New(ctx context.Context, newUser models.User) (int, error
 		// and change O(n) time of checking if nickname is occupied
 		// to O(1).
 		err := b.ForEach(func(k, v []byte) error {
-			buff := bytes.NewBuffer(v)
+			userBucket := b.Bucket(k)
 
-			var user models.User
+			user, err := userFromBucket(userBucket)
+			if err != nil {
+				return err
+			}
 
-			// Check if given key is an integer.
-			if _, err := strconv.Atoi(string(k)); err == nil {
-				err := gob.NewDecoder(buff).Decode(&user)
-				if err != nil {
-					return err
-				}
-
-				if user.Nickname == newUser.Nickname {
-					return serrors.ErrNicknameTaken
-				}
+			if user.Nickname == newUser.Nickname {
+				return serrors.ErrNicknameTaken
 			}
 
 			return nil
@@ -140,13 +229,7 @@ func (s *UsersStorage) New(ctx context.Context, newUser models.User) (int, error
 		}
 		newUser.ID = id
 
-		buff := bytes.NewBuffer([]byte{})
-		err = gob.NewEncoder(buff).Encode(&newUser)
-		if err != nil {
-			return err
-		}
-
-		return b.Put([]byte(strconv.Itoa(id)), buff.Bytes())
+		return storeUserInBucket(newUser, b)
 	})
 	if err != nil {
 		return 0, err
@@ -161,16 +244,15 @@ func (s *UsersStorage) Read(ctx context.Context, id int) (*models.User, error) {
 
 	err := s.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(usersBucket))
-		data := b.Get([]byte(strconv.Itoa(id)))
-
-		if data == nil {
+		bucketKey := userBucketKey(id)
+		userBucket := b.Bucket(bucketKey)
+		if userBucket == nil {
 			return serrors.ErrNoID
 		}
 
-		// TODO(thinkofher) You can move process of decoding outside
-		// of View function to unlock writing to database.
-		buff := bytes.NewBuffer(data)
-		return gob.NewDecoder(buff).Decode(user)
+		var err error
+		user, err = userFromBucket(userBucket)
+		return err
 	})
 	if err != nil {
 		return nil, fmt.Errorf("reading user with id=%d failed: %w", id, err)
@@ -187,19 +269,17 @@ func (s *UsersStorage) All(ctx context.Context) ([]models.User, error) {
 		b := tx.Bucket([]byte(usersBucket))
 
 		return b.ForEach(func(k, v []byte) error {
-			user := new(models.User)
-			buff := bytes.NewBuffer(v)
-
-			// Check if given key is an integer.
-			if _, err := strconv.Atoi(string(k)); err == nil {
-				err := gob.NewDecoder(buff).Decode(user)
-				if err != nil {
-					return fmt.Errorf("decoding user from gob failed: %w", err)
-				}
-
-				res = append(res, *user)
+			userBucket := b.Bucket(k)
+			if userBucket == nil {
+				return serrors.ErrNoID
 			}
 
+			user, err := userFromBucket(userBucket)
+			if err != nil {
+				return err
+			}
+
+			res = append(res, *user)
 			return nil
 		})
 	})
@@ -213,17 +293,11 @@ func (s *UsersStorage) All(ctx context.Context) ([]models.User, error) {
 // updateOne updates one user in bucket.
 func updateOneUser(b *bolt.Bucket, u models.User) error {
 	// Check if there is user with given id in database.
-	if b.Get([]byte(strconv.Itoa(u.ID))) == nil {
+	if b.Bucket(userBucketKey(u.ID)) == nil {
 		return serrors.ErrNoID
 	}
 
-	buff := bytes.NewBuffer([]byte{})
-	err := gob.NewEncoder(buff).Encode(&u)
-	if err != nil {
-		return err
-	}
-
-	return b.Put([]byte(strconv.Itoa(u.ID)), buff.Bytes())
+	return storeUserInBucket(u, b)
 }
 
 // Update overwrites existing user data.
@@ -255,12 +329,13 @@ func (s *UsersStorage) Remove(ctx context.Context, id int) error {
 	return s.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(usersBucket))
 
+		key := userBucketKey(id)
 		// Check if there is user with given id in database.
-		if b.Get([]byte(strconv.Itoa(id))) == nil {
+		if b.Bucket(key) == nil {
 			return serrors.ErrNoID
 		}
 
-		return b.Delete([]byte(strconv.Itoa(id)))
+		return b.DeleteBucket(key)
 	})
 }
 
@@ -268,6 +343,96 @@ func (s *UsersStorage) Remove(ctx context.Context, id int) error {
 // for bolt database.
 type DevicesStorage struct {
 	db *bolt.DB
+}
+
+const (
+	deviceIDKey      = "ls::device::id"
+	deviceTagKey     = "ls::device::tag"
+	deviceOwnerKey   = "ls::device::owner"
+	deviceOwnerIDKey = "ls::device::owner::id"
+	deviceMACKey     = "ls::device::mac"
+)
+
+func deviceBucketKey(id int) []byte {
+	return []byte(fmt.Sprintf("ls::device::%d", id))
+}
+
+func deviceFromBucket(b *bolt.Bucket) (*models.Device, error) {
+	result := new(models.Device)
+
+	fail := func() (*models.Device, error) {
+		return nil, serrors.ErrNoID
+	}
+
+	deviceIDBytes := b.Get([]byte(deviceIDKey))
+	if deviceIDBytes == nil {
+		return fail()
+	}
+
+	deviceID, err := strconv.Atoi(string(deviceIDBytes))
+	if err != nil {
+		return nil, err
+	}
+	result.ID = deviceID
+
+	ownerIDBytes := b.Get([]byte(deviceOwnerIDKey))
+	if ownerIDBytes == nil {
+		return fail()
+	}
+
+	ownerID, err := strconv.Atoi(string(ownerIDBytes))
+	if err != nil {
+		return nil, err
+	}
+	result.OwnerID = ownerID
+
+	tag := b.Get([]byte(deviceTagKey))
+	if tag == nil {
+		return fail()
+	}
+	result.Tag = string(tag)
+
+	mac := b.Get([]byte(deviceMACKey))
+	if mac == nil {
+		return fail()
+	}
+	result.MAC = mac
+
+	owner := b.Get([]byte(deviceOwnerKey))
+	if owner == nil {
+		return fail()
+	}
+	result.Owner = string(owner)
+
+	return result, nil
+}
+
+func storeDeviceInBucket(device models.Device, b *bolt.Bucket) error {
+	// TODO(thinkofher) Wrap errors with fmt.Errorf and "%w".
+	deviceBucket, err := b.CreateBucketIfNotExists(deviceBucketKey(device.ID))
+	if err != nil {
+		return err
+	}
+
+	deviceID := []byte(strconv.Itoa(device.ID))
+	ownerID := []byte(strconv.Itoa(device.OwnerID))
+
+	// keys and values for device data model
+	kvs := []bucketMapping{
+		{[]byte(deviceIDKey), deviceID},
+		{[]byte(deviceOwnerIDKey), ownerID},
+		{[]byte(deviceOwnerKey), []byte(device.Owner)},
+		{[]byte(deviceTagKey), []byte(device.Tag)},
+		{[]byte(deviceMACKey), device.MAC},
+	}
+
+	for _, item := range kvs {
+		if err := deviceBucket.Put(item.key, item.value); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // New stores given devices data in database and returns
@@ -281,20 +446,15 @@ func (d *DevicesStorage) New(ctx context.Context, userID int, newDevice models.D
 
 		// Check if there is the device with same owner and tag.
 		err := b.ForEach(func(k, v []byte) error {
-			buff := bytes.NewBuffer(v)
+			deviceBucket := b.Bucket(k)
 
-			var device models.Device
+			device, err := deviceFromBucket(deviceBucket)
+			if err != nil {
+				return err
+			}
 
-			// Check if given key is an integer.
-			if _, err := strconv.Atoi(string(k)); err == nil {
-				err := gob.NewDecoder(buff).Decode(&device)
-				if err != nil {
-					return err
-				}
-
-				if device.Owner == newDevice.Owner && device.Tag == newDevice.Tag {
-					return serrors.ErrDeviceDuplication
-				}
+			if device.Owner == newDevice.Owner && device.Tag == newDevice.Tag {
+				return serrors.ErrDeviceDuplication
 			}
 
 			return nil
@@ -309,13 +469,7 @@ func (d *DevicesStorage) New(ctx context.Context, userID int, newDevice models.D
 		}
 		newDevice.ID = id
 
-		buff := bytes.NewBuffer([]byte{})
-		err = gob.NewEncoder(buff).Encode(&newDevice)
-		if err != nil {
-			return err
-		}
-
-		return b.Put([]byte(strconv.Itoa(id)), buff.Bytes())
+		return storeDeviceInBucket(newDevice, b)
 	})
 	if err != nil {
 		return 0, err
@@ -333,20 +487,15 @@ func (d *DevicesStorage) OfUser(ctx context.Context, userID int) ([]models.Devic
 
 		// Check if there is the device with same owner and tag.
 		err := b.ForEach(func(k, v []byte) error {
-			buff := bytes.NewBuffer(v)
+			deviceBucket := b.Bucket(k)
 
-			var device models.Device
+			device, err := deviceFromBucket(deviceBucket)
+			if err != nil {
+				return err
+			}
 
-			// Check if given key is an integer.
-			if _, err := strconv.Atoi(string(k)); err == nil {
-				err := gob.NewDecoder(buff).Decode(&device)
-				if err != nil {
-					return err
-				}
-
-				if device.OwnerID == userID {
-					ans = append(ans, device)
-				}
+			if device.OwnerID == userID {
+				ans = append(ans, *device)
 			}
 
 			return nil
@@ -372,16 +521,15 @@ func (s *DevicesStorage) Read(ctx context.Context, id int) (*models.Device, erro
 
 	err := s.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(devicesBucket))
-		data := b.Get([]byte(strconv.Itoa(id)))
-
-		if data == nil {
+		bucketKey := deviceBucketKey(id)
+		deviceBucket := b.Bucket(bucketKey)
+		if deviceBucket == nil {
 			return serrors.ErrNoID
 		}
 
-		// TODO(thinkofher) You can move process of decoding outside
-		// of View function to unlock writing to database.
-		buff := bytes.NewBuffer(data)
-		return gob.NewDecoder(buff).Decode(device)
+		var err error
+		device, err = deviceFromBucket(deviceBucket)
+		return err
 	})
 	if err != nil {
 		return nil, fmt.Errorf("reading device with id=%d failed: %w", id, err)
@@ -398,19 +546,17 @@ func (s *DevicesStorage) All(ctx context.Context) ([]models.Device, error) {
 		b := tx.Bucket([]byte(devicesBucket))
 
 		return b.ForEach(func(k, v []byte) error {
-			device := new(models.Device)
-			buff := bytes.NewBuffer(v)
-
-			// Check if given key is an integer.
-			if _, err := strconv.Atoi(string(k)); err == nil {
-				err := gob.NewDecoder(buff).Decode(device)
-				if err != nil {
-					return fmt.Errorf("decoding device from gob failed: %w", err)
-				}
-
-				res = append(res, *device)
+			deviceBucket := b.Bucket(k)
+			if deviceBucket == nil {
+				return serrors.ErrNoID
 			}
 
+			device, err := deviceFromBucket(deviceBucket)
+			if err != nil {
+				return err
+			}
+
+			res = append(res, *device)
 			return nil
 		})
 	})
@@ -427,17 +573,11 @@ func (s *DevicesStorage) Update(ctx context.Context, d models.Device) error {
 		b := tx.Bucket([]byte(devicesBucket))
 
 		// Check if there is device with given id in database.
-		if b.Get([]byte(strconv.Itoa(d.ID))) == nil {
+		if b.Bucket(deviceBucketKey(d.ID)) == nil {
 			return serrors.ErrNoID
 		}
 
-		buff := bytes.NewBuffer([]byte{})
-		err := gob.NewEncoder(buff).Encode(&d)
-		if err != nil {
-			return err
-		}
-
-		return b.Put([]byte(strconv.Itoa(d.ID)), buff.Bytes())
+		return storeDeviceInBucket(d, b)
 	})
 }
 
@@ -446,11 +586,12 @@ func (s *DevicesStorage) Remove(ctx context.Context, id int) error {
 	return s.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(devicesBucket))
 
-		// Check if there is user with given id in database.
-		if b.Get([]byte(strconv.Itoa(id))) == nil {
+		key := deviceBucketKey(id)
+		// Check if there is device with given id in database.
+		if b.Bucket(key) == nil {
 			return serrors.ErrNoID
 		}
 
-		return b.Delete([]byte(strconv.Itoa(id)))
+		return b.DeleteBucket(key)
 	})
 }
