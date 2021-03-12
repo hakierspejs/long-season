@@ -18,6 +18,10 @@ type User struct {
 
 	// Password of User hashed with bcrypt algorithm.
 	Password []byte
+
+	// Private is flag for enabling private-mode that hides
+	// user activity from others.
+	Private bool
 }
 
 // UserPublicData is subset of User containing

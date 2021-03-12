@@ -97,10 +97,11 @@ func incr(tx *bolt.Tx, key []byte) (int, error) {
 }
 
 const (
-	userIDKey       = "ls::user::id"
-	userNicknameKey = "ls::user::nickname"
-	userPasswordKey = "ls::user::password"
-	userOnlineKey   = "ls::user::online"
+	userIDKey          = "ls::user::id"
+	userNicknameKey    = "ls::user::nickname"
+	userPasswordKey    = "ls::user::password"
+	userOnlineKey      = "ls::user::online"
+	userPrivateModeKey = "ls::user::private_mode"
 )
 
 func boolToBytes(b bool) []byte {
@@ -151,6 +152,16 @@ func userFromBucket(b *bolt.Bucket) (*models.User, error) {
 	}
 	result.Online = bytesToBool(online)
 
+	priv := b.Get([]byte(userPrivateModeKey))
+	if priv == nil {
+		// This is a new field implemented after #43, so
+		// we can handle situation when field is nil and
+		// assume default value.
+		result.Private = false
+	} else {
+		result.Private = bytesToBool(priv)
+	}
+
 	return result, nil
 }
 
@@ -181,6 +192,7 @@ func storeUserInBucket(user models.User, b *bolt.Bucket) error {
 		{[]byte(userNicknameKey), []byte(user.Nickname)},
 		{[]byte(userPasswordKey), user.Password},
 		{[]byte(userOnlineKey), boolToBytes(user.Online)},
+		{[]byte(userPrivateModeKey), boolToBytes(user.Private)},
 	}
 
 	for _, item := range kvs {
