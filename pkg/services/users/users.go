@@ -92,7 +92,7 @@ func Private(u models.User) bool {
 }
 
 // Filter returns slice of users that passed all given
-// FilterFunc tests. If no filters given, returns exacly same
+// FilterFunc tests. If no filters given, returns exactly same
 // slice of users that has been passed to function.
 func Filter(users []models.User, filters ...FilterFunc) []models.User {
 	if len(filters) == 0 {
