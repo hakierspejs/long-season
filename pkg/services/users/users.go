@@ -67,6 +67,53 @@ func PublicSlice(u []models.User) []models.UserPublicData {
 	return public
 }
 
+// FilterFunc accepts User model and returns
+// true or false.
+type FilterFunc func(models.User) bool
+
+// Not returns opposite of given FilterFunc
+// result.
+func Not(f FilterFunc) FilterFunc {
+	return func(u models.User) bool {
+		return !f(u)
+	}
+}
+
+// Online returns true if given user is
+// currently online.
+func Online(u models.User) bool {
+	return u.Online
+}
+
+// Private returns true if given user has
+// private flag set to true.
+func Private(u models.User) bool {
+	return u.Private
+}
+
+// Filter returns slice of users that passed all given
+// FilterFunc tests. If no filters given, returns exacly same
+// slice of users that has been passed to function.
+func Filter(users []models.User, filters ...FilterFunc) []models.User {
+	if len(filters) == 0 {
+		return users
+	}
+
+	filtered := make([]models.User, 0, len(users))
+	tests := make([]bool, len(filters), len(filters))
+	for _, u := range users {
+		for i := 0; i < len(filters); i++ {
+			tests[i] = filters[i](u)
+		}
+
+		if all(tests...) {
+			filtered = append(filtered, u)
+		}
+	}
+
+	return filtered
+}
+
 // all returns true if all args are true,
 // otherwise returns false.
 func all(args ...bool) bool {
