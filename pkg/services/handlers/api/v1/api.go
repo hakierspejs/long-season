@@ -98,20 +98,20 @@ func UsersAll(db storage.Users) http.HandlerFunc {
 			return
 		}
 
-		result := users.PublicSlice(data)
+		filters := users.DefaultFilters()
 
-		// Filter only online users.
-		if r.URL.Query().Get("online") == "true" {
-			filtered := make([]models.UserPublicData, 0, len(result))
-			for _, u := range result {
-				if u.Online {
-					filtered = append(filtered, u)
-				}
-			}
-			result = filtered
+		switch r.URL.Query().Get("online") {
+		case "true":
+			filters = append(filters, users.Online)
+		case "false":
+			filters = append(filters, users.Not(users.Online))
 		}
 
-		gores.JSONIndent(w, http.StatusOK, result, defaultPrefix, defaultIndent)
+		filtered := users.Filter(data, filters...)
+		gores.JSONIndent(
+			w, http.StatusOK, users.PublicSlice(filtered),
+			defaultPrefix, defaultIndent,
+		)
 	}
 }
 
