@@ -117,11 +117,11 @@ func Filter(users []models.User, filters ...FilterFunc) []models.User {
 // DefaultFilters returns slice with convenient collection of
 // default filters that can be used for outputting user data.
 //
-// For example: default filters contains Not(Online) filter
+// For example: default filters contains Not(Private) filter
 // for hiding private users.
 func DefaultFilters() []FilterFunc {
 	return []FilterFunc{
-		Not(Online),
+		Not(Private),
 	}
 }
 
