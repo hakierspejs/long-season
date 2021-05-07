@@ -12,7 +12,7 @@ ready(() =>
           text = HACKER_STATE.FOREVER_ALONE;
           break;
         default:
-          text = HACKER_STATE.PARTY(data.length);
+          text = HACKER_STATE.PARTY(usersCount);
           break;
       }
       return el("p", null, text);
