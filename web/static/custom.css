@@ -51,3 +51,13 @@ li > span {
 .rm:hover {
   text-decoration: underline;
 }
+
+/* display checkbox and its description inline */
+#priv-mode-label {
+  display: flex;
+}
+
+/* add small padding on the left side to checkbox description */
+#priv-mode-text {
+  padding-left: 0.5em;
+}
