@@ -75,4 +75,5 @@ type Claims struct {
 	jwt.StandardClaims
 	UserID   int    `json:"id"`
 	Nickname string `json:"nck"`
+	Private  bool   `json:"prv"`
 }
