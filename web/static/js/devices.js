@@ -6,11 +6,16 @@ ready(() =>
     const deviceComp = ({ tag, id }) =>
       el(
         "li",
-        { "class": "device" },
-        el("div", {}, el("b", {}, tag)),
-        el("button", {
-          onClick: () => deleteDevice(id),
-        }, "Remove"),
+        {},
+        el("span", {}, el("b", {}, tag)),
+        el(
+          "span",
+          {},
+          el("a", {
+            onClick: () => deleteDevice(id),
+            "class": "rm",
+          }, "remove"),
+        ),
       );
 
     // Returns array with devices components constructed from
