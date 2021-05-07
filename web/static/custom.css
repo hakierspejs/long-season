@@ -1,0 +1,53 @@
+footer {
+  margin-top: 4rem; padding: 1rem 1rem 1.5rem 0rem;
+  color: var(--light);
+  font-size: .9rem;
+  border-top: 1px solid var(--light);
+}
+
+nav {
+  margin-top: 2rem;
+  color: var(--light);
+  font-size: .9rem;
+  border-top: 1px solid var(--light);
+  border-bottom: 1px solid var(--light);
+  display: block;
+  padding: 1rem 0rem 1rem 0rem;
+}
+
+nav a {
+  white-space: nowrap;
+  margin: 0rem 0.25rem 0rem 0.25rem;
+  display: inline-block;
+  text-decoration: none;
+}
+
+nav a::before {
+  content: "[";
+  padding-right: 0.5em;
+}
+
+nav a::after {
+  content: "]";
+  padding-left: 0.5em;
+}
+
+nav a:hover {
+  text-decoration: underline;
+}
+
+@media only screen and (min-width: 600px) {
+    ul {
+        column-count: 2;
+    }
+}
+
+/* add a little padding to devices list */
+li > span {
+  padding-right: 1rem;
+}
+
+/* add hover effect to remove link near the device tag */
+.rm:hover {
+  text-decoration: underline;
+}
