@@ -74,7 +74,9 @@ func main() {
 			r.Post("/", api.UserCreate(factoryStorage.Users()))
 
 			r.With(lsmiddleware.UserID).Route("/{user-id}", func(r chi.Router) {
-				r.Get("/", api.UserRead(factoryStorage.Users()))
+				r.With(
+					lsmiddleware.ApiAuth(*config, true),
+				).Get("/", api.UserRead(factoryStorage.Users()))
 
 				// Users can only delete themselves.
 				r.With(

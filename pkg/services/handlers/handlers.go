@@ -15,7 +15,7 @@ func Who() http.HandlerFunc {
 	type response struct {
 		ID       int    `json:"id"`
 		Nickname string `json:"nickname"`
-		Private  bool   `json:"private"`
+		Private  bool   `json:"priv"`
 	}
 
 	return func(w http.ResponseWriter, r *http.Request) {

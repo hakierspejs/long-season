@@ -116,6 +116,10 @@ func UsersAll(db storage.Users) http.HandlerFunc {
 }
 
 func UserRead(db storage.Users) http.HandlerFunc {
+	type response struct {
+		models.UserPublicData
+		Private *bool `json:"priv,omitempty"`
+	}
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, err := requests.UserID(r)
 		if err != nil {
@@ -139,7 +143,16 @@ func UserRead(db storage.Users) http.HandlerFunc {
 			return
 		}
 
-		gores.JSONIndent(w, http.StatusOK, user.UserPublicData, defaultPrefix, defaultIndent)
+		var privateMode *bool = nil
+		claims, err := requests.JWTClaims(r)
+		if err == nil && (claims.UserID == user.ID) {
+			privateMode = &user.Private
+		}
+
+		gores.JSONIndent(w, http.StatusOK, &response{
+			UserPublicData: user.UserPublicData,
+			Private:        privateMode,
+		}, defaultPrefix, defaultIndent)
 	}
 }
 
@@ -173,7 +186,7 @@ func UserRemove(db storage.Users) http.HandlerFunc {
 
 func UserUpdate(db storage.Users) http.HandlerFunc {
 	type payload struct {
-		Private *bool `json:"private,omitempty"`
+		Private *bool `json:"priv,omitempty"`
 	}
 
 	type response struct {
