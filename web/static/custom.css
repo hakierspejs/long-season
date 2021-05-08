@@ -1,16 +1,17 @@
 footer {
-  margin-top: 4rem; padding: 1rem 1rem 1.5rem 0rem;
-  color: var(--light);
+  margin-top: 4rem;
+  padding: 1rem 1rem 1.5rem 0rem;
+  color: var(--dark);
   font-size: .9rem;
-  border-top: 1px solid var(--light);
+  border-top: 1px solid var(--dark);
 }
 
 nav {
   margin-top: 2rem;
-  color: var(--light);
+  color: var(--dark);
   font-size: .9rem;
-  border-top: 1px solid var(--light);
-  border-bottom: 1px solid var(--light);
+  border-top: 1px solid var(--dark);
+  border-bottom: 1px solid var(--dark);
   display: block;
   padding: 1rem 0rem 1rem 0rem;
 }
@@ -37,9 +38,9 @@ nav a:hover {
 }
 
 @media only screen and (min-width: 600px) {
-    ul {
-        column-count: 2;
-    }
+  ul {
+    column-count: 2;
+  }
 }
 
 /* add a little padding to devices list */
@@ -60,4 +61,17 @@ li > span {
 /* add small padding on the left side to checkbox description */
 #priv-mode-text {
   padding-left: 0.5em;
+}
+
+/* Dark mode overrides */
+@media (prefers-color-scheme: dark) {
+  footer {
+    border-top: 1px solid var(--light);
+  }
+
+  nav {
+    color: var(--light);
+    border-top: 1px solid var(--light);
+    border-bottom: 1px solid var(--light);
+  }
 }
