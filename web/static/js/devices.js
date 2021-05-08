@@ -23,7 +23,7 @@ ready(() =>
     const privModeCheckbox = ({ store, onClick }) => {
       const checkbox = el("input", { "type": "checkbox" });
 
-      const text = el("div", {"id": "priv-mode-text"}, "");
+      const text = el("div", { "id": "priv-mode-text" }, "");
 
       // set checked value
       checkbox.checked = store();
@@ -42,7 +42,7 @@ ready(() =>
         {},
         el(
           "label",
-          {"id": "priv-mode-label"},
+          { "id": "priv-mode-label" },
           checkbox,
           text,
         ),
