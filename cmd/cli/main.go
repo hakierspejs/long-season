@@ -236,7 +236,7 @@ func app() *cli.App {
 					}
 
 					for _, device := range devices {
-						_, err = devicesStorage.New(localCtx, device.OwnerID, device)
+						_, err = devicesStorage.NewByOwner(localCtx, device.Owner, device)
 						if err != nil {
 							return err
 						}
