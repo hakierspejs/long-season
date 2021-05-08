@@ -35,7 +35,7 @@ func main() {
 	}
 
 	ctx := context.Background()
-	macChannel, macDeamon := status.NewDaemon(ctx, factoryStorage.Devices(), factoryStorage.Users())
+	macChannel, macDeamon := status.NewDaemon(ctx, factoryStorage.StatusIterator())
 
 	// CORS (Cross-Origin Resource Sharing) middleware that enables public
 	// access to GET/OPTIONS requests. Used to expose APIs to XHR consumers in
@@ -74,13 +74,20 @@ func main() {
 			r.Post("/", api.UserCreate(factoryStorage.Users()))
 
 			r.With(lsmiddleware.UserID).Route("/{user-id}", func(r chi.Router) {
-				r.Get("/", api.UserRead(factoryStorage.Users()))
+				r.With(
+					lsmiddleware.ApiAuth(*config, true),
+				).Get("/", api.UserRead(factoryStorage.Users()))
 
 				// Users can only delete themselves.
 				r.With(
 					lsmiddleware.ApiAuth(*config, false),
 					lsmiddleware.Private,
 				).Delete("/", api.UserRemove(factoryStorage.Users()))
+
+				r.With(
+					lsmiddleware.ApiAuth(*config, false),
+					lsmiddleware.Private,
+				).Patch("/", api.UserUpdate(factoryStorage.Users()))
 
 				r.With(
 					lsmiddleware.ApiAuth(*config, false),

@@ -18,6 +18,37 @@ ready(() =>
         ),
       );
 
+    const privMode = valoo(false);
+
+    const privModeCheckbox = ({ store, onClick }) => {
+      const checkbox = el("input", { "type": "checkbox" });
+
+      const text = el("div", { "id": "priv-mode-text" }, "");
+
+      // set checked value
+      checkbox.checked = store();
+      text.textContent = store() ? " Enabled" : " Disabled";
+
+      // assign new checkbox checked value to given store
+      store((checked) => {
+        checkbox.checked = checked;
+        text.textContent = checked ? " Enabled" : " Disabled";
+      });
+
+      checkbox.onclick = onClick;
+
+      return el(
+        "p",
+        {},
+        el(
+          "label",
+          { "id": "priv-mode-label" },
+          checkbox,
+          text,
+        ),
+      );
+    };
+
     // Returns array with devices components constructed from
     // given aray with devices objects.
     const devicesComp = (devices) => {
@@ -144,6 +175,63 @@ ready(() =>
         .catch(handleErrors);
     };
 
+    const userData = () =>
+      fetch("/who", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+      })
+        .then(checkResponse)
+        .then(responseJSON)
+        .then((data) => {
+          return fetch("/api/v1/users/" + data.id, {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            credentials: "include",
+          });
+        })
+        .then(checkResponse)
+        .then(responseJSON);
+
+    const renderPrivMode = (store) => {
+      userData()
+        .then((data) => {
+          store(data.priv);
+          store(togglePrivateMode);
+
+          const checkbox = privModeCheckbox({
+            store: store,
+            onClick: () => {
+              store(!store());
+            },
+          });
+
+          u("#private-mode").append(checkbox);
+        })
+        .catch(handleErrors);
+    };
+
+    const togglePrivateMode = (mode) => {
+      userData()
+        .then((data) => {
+          return fetch("/api/v1/users/" + data.id, {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            credentials: "include",
+            body: JSON.stringify({ priv: mode }),
+          });
+        })
+        .then(checkResponse)
+        .then(responseJSON)
+        .catch(handleErrors);
+    };
+
     // removeDevice removes device with given device id
     // from device state manager.
     const removeDevice = (deviceID) => {
@@ -217,5 +305,8 @@ ready(() =>
 
     // Initial fetch devices.
     fetchDevices();
+
+    // Render private mode checkbox
+    renderPrivMode(privMode);
   })(u, el, valoo)
 );

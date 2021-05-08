@@ -14,7 +14,7 @@ type Daemon func()
 
 // NewDeamon returns channel for communicating with deamon and deamon
 // to be run in the background in the separate gourtine.
-func NewDaemon(ctx context.Context, d storage.Devices, u storage.Users) (chan<- []net.HardwareAddr, Daemon) {
+func NewDaemon(ctx context.Context, iter storage.StatusIterator) (chan<- []net.HardwareAddr, Daemon) {
 	ch := make(chan []net.HardwareAddr)
 
 	daemon := func() {
@@ -33,7 +33,7 @@ func NewDaemon(ctx context.Context, d storage.Devices, u storage.Users) (chan<- 
 				macs = newMacs
 			case <-ticker.C: // Update users every minute with newest mac addresses
 				// Update online status for every user in db
-				err := storage.UpdateStatuses(ctx, macs, d, u)
+				err := storage.UpdateStatuses(ctx, macs, iter)
 				if err != nil {
 					log.Println("Failed to update statuses, reason:  ", err.Error())
 					continue

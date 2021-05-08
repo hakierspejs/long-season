@@ -98,24 +98,28 @@ func UsersAll(db storage.Users) http.HandlerFunc {
 			return
 		}
 
-		result := users.PublicSlice(data)
+		filters := users.DefaultFilters()
 
-		// Filter only online users.
-		if r.URL.Query().Get("online") == "true" {
-			filtered := make([]models.UserPublicData, 0, len(result))
-			for _, u := range result {
-				if u.Online {
-					filtered = append(filtered, u)
-				}
-			}
-			result = filtered
+		switch r.URL.Query().Get("online") {
+		case "true":
+			filters = append(filters, users.Online)
+		case "false":
+			filters = append(filters, users.Not(users.Online))
 		}
 
-		gores.JSONIndent(w, http.StatusOK, result, defaultPrefix, defaultIndent)
+		filtered := users.Filter(data, filters...)
+		gores.JSONIndent(
+			w, http.StatusOK, users.PublicSlice(filtered),
+			defaultPrefix, defaultIndent,
+		)
 	}
 }
 
 func UserRead(db storage.Users) http.HandlerFunc {
+	type response struct {
+		models.UserPublicData
+		Private *bool `json:"priv,omitempty"`
+	}
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, err := requests.UserID(r)
 		if err != nil {
@@ -139,7 +143,16 @@ func UserRead(db storage.Users) http.HandlerFunc {
 			return
 		}
 
-		gores.JSONIndent(w, http.StatusOK, user.UserPublicData, defaultPrefix, defaultIndent)
+		var privateMode *bool = nil
+		claims, err := requests.JWTClaims(r)
+		if err == nil && (claims.UserID == user.ID) {
+			privateMode = &user.Private
+		}
+
+		gores.JSONIndent(w, http.StatusOK, &response{
+			UserPublicData: user.UserPublicData,
+			Private:        privateMode,
+		}, defaultPrefix, defaultIndent)
 	}
 }
 
@@ -168,6 +181,68 @@ func UserRemove(db storage.Users) http.HandlerFunc {
 		}
 
 		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
+func UserUpdate(db storage.Users) http.HandlerFunc {
+	type payload struct {
+		Private *bool `json:"priv,omitempty"`
+	}
+
+	type response struct {
+		payload
+		models.UserPublicData
+	}
+	return func(w http.ResponseWriter, r *http.Request) {
+		userID, err := requests.UserID(r)
+		if err != nil {
+			notFound(w)
+			return
+		}
+
+		p := new(payload)
+		if err := json.NewDecoder(r.Body).Decode(p); err != nil {
+			result.JSONError(w, &result.JSONErrorBody{
+				Message: fmt.Sprintf("invalid input: %s", err.Error()),
+				Code:    http.StatusBadRequest,
+				Type:    "bad-request",
+			})
+			return
+		}
+
+		if p.Private == nil {
+			gores.JSONIndent(w, http.StatusCreated, struct{}{},
+				defaultPrefix, defaultIndent)
+			return
+		}
+
+		data, err := db.Read(r.Context(), userID)
+		switch {
+		case errors.As(err, &serrors.ErrNoID):
+			notFound(w)
+			return
+		case err != nil:
+			internalServerError(w)
+			return
+		}
+		data.Private = *p.Private
+
+		err = db.Update(r.Context(), *data)
+		switch {
+		case errors.As(err, &serrors.ErrNoID):
+			notFound(w)
+			return
+		case err != nil:
+			internalServerError(w)
+			return
+		}
+
+		gores.JSONIndent(w, http.StatusOK, &response{
+			payload: payload{
+				Private: p.Private,
+			},
+			UserPublicData: data.UserPublicData,
+		}, defaultPrefix, defaultIndent)
 	}
 }
 

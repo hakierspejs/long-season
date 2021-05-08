@@ -148,3 +148,192 @@ func TestAll(t *testing.T) {
 		})
 	}
 }
+
+func TestFilter(t *testing.T) {
+	data := []models.User{
+		{
+			Password: []byte("lol2lol3password"),
+			Private:  false,
+			UserPublicData: models.UserPublicData{
+				ID:       1,
+				Nickname: "lolmen",
+				Online:   true,
+			},
+		},
+		{
+			Password: []byte("lol2lol3wordpass"),
+			Private:  true,
+			UserPublicData: models.UserPublicData{
+				ID:       2,
+				Nickname: "mariusz",
+				Online:   false,
+			},
+		},
+		{
+			Password: []byte("212102121"),
+			Private:  false,
+			UserPublicData: models.UserPublicData{
+				ID:       3,
+				Nickname: "patryk",
+				Online:   true,
+			},
+		},
+		{
+			Password: []byte("2137&2137"),
+			Private:  false,
+			UserPublicData: models.UserPublicData{
+				ID:       4,
+				Nickname: "patryka",
+				Online:   false,
+			},
+		},
+	}
+
+	same := func(a []models.User, b []models.User) bool {
+		for i, v := range a {
+			if !StrictEquals(v, b[i]) {
+				return false
+			}
+		}
+		return true
+	}
+
+	type test struct {
+		name    string
+		want    []models.User
+		filters []FilterFunc
+	}
+
+	tests := []test{
+		{
+			name: "filter only online users",
+			want: []models.User{
+				{
+					Password: []byte("lol2lol3password"),
+					Private:  false,
+					UserPublicData: models.UserPublicData{
+						ID:       1,
+						Nickname: "lolmen",
+						Online:   true,
+					},
+				},
+				{
+					Password: []byte("212102121"),
+					Private:  false,
+					UserPublicData: models.UserPublicData{
+						ID:       3,
+						Nickname: "patryk",
+						Online:   true,
+					},
+				},
+			},
+			filters: []FilterFunc{Online},
+		},
+		{
+			name: "filter only public users",
+			want: []models.User{
+				{
+					Password: []byte("lol2lol3password"),
+					Private:  false,
+					UserPublicData: models.UserPublicData{
+						ID:       1,
+						Nickname: "lolmen",
+						Online:   true,
+					},
+				},
+				{
+					Password: []byte("212102121"),
+					Private:  false,
+					UserPublicData: models.UserPublicData{
+						ID:       3,
+						Nickname: "patryk",
+						Online:   true,
+					},
+				},
+				{
+					Password: []byte("2137&2137"),
+					Private:  false,
+					UserPublicData: models.UserPublicData{
+						ID:       4,
+						Nickname: "patryka",
+						Online:   false,
+					},
+				},
+			},
+			filters: []FilterFunc{Not(Private)},
+		},
+		{
+			name: "filter only private users",
+			want: []models.User{
+				{
+					Password: []byte("lol2lol3wordpass"),
+					Private:  true,
+					UserPublicData: models.UserPublicData{
+						ID:       2,
+						Nickname: "mariusz",
+						Online:   false,
+					},
+				},
+			},
+			filters: []FilterFunc{Private},
+		},
+		{
+			name: "filter only offline users",
+			want: []models.User{
+				{
+					Password: []byte("lol2lol3wordpass"),
+					Private:  true,
+					UserPublicData: models.UserPublicData{
+						ID:       2,
+						Nickname: "mariusz",
+						Online:   false,
+					},
+				},
+				{
+					Password: []byte("2137&2137"),
+					Private:  false,
+					UserPublicData: models.UserPublicData{
+						ID:       4,
+						Nickname: "patryka",
+						Online:   false,
+					},
+				},
+			},
+			filters: []FilterFunc{Not(Online)},
+		},
+		{
+			name: "filter online public users",
+			want: []models.User{
+				{
+					Password: []byte("lol2lol3password"),
+					Private:  false,
+					UserPublicData: models.UserPublicData{
+						ID:       1,
+						Nickname: "lolmen",
+						Online:   true,
+					},
+				},
+				{
+					Password: []byte("212102121"),
+					Private:  false,
+					UserPublicData: models.UserPublicData{
+						ID:       3,
+						Nickname: "patryk",
+						Online:   true,
+					},
+				},
+			},
+			filters: []FilterFunc{Not(Private), Online},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := Filter(data, tt.filters...)
+			if !same(result, tt.want) {
+				t.Errorf("got: %v, want: %v", result, tt.want)
+			}
+		})
+	}
+
+}

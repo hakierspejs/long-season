@@ -151,7 +151,10 @@ func app() *cli.App {
 					scanner := bufio.NewScanner(os.Stdin)
 
 					for scanner.Scan() {
-						b.Addresses = append(b.Addresses, scanner.Text())
+						address := scanner.Text()
+						if address != "" {
+							b.Addresses = append(b.Addresses, scanner.Text())
+						}
 					}
 					if err := scanner.Err(); err != nil {
 						return err

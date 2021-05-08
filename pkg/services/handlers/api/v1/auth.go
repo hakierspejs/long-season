@@ -106,6 +106,7 @@ func ApiAuth(config models.Config, db storage.Users) http.HandlerFunc {
 			},
 			Nickname: match.Nickname,
 			UserID:   match.ID,
+			Private:  match.Private,
 		})
 		if err != nil {
 			result.JSONError(w, &result.JSONErrorBody{

@@ -15,6 +15,7 @@ func Who() http.HandlerFunc {
 	type response struct {
 		ID       int    `json:"id"`
 		Nickname string `json:"nickname"`
+		Private  bool   `json:"priv"`
 	}
 
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -31,6 +32,7 @@ func Who() http.HandlerFunc {
 		gores.JSON(w, http.StatusOK, &response{
 			ID:       claims.UserID,
 			Nickname: claims.Nickname,
+			Private:  claims.Private,
 		})
 	}
 }
