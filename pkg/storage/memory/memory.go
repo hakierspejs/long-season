@@ -504,6 +504,72 @@ func (d *DevicesStorage) New(ctx context.Context, userID int, newDevice models.D
 	return id, nil
 }
 
+func forEachDevice(tx *bolt.Tx, f func(models.Device) error) error {
+	b := tx.Bucket([]byte(devicesBucket))
+	return b.ForEach(func(k, v []byte) error {
+		deviceBucket := b.Bucket(k)
+		if deviceBucket == nil {
+			return serrors.ErrNoID
+		}
+
+		device, err := deviceFromBucket(deviceBucket)
+		if err != nil {
+			return err
+		}
+
+		return f(*device)
+	})
+
+}
+
+func sameDevice(a, b models.Device) bool {
+	return a.Owner == b.Owner && a.Tag == b.Tag
+}
+
+// NewByOwner stores given devices (owned by user with given nickname) data
+// in database and returns assigned id.
+func (d *DevicesStorage) NewByOwner(ctx context.Context, deviceOwner string, newDevice models.Device) (int, error) {
+	var id int
+
+	// TODO(thinkofher) Check if there is user with given id.
+	err := d.db.Update(func(tx *bolt.Tx) error {
+		var targetUser models.User
+		err := forEachUser(tx, func(u models.User) error {
+			if u.Nickname == deviceOwner {
+				targetUser = u
+			}
+			return nil
+		})
+
+		// Check if there is the device with same owner and tag.
+		b := tx.Bucket([]byte(devicesBucket))
+		err = forEachDevice(tx, func(device models.Device) error {
+			if sameDevice(device, newDevice) {
+				return serrors.ErrDeviceDuplication
+			}
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+
+		id, err = incr(tx, []byte(devicesBucketCounter))
+		if err != nil {
+			return err
+		}
+		newDevice.ID = id
+		newDevice.OwnerID = targetUser.ID
+		newDevice.Owner = targetUser.Nickname
+
+		return storeDeviceInBucket(newDevice, b)
+	})
+	if err != nil {
+		return 0, err
+	}
+
+	return id, nil
+}
+
 func forDevicesOfUser(tx *bolt.Tx, userID int, f func(models.Device) error) error {
 	b := tx.Bucket([]byte(devicesBucket))
 
