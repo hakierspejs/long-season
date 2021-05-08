@@ -24,8 +24,9 @@ const (
 // Factory implements storage.Factory interface for
 // bolt database.
 type Factory struct {
-	users   *UsersStorage
-	devices *DevicesStorage
+	users      *UsersStorage
+	devices    *DevicesStorage
+	statusIter *StatusIterator
 }
 
 // Users returns storage interface for manipulating
@@ -36,6 +37,12 @@ func (f Factory) Users() *UsersStorage {
 
 func (f Factory) Devices() *DevicesStorage {
 	return f.devices
+}
+
+// StatusIterator returns storage interface for
+// iterating over users and their devices.
+func (f Factory) StatusIterator() *StatusIterator {
+	return f.statusIter
 }
 
 // New returns pointer to new memory storage
@@ -60,8 +67,9 @@ func New(db *bolt.DB) (*Factory, error) {
 	}
 
 	return &Factory{
-		users:   &UsersStorage{db},
-		devices: &DevicesStorage{db},
+		users:      &UsersStorage{db},
+		devices:    &DevicesStorage{db},
+		statusIter: &StatusIterator{db},
 	}, nil
 }
 
@@ -273,25 +281,31 @@ func (s *UsersStorage) Read(ctx context.Context, id int) (*models.User, error) {
 	return user, nil
 }
 
+func forEachUser(tx *bolt.Tx, f func(models.User) error) error {
+	b := tx.Bucket([]byte(usersBucket))
+	return b.ForEach(func(k, v []byte) error {
+		userBucket := b.Bucket(k)
+		if userBucket == nil {
+			return serrors.ErrNoID
+		}
+
+		user, err := userFromBucket(userBucket)
+		if err != nil {
+			return err
+		}
+
+		return f(*user)
+	})
+
+}
+
 // All returns slice with all users from storage.
 func (s *UsersStorage) All(ctx context.Context) ([]models.User, error) {
 	res := []models.User{}
 
 	err := s.db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(usersBucket))
-
-		return b.ForEach(func(k, v []byte) error {
-			userBucket := b.Bucket(k)
-			if userBucket == nil {
-				return serrors.ErrNoID
-			}
-
-			user, err := userFromBucket(userBucket)
-			if err != nil {
-				return err
-			}
-
-			res = append(res, *user)
+		return forEachUser(tx, func(u models.User) error {
+			res = append(res, u)
 			return nil
 		})
 	})
@@ -490,34 +504,41 @@ func (d *DevicesStorage) New(ctx context.Context, userID int, newDevice models.D
 	return id, nil
 }
 
+func forDevicesOfUser(tx *bolt.Tx, userID int, f func(models.Device) error) error {
+	b := tx.Bucket([]byte(devicesBucket))
+
+	// Check if there is the device with same owner and tag.
+	err := b.ForEach(func(k, v []byte) error {
+		deviceBucket := b.Bucket(k)
+
+		device, err := deviceFromBucket(deviceBucket)
+		if err != nil {
+			return err
+		}
+
+		if device.OwnerID == userID {
+			return f(*device)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // OfUser returns list of models owned by user with given id.
 func (d *DevicesStorage) OfUser(ctx context.Context, userID int) ([]models.Device, error) {
 	ans := []models.Device{}
 
 	err := d.db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(devicesBucket))
-
-		// Check if there is the device with same owner and tag.
-		err := b.ForEach(func(k, v []byte) error {
-			deviceBucket := b.Bucket(k)
-
-			device, err := deviceFromBucket(deviceBucket)
-			if err != nil {
-				return err
-			}
-
-			if device.OwnerID == userID {
-				ans = append(ans, *device)
-			}
-
+		return forDevicesOfUser(tx, userID, func(d models.Device) error {
+			ans = append(ans, d)
 			return nil
 		})
-
-		if err != nil {
-			return err
-		}
-
-		return nil
 	})
 
 	if err != nil {
@@ -605,5 +626,40 @@ func (s *DevicesStorage) Remove(ctx context.Context, id int) error {
 		}
 
 		return b.DeleteBucket(key)
+	})
+}
+
+// StatusIterator implements storage.StatusIterator interface.
+type StatusIterator struct {
+	db *bolt.DB
+}
+
+// ForEachUpdate iterates over every user from database and their
+// devices. Overwrites current user data with returned one.
+func (s *StatusIterator) ForEachUpdate(
+	ctx context.Context,
+	iterFunc func(models.User, []models.Device) (*models.User, error),
+) error {
+	return s.db.Update(func(tx *bolt.Tx) error {
+		return forEachUser(tx, func(u models.User) error {
+			userDevices := []models.Device{}
+
+			err := forDevicesOfUser(tx, u.ID, func(d models.Device) error {
+				userDevices = append(userDevices, d)
+				return nil
+			})
+
+			if err != nil {
+				return err
+			}
+
+			newUser, err := iterFunc(u, userDevices)
+			if err != nil {
+				return err
+			}
+
+			b := tx.Bucket([]byte(usersBucket))
+			return updateOneUser(b, *newUser)
+		})
 	})
 }

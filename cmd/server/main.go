@@ -35,7 +35,7 @@ func main() {
 	}
 
 	ctx := context.Background()
-	macChannel, macDeamon := status.NewDaemon(ctx, factoryStorage.Devices(), factoryStorage.Users())
+	macChannel, macDeamon := status.NewDaemon(ctx, factoryStorage.StatusIterator())
 
 	// CORS (Cross-Origin Resource Sharing) middleware that enables public
 	// access to GET/OPTIONS requests. Used to expose APIs to XHR consumers in
