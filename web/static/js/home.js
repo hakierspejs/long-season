@@ -1,5 +1,5 @@
 ready(() =>
-  ((u, el) => {
+  ((el) => {
     "use strict";
 
     const onlineStatus = (usersCount) => {
@@ -51,23 +51,36 @@ ready(() =>
 
     const users = valoo([]);
 
+    const replace = (toReplace, replecament) => {
+      if (toReplace !== null) {
+        const parentNode = toReplace.parentNode;
+        parentNode.replaceChild(replecament, toReplace);
+      }
+    };
+
     users((data) => {
-      u("#app").replace(homeComp(data));
+      replace(document.getElementById("app"), homeComp(data));
     });
 
-    const clearApp = () => el("div", null, "");
+    const clearApp = () => el("div", {"id": "app"}, "");
 
     const downloadUsers = () => {
+      const info = document.getElementById("info");
+
+      // clear info text
+      info.innerText = "";
+
       fetch("/api/v1/users?online=true")
         .then((response) => response.json())
         .then((data) => users(data))
         .catch(() => {
-          u("#info").text("Failed to load users data.");
-          u("#app").replace(clearApp());
+          info.innerText =
+            "Failed to load users data.";
+          replace(document.getElementById("app"), clearApp());
         });
     };
 
     downloadUsers();
     window.setInterval(downloadUsers, 1000 * 60 * 2);
-  })(u, el)
+  })(el)
 );
