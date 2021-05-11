@@ -1,5 +1,5 @@
 ready(() =>
-  ((u, valoo) => {
+  ((valoo) => {
     "use strict";
 
     const errorState = valoo("");
@@ -10,7 +10,10 @@ ready(() =>
     });
 
     errorState((msg) => {
-      u(".err-msg").text(msg);
+      const elements = document.querySelectorAll(".err-msg");
+      Array.prototype.forEach.call(elements, (el, i) => {
+        el.innerText = msg;
+      });
     });
 
     registerData(({ password, confirmPassword }) => {
@@ -18,7 +21,7 @@ ready(() =>
       errorState("");
 
       // Check if passwords are the same.
-      let repeatPassword = u("#r-password").first();
+      const repeatPassword = document.getElementById("r-password");
       if (password != confirmPassword) {
         repeatPassword.setCustomValidity("Passwords don't match.");
       } else {
@@ -72,29 +75,30 @@ ready(() =>
         });
     };
 
-    u("#nickname").on("input", (e) => {
+    document.getElementById("nickname").addEventListener("input", (e) => {
       registerData({
         ...registerData(),
         login: e.currentTarget.value,
       });
     });
 
-    u("#password").on("input", (e) => {
+    document.getElementById("password").addEventListener("input", (e) => {
       registerData({
         ...registerData(),
         password: e.currentTarget.value,
       });
     });
 
-    u("#r-password").on("input", (e) => {
+    document.getElementById("r-password").addEventListener("input", (e) => {
       registerData({
         ...registerData(),
         confirmPassword: e.currentTarget.value,
       });
     });
 
-    u("#register-form").handle("submit", (e) => {
+    document.getElementById("register-form").addEventListener("submit", (e) => {
+      e.preventDefault();
       submitData(registerData());
     });
-  })(u, valoo)
+  })(valoo)
 );
