@@ -62,7 +62,7 @@ ready(() =>
       replace(document.getElementById("app"), homeComp(data));
     });
 
-    const clearApp = () => el("div", {"id": "app"}, "");
+    const clearApp = () => el("div", { "id": "app" }, "");
 
     const downloadUsers = () => {
       const info = document.getElementById("info");
@@ -74,8 +74,7 @@ ready(() =>
         .then((response) => response.json())
         .then((data) => users(data))
         .catch(() => {
-          info.innerText =
-            "Failed to load users data.";
+          info.innerText = "Failed to load users data.";
           replace(document.getElementById("app"), clearApp());
         });
     };
