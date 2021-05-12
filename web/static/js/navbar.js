@@ -1,5 +1,5 @@
 ready(() =>
-  ((u, el) => {
+  ((el) => {
     "use strict";
 
     const a = (link, ...children) =>
@@ -24,6 +24,12 @@ ready(() =>
       ];
     };
 
+    const empty = (target) => {
+      while (target.firstChild) {
+        target.removeChild(target.firstChild);
+      }
+    };
+
     fetch("/who", {
       method: "GET",
       headers: {
@@ -38,14 +44,18 @@ ready(() =>
         return Promise.reject(response);
       })
       .then((data) => {
-        let nav = u("nav");
-        nav.empty();
-        nav.append(navbar(data));
+        let nav = document.getElementsByTagName("nav")[0];
+        empty(nav);
+        Array.prototype.forEach.call(navbar(data), (el, i) => {
+          nav.append(el);
+        });
       })
       .catch((error) => {
-        let nav = u("nav");
-        nav.empty();
-        nav.append(navbar({}));
+        let nav = document.getElementsByTagName("nav")[0];
+        empty(nav);
+        Array.prototype.forEach.call(navbar({}), (el, i) => {
+          nav.append(el);
+        });
       });
-  })(u, el)
+  })(el)
 );
