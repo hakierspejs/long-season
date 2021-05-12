@@ -27,7 +27,7 @@ window.ready = function (fn) {
 window.id = (arg) => arg;
 
 /*!
- * Just the bare necessities of state management 
+ * Just the bare necessities of state management
  * (c) 2018 Google LLC, Apache-2.0 License
  *
  * https://gist.github.com/developit/a0430c500f5559b715c2dddf9c40948d
