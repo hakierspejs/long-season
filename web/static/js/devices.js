@@ -1,5 +1,5 @@
 ready(() =>
-  ((u, el, valoo) => {
+  ((el, valoo) => {
     "use strict";
 
     // Returns single device component.
@@ -65,11 +65,16 @@ ready(() =>
 
     // Toggle error message when is not empty.
     errorMessage((msg) => {
-      if (msg) {
-        u(".err-msg").removeClass("hidden");
-        u(".err-msg").text(msg);
+      const elements = document.querySelectorAll(".err-msg");
+      if (msg !== "") {
+        Array.prototype.forEach.call(elements, (el, i) => {
+          el.classList.remove("hidden");
+          el.innerText = msg;
+        });
       } else {
-        u(".err-msg").addClass("hidden");
+        Array.prototype.forEach.call(elements, (el, i) => {
+          el.classList.add("hidden");
+        });
       }
     });
 
@@ -96,13 +101,22 @@ ready(() =>
 
     const serverError = (msg) => "server error: " + msg;
 
+    const empty = (target) => {
+      while (target.firstChild) {
+        target.removeChild(target.firstChild);
+      }
+    };
+
     const renderDevices = (data) => {
-      let node = u(".devices");
+      const node = document.querySelectorAll(".devices")[0];
+
       // Clear current rendered devices.
-      node.empty();
+      empty(node);
 
       // Render new devices.
-      node.append(devicesComp(data));
+      devicesComp(data).forEach((device, _) => {
+        node.append(device);
+      });
     };
 
     const checkResponse = (response) => {
@@ -210,7 +224,7 @@ ready(() =>
             },
           });
 
-          u("#private-mode").append(checkbox);
+          document.getElementById("private-mode").append(checkbox);
         })
         .catch(handleErrors);
     };
@@ -276,27 +290,29 @@ ready(() =>
     // new devices every time new device is added
     devices(renderDevices);
 
-    u("#tag-form").on("input", (e) => {
+    document.getElementById("tag-form").addEventListener("input", (e) => {
       currentDevice({
         ...currentDevice(),
         tag: e.currentTarget.value,
       });
     });
 
-    u("#mac-form").on("input", (e) => {
+    document.getElementById("mac-form").addEventListener("input", (e) => {
       currentDevice({
         ...currentDevice(),
         mac: e.currentTarget.value,
       });
     });
 
-    u("#device-form").handle("submit", (e) => {
+    document.getElementById("device-form").addEventListener("submit", (e) => {
+      e.preventDefault();
+
       // Post current device to API
       postDevice(currentDevice());
 
       // Clear form
-      u("#mac-form, #tag-form").each((node, i) => {
-        node.value = "";
+      document.querySelectorAll("#mac-form, #tag-form").forEach((el, i) => {
+        el.value = "";
       });
 
       // Empty current device
@@ -308,5 +324,5 @@ ready(() =>
 
     // Render private mode checkbox
     renderPrivMode(privMode);
-  })(u, el, valoo)
+  })(el, valoo)
 );
