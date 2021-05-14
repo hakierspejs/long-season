@@ -23,8 +23,6 @@ builds:
       - goos: windows
         goarch: arm64
       - goos: darwin
-        goarch: arm64
-      - goos: darwin
         goarch: arm
 
   - main: ./cmd/server/main.go
