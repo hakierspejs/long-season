@@ -32,7 +32,7 @@ func FileServer(r chi.Router, path string, c *models.Config) {
 		}
 
 		if strings.HasSuffix(filepath, ".js") {
-			w.Header().Add("Content-Type", "text/js")
+			w.Header().Add("Content-Type", "application/javascript")
 		}
 
 		file, err := opener("web/" + filepath)
