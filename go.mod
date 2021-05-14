@@ -1,6 +1,6 @@
 module github.com/hakierspejs/long-season
 
-go 1.15
+go 1.16
 
 require (
 	github.com/alioygur/gores v1.2.1

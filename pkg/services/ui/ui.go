@@ -6,14 +6,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hakierspejs/long-season/pkg/models"
-	"github.com/hakierspejs/long-season/pkg/services/config"
+	"github.com/hakierspejs/long-season/pkg/services/handlers"
 )
 
-func renderWithOpener(path string, readFunc config.Opener) (*template.Template, error) {
+func renderWithOpener(path string, readFunc handlers.Opener) (*template.Template, error) {
 	str := new(strings.Builder)
 
-	b, err := readFunc("web/tmpl/layout.html")
+	b, err := readFunc("tmpl/layout.html")
 	if err != nil {
 		return nil, err
 	}
@@ -34,26 +33,26 @@ func renderWithOpener(path string, readFunc config.Opener) (*template.Template, 
 	return template.New("ui").Parse(str.String())
 }
 
-func renderTemplate(c *models.Config, path string) (*template.Template, error) {
-	return renderWithOpener(path, config.MakeOpener(c))
+func renderTemplate(opener handlers.Opener, path string) (*template.Template, error) {
+	return renderWithOpener(path, opener)
 }
 
-func Home(c *models.Config) http.HandlerFunc {
-	tmpl := template.Must(renderTemplate(c, "web/tmpl/home.html"))
+func Home(opener handlers.Opener) http.HandlerFunc {
+	tmpl := template.Must(renderTemplate(opener, "tmpl/home.html"))
 	return func(w http.ResponseWriter, r *http.Request) {
 		tmpl.ExecuteTemplate(w, "layout", nil)
 	}
 }
 
-func LoginPage(c *models.Config) http.HandlerFunc {
-	tmpl := template.Must(renderTemplate(c, "web/tmpl/login.html"))
+func LoginPage(opener handlers.Opener) http.HandlerFunc {
+	tmpl := template.Must(renderTemplate(opener, "tmpl/login.html"))
 	return func(w http.ResponseWriter, r *http.Request) {
 		tmpl.ExecuteTemplate(w, "layout", nil)
 	}
 }
 
-func Register(c *models.Config) http.HandlerFunc {
-	tmpl := template.Must(renderTemplate(c, "web/tmpl/register.html"))
+func Register(opener handlers.Opener) http.HandlerFunc {
+	tmpl := template.Must(renderTemplate(opener, "tmpl/register.html"))
 	return func(w http.ResponseWriter, r *http.Request) {
 		tmpl.ExecuteTemplate(w, "layout", nil)
 	}
@@ -73,8 +72,8 @@ func Logout() http.HandlerFunc {
 	}
 }
 
-func Devices(c *models.Config) http.HandlerFunc {
-	tmpl := template.Must(renderTemplate(c, "web/tmpl/devices.html"))
+func Devices(opener handlers.Opener) http.HandlerFunc {
+	tmpl := template.Must(renderTemplate(opener, "tmpl/devices.html"))
 	return func(w http.ResponseWriter, r *http.Request) {
 		tmpl.ExecuteTemplate(w, "layout", nil)
 	}

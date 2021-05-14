@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -18,6 +19,7 @@ import (
 	"github.com/hakierspejs/long-season/pkg/services/status"
 	"github.com/hakierspejs/long-season/pkg/services/ui"
 	"github.com/hakierspejs/long-season/pkg/storage/memory"
+	"github.com/hakierspejs/long-season/web"
 )
 
 func main() {
@@ -52,14 +54,23 @@ func main() {
 		publicCors.Log = log.New(os.Stdout, "CORS ", 0)
 	}
 
+	var opener handlers.Opener
+	if config.Debug {
+		opener = func(path string) ([]byte, error) {
+			return ioutil.ReadFile("web/" + path)
+		}
+	} else {
+		opener = web.Open
+	}
+
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.RequestID)
 	r.Use(middleware.NoCache)
 
-	r.Get("/", ui.Home(config))
-	r.With(lsmiddleware.ApiAuth(*config, true), lsmiddleware.RedirectLoggedIn).Get("/login", ui.LoginPage(config))
+	r.Get("/", ui.Home(opener))
+	r.With(lsmiddleware.ApiAuth(*config, true), lsmiddleware.RedirectLoggedIn).Get("/login", ui.LoginPage(opener))
 
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Route("/users", func(r chi.Router) {
@@ -112,11 +123,11 @@ func main() {
 	})
 
 	r.With(lsmiddleware.ApiAuth(*config, false)).Get("/who", handlers.Who())
-	r.With(lsmiddleware.ApiAuth(*config, false)).Get("/devices", ui.Devices(config))
+	r.With(lsmiddleware.ApiAuth(*config, false)).Get("/devices", ui.Devices(opener))
 	r.Get("/logout", ui.Logout())
-	r.With(lsmiddleware.ApiAuth(*config, true), lsmiddleware.RedirectLoggedIn).Get("/register", ui.Register(config))
+	r.With(lsmiddleware.ApiAuth(*config, true), lsmiddleware.RedirectLoggedIn).Get("/register", ui.Register(opener))
 
-	handlers.FileServer(r, "/static", config)
+	handlers.FileServer(r, "/static", opener)
 
 	// start daemon for updating mac addresses
 	go macDeamon()
