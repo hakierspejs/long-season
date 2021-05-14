@@ -75,3 +75,8 @@ li > span {
     border-bottom: 1px solid var(--light);
   }
 }
+
+/* hidden element with below class attached */
+.hidden {
+  display: none;
+}

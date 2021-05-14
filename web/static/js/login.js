@@ -1,12 +1,15 @@
 ready(() =>
-  ((u, valoo) => {
+  ((valoo) => {
     "use strict";
 
     const errorState = valoo("");
     const loginData = valoo({ login: "", password: "" });
 
     errorState((msg) => {
-      u(".err-msg").text(msg);
+      const elements = document.querySelectorAll(".err-msg");
+      Array.prototype.forEach.call(elements, (el, i) => {
+        el.innerText = msg;
+      });
     });
 
     loginData(() => {
@@ -59,22 +62,23 @@ ready(() =>
         });
     };
 
-    u("#nickname").on("input", (e) => {
+    document.getElementById("nickname").addEventListener("input", (e) => {
       loginData({
         ...loginData(),
         login: e.currentTarget.value,
       });
     });
 
-    u("#password").on("input", (e) => {
+    document.getElementById("password").addEventListener("input", (e) => {
       loginData({
         ...loginData(),
         password: e.currentTarget.value,
       });
     });
 
-    u("#login-form").handle("submit", (e) => {
+    document.getElementById("login-form").addEventListener("submit", (e) => {
+      e.preventDefault();
       submitData(loginData());
     });
-  })(u, valoo)
+  })(valoo)
 );
