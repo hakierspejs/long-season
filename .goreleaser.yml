@@ -2,11 +2,6 @@ env:
   - GO111MODULE=on
   - CGO_ENABLED=0
 
-before:
-  hooks:
-    - env GO111MODULE=off go get 4d63.com/embedfiles
-    - embedfiles -out=pkg/static/files.gen.go -pkg=static web
-
 builds:
   - main: ./cmd/cli/main.go
     id: "cli"
@@ -26,8 +21,6 @@ builds:
       - goos: windows
         goarch: arm
       - goos: windows
-        goarch: arm64
-      - goos: darwin
         goarch: arm64
       - goos: darwin
         goarch: arm
@@ -50,8 +43,6 @@ builds:
       - goos: windows
         goarch: arm
       - goos: windows
-        goarch: arm64
-      - goos: darwin
         goarch: arm64
       - goos: darwin
         goarch: arm

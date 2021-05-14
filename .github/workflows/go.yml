@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go: ["1.15", "1.14", "1.13"]
+        go: ["1.16"]
 
     steps:
 
@@ -32,11 +32,6 @@ jobs:
     - name: Format Check
       run: |
         if [ $(gofmt -l -s . | wc -l) -ne 0 ]; then echo "gofmt failed"; exit 1; fi
-
-    - name: Embedding Files
-      run: |
-        env GO111MODULE=off go get 4d63.com/embedfiles
-        embedfiles -out=pkg/static/files.gen.go -pkg=static web
 
     - name: Build
       run: |

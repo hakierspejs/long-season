@@ -5,15 +5,16 @@ import (
 	"strings"
 
 	"github.com/go-chi/chi"
-
-	"github.com/hakierspejs/long-season/pkg/models"
-	"github.com/hakierspejs/long-season/pkg/services/config"
 )
 
-// FileServer sets up handler to serve static files within given URL path.
-func FileServer(r chi.Router, path string, c *models.Config) {
-	opener := config.MakeOpener(c)
+// Opener is generic function for reading files.
+// For example: Opener can open files from filesystem or
+// files embedded withing binary. Given string could be a
+// path or other indicator.
+type Opener func(string) ([]byte, error)
 
+// FileServer sets up handler to serve static files within given URL path.
+func FileServer(r chi.Router, path string, opener Opener) {
 	if strings.ContainsAny(path, "{}*") {
 		panic("FileServer does not permit any URL parameters.")
 	}
@@ -32,10 +33,10 @@ func FileServer(r chi.Router, path string, c *models.Config) {
 		}
 
 		if strings.HasSuffix(filepath, ".js") {
-			w.Header().Add("Content-Type", "text/js")
+			w.Header().Add("Content-Type", "application/javascript")
 		}
 
-		file, err := opener("web/" + filepath)
+		file, err := opener(filepath)
 		if err != nil {
 			http.NotFound(w, r)
 			return
