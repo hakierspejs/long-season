@@ -4,6 +4,7 @@ package memory
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 
@@ -212,6 +213,20 @@ func storeUserInBucket(user models.User, b *bolt.Bucket) error {
 	return nil
 }
 
+func readUser(tx *bolt.Tx, userID int) (*models.User, error) {
+	b := tx.Bucket([]byte(usersBucket))
+	if b == nil {
+		return nil, fmt.Errorf("bucket empty")
+	}
+
+	userBucket := b.Bucket([]byte(userBucketKey(userID)))
+	if userBucket == nil {
+		return nil, fmt.Errorf("there is no user with id=%d, err=%w", userID, serrors.ErrNoID)
+	}
+
+	return userFromBucket(userBucket)
+}
+
 // New stores given user data in database and returns
 // assigned id.
 func (s *UsersStorage) New(ctx context.Context, newUser models.User) (int, error) {
@@ -225,18 +240,10 @@ func (s *UsersStorage) New(ctx context.Context, newUser models.User) (int, error
 		// TODO(thinkofher) Store nicknames in another bucket
 		// and change O(n) time of checking if nickname is occupied
 		// to O(1).
-		err := b.ForEach(func(k, v []byte) error {
-			userBucket := b.Bucket(k)
-
-			user, err := userFromBucket(userBucket)
-			if err != nil {
-				return err
-			}
-
+		err := forEachUser(tx, func(user models.User) error {
 			if user.Nickname == newUser.Nickname {
 				return serrors.ErrNicknameTaken
 			}
-
 			return nil
 		})
 		if err != nil {
@@ -263,15 +270,8 @@ func (s *UsersStorage) Read(ctx context.Context, id int) (*models.User, error) {
 	user := new(models.User)
 
 	err := s.db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(usersBucket))
-		bucketKey := userBucketKey(id)
-		userBucket := b.Bucket(bucketKey)
-		if userBucket == nil {
-			return serrors.ErrNoID
-		}
-
 		var err error
-		user, err = userFromBucket(userBucket)
+		user, err = readUser(tx, id)
 		return err
 	})
 	if err != nil {
@@ -461,49 +461,6 @@ func storeDeviceInBucket(device models.Device, b *bolt.Bucket) error {
 	return nil
 }
 
-// New stores given devices data in database and returns
-// assigned id.
-func (d *DevicesStorage) New(ctx context.Context, userID int, newDevice models.Device) (int, error) {
-	var id int
-
-	// TODO(thinkofher) Check if there is user with given id.
-	err := d.db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(devicesBucket))
-
-		// Check if there is the device with same owner and tag.
-		err := b.ForEach(func(k, v []byte) error {
-			deviceBucket := b.Bucket(k)
-
-			device, err := deviceFromBucket(deviceBucket)
-			if err != nil {
-				return err
-			}
-
-			if device.Owner == newDevice.Owner && device.Tag == newDevice.Tag {
-				return serrors.ErrDeviceDuplication
-			}
-
-			return nil
-		})
-		if err != nil {
-			return err
-		}
-
-		id, err = incr(tx, []byte(devicesBucketCounter))
-		if err != nil {
-			return err
-		}
-		newDevice.ID = id
-
-		return storeDeviceInBucket(newDevice, b)
-	})
-	if err != nil {
-		return 0, err
-	}
-
-	return id, nil
-}
-
 func forEachDevice(tx *bolt.Tx, f func(models.Device) error) error {
 	b := tx.Bucket([]byte(devicesBucket))
 	return b.ForEach(func(k, v []byte) error {
@@ -526,13 +483,65 @@ func sameDevice(a, b models.Device) bool {
 	return a.Owner == b.Owner && a.Tag == b.Tag
 }
 
+// userExists checks whether user with given id is stored in database.
+func userExists(tx *bolt.Tx, userID int) (bool, error) {
+	user, err := readUser(tx, userID)
+	if err != nil && !errors.Is(err, serrors.ErrNoID) {
+		return false, err
+	}
+	return user != nil, nil
+}
+
+// New stores given devices data in database and returns
+// assigned id.
+func (d *DevicesStorage) New(ctx context.Context, userID int, newDevice models.Device) (int, error) {
+	var id int
+
+	err := d.db.Update(func(tx *bolt.Tx) error {
+		// Check if there is user with given id.
+		exists, err := userExists(tx, userID)
+		if err != nil {
+			return err
+		}
+		if !exists {
+			return fmt.Errorf("there is no user with id=%d, err=%w", userID, serrors.ErrNoID)
+		}
+
+		// Check if there is the device with same owner and tag.
+		err = forEachDevice(tx, func(device models.Device) error {
+			if sameDevice(newDevice, device) {
+				return serrors.ErrDeviceDuplication
+			}
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+
+		id, err = incr(tx, []byte(devicesBucketCounter))
+		if err != nil {
+			return err
+		}
+		newDevice.ID = id
+
+		b := tx.Bucket([]byte(devicesBucket))
+		return storeDeviceInBucket(newDevice, b)
+	})
+	if err != nil {
+		return 0, err
+	}
+
+	return id, nil
+}
+
 // NewByOwner stores given devices (owned by user with given nickname) data
 // in database and returns assigned id.
 func (d *DevicesStorage) NewByOwner(ctx context.Context, deviceOwner string, newDevice models.Device) (int, error) {
 	var id int
 
-	// TODO(thinkofher) Check if there is user with given id.
 	err := d.db.Update(func(tx *bolt.Tx) error {
+		// FIXME(thinkofher) If there is no user with given nickname
+		// zero-valued user will be used.
 		var targetUser models.User
 		err := forEachUser(tx, func(u models.User) error {
 			if u.Nickname == deviceOwner {
@@ -571,29 +580,13 @@ func (d *DevicesStorage) NewByOwner(ctx context.Context, deviceOwner string, new
 }
 
 func forDevicesOfUser(tx *bolt.Tx, userID int, f func(models.Device) error) error {
-	b := tx.Bucket([]byte(devicesBucket))
-
 	// Check if there is the device with same owner and tag.
-	err := b.ForEach(func(k, v []byte) error {
-		deviceBucket := b.Bucket(k)
-
-		device, err := deviceFromBucket(deviceBucket)
-		if err != nil {
-			return err
-		}
-
+	return forEachDevice(tx, func(device models.Device) error {
 		if device.OwnerID == userID {
-			return f(*device)
+			return f(device)
 		}
-
 		return nil
 	})
-
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 // OfUser returns list of models owned by user with given id.
@@ -642,20 +635,8 @@ func (s *DevicesStorage) All(ctx context.Context) ([]models.Device, error) {
 	res := []models.Device{}
 
 	err := s.db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(devicesBucket))
-
-		return b.ForEach(func(k, v []byte) error {
-			deviceBucket := b.Bucket(k)
-			if deviceBucket == nil {
-				return serrors.ErrNoID
-			}
-
-			device, err := deviceFromBucket(deviceBucket)
-			if err != nil {
-				return err
-			}
-
-			res = append(res, *device)
+		return forEachDevice(tx, func(device models.Device) error {
+			res = append(res, device)
 			return nil
 		})
 	})
@@ -714,7 +695,6 @@ func (s *StatusIterator) ForEachUpdate(
 				userDevices = append(userDevices, d)
 				return nil
 			})
-
 			if err != nil {
 				return err
 			}
