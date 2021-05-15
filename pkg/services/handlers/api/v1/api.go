@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -282,6 +283,40 @@ func UpdateStatus(ch chan<- []net.HardwareAddr) http.HandlerFunc {
 
 		w.WriteHeader(http.StatusAccepted)
 		return
+	}
+}
+
+func Status(counters storage.StatusTx) http.HandlerFunc {
+	var response struct {
+		Online  int `json:"online"`
+		Unknown int `json:"unknown"`
+	}
+
+	return func(w http.ResponseWriter, r *http.Request) {
+		err := counters.DevicesStatus(
+			r.Context(),
+			func(ctx context.Context, s storage.Status) error {
+				online, err := s.OnlineUsers(ctx)
+				if err != nil {
+					return fmt.Errorf("failed to read online users: %w", err)
+				}
+
+				unknown, err := s.UnknownDevices(ctx)
+				if err != nil {
+					return fmt.Errorf("failed to read unknown devices: %w", err)
+				}
+
+				response.Online = online
+				response.Unknown = unknown
+				return nil
+			},
+		)
+		if err != nil {
+			internalServerError(w)
+			return
+		}
+
+		gores.JSONIndent(w, http.StatusOK, response, defaultPrefix, defaultIndent)
 	}
 }
 

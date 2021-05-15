@@ -124,6 +124,7 @@ func main() {
 			"/update",
 			api.UpdateStatus(macChannel),
 		)
+		r.Get("/status", api.Status(factoryStorage.StatusTx()))
 	})
 
 	r.With(lsmiddleware.ApiAuth(*config, false)).Get("/who", handlers.Who())
