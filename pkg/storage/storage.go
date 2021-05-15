@@ -64,5 +64,5 @@ type Status interface {
 type StatusTx interface {
 	// DevicesStatus accepts function that manipulates number of
 	// unknown devices and online users in single safe transaction.
-	DevicesStatus(func(Status) error) error
+	DevicesStatus(context.Context, func(context.Context, Status) error) error
 }
