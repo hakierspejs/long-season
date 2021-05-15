@@ -11,6 +11,7 @@ import (
 	bolt "go.etcd.io/bbolt"
 
 	"github.com/hakierspejs/long-season/pkg/models"
+	"github.com/hakierspejs/long-season/pkg/storage"
 	serrors "github.com/hakierspejs/long-season/pkg/storage/errors"
 )
 
@@ -25,9 +26,10 @@ const (
 // Factory implements storage.Factory interface for
 // bolt database.
 type Factory struct {
-	users      *UsersStorage
-	devices    *DevicesStorage
-	statusIter *StatusIterator
+	users           *UsersStorage
+	devices         *DevicesStorage
+	statusIter      *StatusIterator
+	statusStorageTx *StatusStorageTx
 }
 
 // Users returns storage interface for manipulating
@@ -44,6 +46,13 @@ func (f Factory) Devices() *DevicesStorage {
 // iterating over users and their devices.
 func (f Factory) StatusIterator() *StatusIterator {
 	return f.statusIter
+}
+
+// StatusTx returns storage interface for
+// reading and writing information about numbers
+// of online users and unkown devices.
+func (f Factory) StatusTx() *StatusStorageTx {
+	return f.statusStorageTx
 }
 
 // New returns pointer to new memory storage
@@ -68,9 +77,10 @@ func New(db *bolt.DB) (*Factory, error) {
 	}
 
 	return &Factory{
-		users:      &UsersStorage{db},
-		devices:    &DevicesStorage{db},
-		statusIter: &StatusIterator{db},
+		users:           &UsersStorage{db},
+		devices:         &DevicesStorage{db},
+		statusIter:      &StatusIterator{db},
+		statusStorageTx: &StatusStorageTx{db},
 	}, nil
 }
 
@@ -707,5 +717,102 @@ func (s *StatusIterator) ForEachUpdate(
 			b := tx.Bucket([]byte(usersBucket))
 			return updateOneUser(b, *newUser)
 		})
+	})
+}
+
+const (
+	onlineUsersCounter    = "ls::users::online::counter"
+	unknownDevicesCounter = "ls::devices::unknown::counter"
+)
+
+// status implements storage.Status interface.
+//
+// status is able to perform multiple operation, but only in
+// single transaction, because it holds pointer to bolt.Tx instead
+// of pointer to bolt.DB as other types in this package.
+type status struct {
+	tx *bolt.Tx
+}
+
+// OnlineUsers returns number of people being currently online.
+func (s *status) OnlineUsers(ctx context.Context) (int, error) {
+	b, err := s.tx.CreateBucketIfNotExists([]byte(countersBucket))
+	if err != nil {
+		return 0, fmt.Errorf("failed to create %s bucket: %w", countersBucket, err)
+	}
+
+	onlineUsers := b.Get([]byte(onlineUsersCounter))
+	if onlineUsers == nil {
+		return 0, fmt.Errorf("failed to retrieve online users counter")
+	}
+
+	parsedOnlineUsers, err := strconv.Atoi(string(onlineUsers))
+	if err != nil {
+		return 0, fmt.Errorf(
+			"failed to parse slice bytes: %s into integer: %w",
+			onlineUsers, err,
+		)
+	}
+
+	return parsedOnlineUsers, nil
+}
+
+// SetOnlineUsers ovewrites number of people being currently online.
+func (s *status) SetOnlineUsers(ctx context.Context, number int) error {
+	b, err := s.tx.CreateBucketIfNotExists([]byte(countersBucket))
+	if err != nil {
+		return fmt.Errorf("failed to create %s bucket: %w", countersBucket, err)
+	}
+
+	return b.Put([]byte(onlineUsersCounter), []byte(strconv.Itoa(number)))
+}
+
+// UnknownDevices returns number of unknown devices connected to the network.
+func (s *status) UnknownDevices(ctx context.Context) (int, error) {
+	b, err := s.tx.CreateBucketIfNotExists([]byte(countersBucket))
+	if err != nil {
+		return 0, fmt.Errorf("failed to create %s bucket: %w", countersBucket, err)
+	}
+
+	unknownDevices := b.Get([]byte(unknownDevicesCounter))
+	if unknownDevices == nil {
+		return 0, fmt.Errorf("failed to retrieve unknown devices counter")
+	}
+
+	parsedUnknownDevices, err := strconv.Atoi(string(unknownDevices))
+	if err != nil {
+		return 0, fmt.Errorf(
+			"failed to parse slice bytes: %s into integer: %w",
+			unknownDevices, err,
+		)
+	}
+
+	return parsedUnknownDevices, nil
+}
+
+// SetUnknownDevices overwrites number of unknown devices connected to the network.
+func (s *status) SetUnknownDevices(ctx context.Context, number int) error {
+	b, err := s.tx.CreateBucketIfNotExists([]byte(countersBucket))
+	if err != nil {
+		return fmt.Errorf("failed to create %s bucket: %w", countersBucket, err)
+	}
+
+	return b.Put([]byte(unknownDevicesCounter), []byte(strconv.Itoa(number)))
+}
+
+// StatusStorageTx implements storage.StatusTx interface.
+type StatusStorageTx struct {
+	db *bolt.DB
+}
+
+// DevicesStatus accepts function that manipulates number of
+// unknown devices and online users in single safe transaction.
+func (s *StatusStorageTx) DevicesStatus(
+	ctx context.Context,
+	f func(context.Context, storage.Status) error,
+) error {
+	return s.db.Update(func(tx *bolt.Tx) error {
+		statusStorage := &status{tx}
+		return f(ctx, statusStorage)
 	})
 }

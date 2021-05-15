@@ -18,6 +18,17 @@ ready(() =>
       return el("p", null, text);
     };
 
+    const unknownStatus = (unknownDevicesCount) => {
+      switch (unknownDevicesCount) {
+        case 0:
+          return el("p", { style: "display:none;" }, "");
+        case 1:
+          return el("p", null, UNKNOWN_STATE.FOREVER_ALONE);
+        default:
+          return el("p", null, UNKNOWN_STATE.PARTY(unknownDevicesCount));
+      }
+    };
+
     const onlineTitle = (length) =>
       el(
         "h3",
@@ -34,13 +45,14 @@ ready(() =>
         ),
       );
 
-    const homeComp = (users) =>
+    const homeComp = (data) =>
       el(
         "div",
         { id: "app" },
-        onlineStatus(users.length),
-        onlineTitle(users.length),
-        usersComp(users),
+        onlineStatus(data.users.length),
+        unknownStatus(data.unknownDevices),
+        onlineTitle(data.users.length),
+        usersComp(data.users),
       );
 
     const HACKER_STATE = {
@@ -49,7 +61,17 @@ ready(() =>
       PARTY: (num) => "There are " + num + " people in the hackerspace.",
     };
 
-    const users = valoo([]);
+    const UNKNOWN_STATE = {
+      FOREVER_ALONE: "There is one unknown device in the hackerspace.",
+      PARTY: (num) =>
+        "There are " + num + " unknown devices in the hakerspace.",
+    };
+
+    const homeStorage = valoo({
+      users: [],
+      onlineUsers: 0,
+      unknownDevices: 0,
+    });
 
     const replace = (toReplace, replecament) => {
       if (toReplace !== null) {
@@ -58,13 +80,13 @@ ready(() =>
       }
     };
 
-    users((data) => {
+    homeStorage((data) => {
       replace(document.getElementById("app"), homeComp(data));
     });
 
     const clearApp = () => el("div", { "id": "app" }, "");
 
-    const downloadUsers = () => {
+    const fetchData = () => {
       const info = document.getElementById("info");
 
       // clear info text
@@ -72,14 +94,33 @@ ready(() =>
 
       fetch("/api/v1/users?online=true")
         .then((response) => response.json())
-        .then((data) => users(data))
+        .then((users) =>
+          homeStorage({
+            ...homeStorage(),
+            users: users,
+          })
+        )
+        .catch(() => {
+          info.innerText = "Failed to load users data.";
+          replace(document.getElementById("app"), clearApp());
+        });
+
+      fetch("/api/v1/status")
+        .then((response) => response.json())
+        .then((data) =>
+          homeStorage({
+            ...homeStorage(),
+            onlineUsers: data.online,
+            unknownDevices: data.unknown,
+          })
+        )
         .catch(() => {
           info.innerText = "Failed to load users data.";
           replace(document.getElementById("app"), clearApp());
         });
     };
 
-    downloadUsers();
-    window.setInterval(downloadUsers, 1000 * 60 * 2);
+    fetchData();
+    window.setInterval(fetchData, 1000 * 60 * 2);
   })(el)
 );
