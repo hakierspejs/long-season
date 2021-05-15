@@ -56,7 +56,7 @@ type Status interface {
 	SetUnknownDevices(ctx context.Context, number int) error
 }
 
-// Status interface provides methods for reading and
+// StatusTx interface provides methods for reading and
 // writing numerical information about users and devices
 // spending time in hackerspace in one safe transaction.
 //
