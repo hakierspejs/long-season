@@ -807,9 +807,12 @@ type StatusStorageTx struct {
 
 // DevicesStatus accepts function that manipulates number of
 // unknown devices and online users in single safe transaction.
-func (s *StatusStorageTx) DevicesStatus(f func(storage.Status) error) error {
+func (s *StatusStorageTx) DevicesStatus(
+	ctx context.Context,
+	f func(context.Context, storage.Status) error,
+) error {
 	return s.db.Update(func(tx *bolt.Tx) error {
 		statusStorage := &status{tx}
-		return f(statusStorage)
+		return f(ctx, statusStorage)
 	})
 }
