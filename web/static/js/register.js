@@ -30,7 +30,7 @@ ready(() =>
     });
 
     const ERROR_MSGS = {
-      404: "invalid input data",
+      400: "invalid input data",
       409: "given username is already registered",
       default: "invalid server response, please try again later",
     };
@@ -56,6 +56,15 @@ ready(() =>
       })
         .then((response) => {
           switch (response.status) {
+            case 400:
+              response.json()
+                .then((data) => {
+                  err(data.message);
+                })
+                .catch(() => {
+                  err(ERROR_MSGS.default);
+                });
+              break;
             case 401:
               err(ERROR_MSGS[response.status]);
               break;
