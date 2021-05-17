@@ -40,3 +40,18 @@ func VerifyNickname(n string) bool {
 func VerifyPassword(p string) bool {
 	return passwordRegex.MatchString(p)
 }
+
+// VerifyRegisterData verifies if given data required for
+// user registration is valid. Returned error messages are
+// safe to output to client.
+func VerifyRegisterData(nickname, password string) error {
+	if ok := VerifyNickname(nickname); !ok {
+		return ErrInvalidNickname
+	}
+
+	if ok := VerifyPassword(password); !ok {
+		return ErrInvaliPassword
+	}
+
+	return nil
+}
