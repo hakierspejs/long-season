@@ -48,6 +48,11 @@ func UserCreate(db storage.Users) http.HandlerFunc {
 			return
 		}
 
+		if err := users.VerifyRegisterData(p.Nickname, p.Password); err != nil {
+			badRequest(fmt.Sprintf("invalid input: %s", err.Error()), w)
+			return
+		}
+
 		pass, err := bcrypt.GenerateFromPassword([]byte(p.Password), bcrypt.DefaultCost)
 		if err != nil {
 			result.JSONError(w, &result.JSONErrorBody{
