@@ -23,7 +23,7 @@ Clone this repository and enter below command in your shell (or whatever you are
 
     $ task
 
-Now you have `long-season` and `long-season-cli` in your root directory. You can use `task` for running project and rebuilding it whenever some changes occurs.
+Now you have `long-season` and `short-season` in your root directory. You can use `task` for running project and rebuilding it whenever some changes occurs.
 
     $ task --watch run
 

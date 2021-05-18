@@ -16,7 +16,7 @@ RUN go get -d -v ./...
 RUN go build -o "long-season" ./cmd/server/main.go \
     && mv "long-season" $GOPATH/bin/
 
-RUN go build -o "long-season-cli" ./cmd/cli/main.go \
-    && mv "long-season-cli" $GOPATH/bin/
+RUN go build -o "short-season" ./cmd/cli/main.go \
+    && mv "short-season" $GOPATH/bin/
 
 WORKDIR /
