@@ -33,7 +33,7 @@ func NewDaemon(ctx context.Context,
 			case newMacs := <-ch: // Update mac addresses
 				log.Println("Received new macs")
 				for _, newMac := range newMacs {
-					macs.Push(newMac, 5*time.MinuteSecond)
+					macs.Push(newMac, 5*time.Minute)
 				}
 			case <-ticker.C: // Update users every minute with newest mac addresses
 				// Update online status for every user in db
