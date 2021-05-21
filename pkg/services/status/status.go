@@ -6,6 +6,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/hakierspejs/long-season/pkg/services/macs"
 	"github.com/hakierspejs/long-season/pkg/storage"
 )
 
@@ -18,10 +19,11 @@ func NewDaemon(ctx context.Context,
 	iter storage.StatusIterator, counters storage.StatusTx,
 ) (chan<- []net.HardwareAddr, Daemon) {
 	ch := make(chan []net.HardwareAddr)
+	decrCh := make(chan net.HardwareAddr)
 
 	daemon := func() {
 		// Slice with newest mac addresse
-		macs := []net.HardwareAddr{}
+		macs := macs.NewCounterSet(10)
 
 		// TODO(thinkofher) make time period configurable
 		ticker := time.NewTicker(time.Minute)
@@ -32,11 +34,23 @@ func NewDaemon(ctx context.Context,
 				break
 			case newMacs := <-ch: // Update mac addresses
 				log.Println("Received new macs")
-				macs = newMacs
+
+				for _, newMac := range newMacs {
+					macs.Incr(newMac)
+
+					// Decrease after one minute
+					go func(addr string) {
+						<-time.After(time.Minute)
+						decrCh <- net.HardwareAddr(addr)
+					}(newMac.String())
+
+				}
+
+				log.Println("Updated macs")
 			case <-ticker.C: // Update users every minute with newest mac addresses
 				// Update online status for every user in db
 				err := storage.UpdateStatuses(ctx, storage.UpdateStatusesArgs{
-					Addresses: macs,
+					Addresses: macs.Slice(),
 					Iter:      iter,
 					Counters:  counters,
 				})
@@ -45,6 +59,8 @@ func NewDaemon(ctx context.Context,
 					continue
 				}
 				log.Println("Succefully updated stauses.")
+			case toDecr := <-decrCh:
+				macs.Decr(toDecr)
 			}
 		}
 	}
