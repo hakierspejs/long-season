@@ -120,6 +120,8 @@ func (s *SetTTL) daemon(ctx context.Context) {
 			// return to escape from loop
 			close(s.toAdd)
 			close(s.toDel)
+			close(s.retrieveSignal)
+			close(s.macSlice)
 			return
 		}
 
