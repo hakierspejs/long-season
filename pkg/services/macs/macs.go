@@ -1,56 +1,84 @@
 package macs
 
-import "net"
+import (
+	"context"
+	"net"
+	"time"
+)
 
-// Set is unordered data structure for storing hardware addresses
-// that doesn't allow duplicate values.
-type CounterSet struct {
-	m     map[string]int
-	limit int
+type SetTTL struct {
+	m        map[string]*time.Timer
+	toAdd    chan setItem
+	toDel    chan string
+	retrieve chan struct{}
+	macArr   chan []net.HardwareAddr
 }
 
-func NewCounterSet(limit int) CounterSet {
-	return CounterSet{
-		limit: limit,
-		m:     map[string]int{},
-	}
+type setItem struct {
+	value string
+	ttl   time.Duration
 }
 
-func (s CounterSet) contains(a net.HardwareAddr) bool {
-	_, ok := s.m[a.String()]
-	return ok
-}
-
-func (s CounterSet) Incr(a net.HardwareAddr) {
-	if !s.contains(a) {
-		s.m[a.String()] = 1
-		return
+func NewSetTTL(ctx context.Context) *SetTTL {
+	res := &SetTTL{
+		m:        map[string]*time.Timer{},
+		toAdd:    make(chan setItem),
+		toDel:    make(chan string),
+		retrieve: make(chan struct{}),
+		macArr:   make(chan []net.HardwareAddr),
 	}
 
-	if s.m[a.String()] < s.limit {
-		s.m[a.String()] += 1
-	}
-}
+	// start daemon in new goroutine
+	go res.daemon(ctx)
 
-func (s CounterSet) Decr(a net.HardwareAddr) {
-	if !s.contains(a) {
-		return
-	}
-
-	if s.m[a.String()] > 1 {
-		s.m[a.String()] -= 1
-		return
-	}
-
-	delete(s.m, a.String())
-}
-
-func (s CounterSet) Slice() []net.HardwareAddr {
-	res := make([]net.HardwareAddr, len(s.m), len(s.m))
-	i := 0
-	for k, _ := range s.m {
-		res[i] = net.HardwareAddr(k)
-		i += 1
-	}
 	return res
+}
+
+func (s *SetTTL) Push(addr net.HardwareAddr, ttl time.Duration) {
+	s.toAdd <- setItem{
+		value: string(addr),
+		ttl:   ttl,
+	}
+}
+
+func (s *SetTTL) Slice() []net.HardwareAddr {
+	s.retrieve <- struct{}{}
+	return <-s.macArr
+}
+
+func delMac(val string, c chan string) func() {
+	return func() {
+		c <- val
+	}
+}
+
+func (s *SetTTL) daemon(ctx context.Context) {
+	for {
+		select {
+		case newMac := <-s.toAdd:
+			if timer, contains := s.m[newMac.value]; contains {
+				timer.Reset(newMac.ttl)
+			} else {
+				s.m[newMac.value] = time.AfterFunc(
+					newMac.ttl,
+					delMac(newMac.value, s.toDel),
+				)
+			}
+		case toDel := <-s.toDel:
+			delete(s.m, toDel)
+		case <-s.retrieve:
+			res := make([]net.HardwareAddr, len(s.m), len(s.m))
+			index := 0
+			for k, _ := range s.m {
+				res[index] = net.HardwareAddr(k)
+				index += 1
+			}
+			s.macArr <- res
+		case <-ctx.Done():
+			close(s.toAdd)
+			close(s.toDel)
+			return
+		}
+	}
+
 }
