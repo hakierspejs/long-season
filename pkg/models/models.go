@@ -3,6 +3,7 @@ package models
 import (
 	"encoding/gob"
 	"fmt"
+	"time"
 
 	"github.com/cristalhq/jwt/v3"
 )
@@ -55,13 +56,15 @@ type DevicePublicData struct {
 // Config represents configuration that is
 // being used by server.
 type Config struct {
-	Debug        bool
-	Host         string
-	Port         string
-	DatabasePath string
-	JWTSecret    string
-	UpdateSecret string
-	AppName      string
+	Debug         bool
+	Host          string
+	Port          string
+	DatabasePath  string
+	JWTSecret     string
+	UpdateSecret  string
+	AppName       string
+	RefreshTime   time.Duration
+	SingleAddrTTL time.Duration
 }
 
 // Address returns address string that is compatible

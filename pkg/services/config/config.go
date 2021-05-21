@@ -2,7 +2,9 @@ package config
 
 import (
 	"os"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/hakierspejs/long-season/pkg/models"
 )
@@ -31,6 +33,12 @@ const (
 
 	debugEnv     = "LS_DEBUG"
 	defaultDebug = "0"
+
+	refreshTimeEnv     = "LS_REFRESH_TIME"
+	defaultRefreshTime = time.Duration(60) // seconds
+
+	singleAddrTTLEnv     = "LS_SINGLE_ADDR_TTL"
+	defaultSingleAddrTTL = time.Duration(60 * 5) // seconds
 )
 
 // Env returns pointer to models.Config which is
@@ -38,13 +46,15 @@ const (
 // Unset variables will be
 func Env() *models.Config {
 	return &models.Config{
-		Debug:        parseBoolEnv(DefaultEnv(debugEnv, defaultDebug)),
-		Host:         DefaultEnv(hostEnv, defaultHost),
-		Port:         DefaultEnv(portEnv, defaultPort),
-		DatabasePath: DefaultEnv(boltENV, defaultBoltDB),
-		JWTSecret:    DefaultEnv(jwtSecretEnv, defaultJWTSecret),
-		UpdateSecret: DefaultEnv(updateSecretEnv, defaultUpdateSecret),
-		AppName:      DefaultEnv(appNameEnv, defaultAppName),
+		Debug:         parseBoolEnv(DefaultEnv(debugEnv, defaultDebug)),
+		Host:          DefaultEnv(hostEnv, defaultHost),
+		Port:          DefaultEnv(portEnv, defaultPort),
+		DatabasePath:  DefaultEnv(boltENV, defaultBoltDB),
+		JWTSecret:     DefaultEnv(jwtSecretEnv, defaultJWTSecret),
+		UpdateSecret:  DefaultEnv(updateSecretEnv, defaultUpdateSecret),
+		AppName:       DefaultEnv(appNameEnv, defaultAppName),
+		RefreshTime:   time.Second * DefaultDurationEnv(refreshTimeEnv, defaultRefreshTime),
+		SingleAddrTTL: time.Second * DefaultDurationEnv(singleAddrTTLEnv, defaultSingleAddrTTL),
 	}
 }
 
@@ -57,6 +67,23 @@ func DefaultEnv(key, fallback string) string {
 		return fallback
 	}
 	return res
+}
+
+// DefaultIntEnv returns content of shell variable
+// assigned to given key. If result is empty or
+// parsing process failed, returns fallback value.
+func DefaultDurationEnv(key string, fallback time.Duration) time.Duration {
+	res := os.Getenv(key)
+	if res == "" {
+		return fallback
+	}
+
+	parsed, err := strconv.ParseInt(res, 10, 64)
+	if err != nil {
+		return fallback
+	}
+
+	return time.Duration(parsed)
 }
 
 func parseBoolEnv(env string) bool {
