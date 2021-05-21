@@ -35,6 +35,7 @@ func StrictEquals(a, b models.User) bool {
 		bytes.Equal(a.Password, b.Password),
 		a.Online == b.Online,
 		a.ID == b.ID,
+		a.Private == b.Private,
 	)
 }
 
