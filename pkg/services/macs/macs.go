@@ -104,7 +104,7 @@ func (s *SetTTL) daemon(ctx context.Context) {
 
 			// loop over collection of addresses.
 			index := 0
-			for k, _ := range s.m {
+			for k := range s.m {
 				// we have to cast every key to net.HardwareAddr
 				// we can omit net.ParseMAC, because SetTTL permits
 				// only net.HardwareAddr to Push, so we assume here
