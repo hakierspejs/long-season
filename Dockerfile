@@ -19,4 +19,5 @@ RUN go build -o "long-season" ./cmd/server/main.go \
 RUN go build -o "short-season" ./cmd/cli/main.go \
     && mv "short-season" $GOPATH/bin/
 
-WORKDIR /
+WORKDIR /app
+RUN echo "web: long-season" > Procfile
