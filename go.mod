@@ -1,6 +1,7 @@
+module github.com/hakierspejs/long-season
+
 // +heroku goVersion go1.16
 // +heroku install ./cmd/...
-module github.com/hakierspejs/long-season
 
 go 1.16
 
