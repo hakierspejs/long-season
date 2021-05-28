@@ -1,0 +1,15 @@
+[Unit]
+Description=Cool service that scans your networks mac addresses
+After=network.target
+
+[Service]
+User=root
+WorkingDirectory=/
+Environment="LS_TARGET="
+Environment="LS_HOST="
+Environment="LS_SECRET="
+ExecStart=middle-season $LS_TARGET $LS_HOST $LS_SECRET
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

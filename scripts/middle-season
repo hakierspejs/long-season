@@ -1,5 +1,5 @@
 #!/bin/bash
-# send [TARGET] [HOST] [API-KEY]
+# middle-season [TARGET] [HOST] [API-KEY]
 #
 # simple script for sending mac adresses from given local
 # target network to given host instance of long-season
@@ -8,6 +8,12 @@ while :
 do
     NMAP_SCAN=$(sudo nmap -sn $1)
     MACS=$(echo $NMAP_SCAN | grep -ohE "([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})")
-    echo $MACS | tr ' ' '\n'  | short-season --api $2 --api-key $3
-    sleep 5
+
+    echo "info: scanned macs"
+    echo $MACS
+
+    echo $MACS | tr ' ' '\n'  | short-season --api $2 --api-key $3 macs
+
+    echo "info: macs sent"
+    sleep 1
 done
