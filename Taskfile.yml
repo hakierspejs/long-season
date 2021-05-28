@@ -13,7 +13,7 @@ tasks:
 
   server:
     cmds:
-      - go build -o {{ .NAME }} cmd/server/main.go
+      - go build -o {{ .NAME }} cmd/long-season/*.go
     sources:
       - ./**/*.go
       - ./**/*.html
@@ -24,7 +24,7 @@ tasks:
 
   cli:
     cmds:
-      - go build -o {{ .NAME_CLI }} cmd/cli/main.go
+      - go build -o {{ .NAME_CLI }} cmd/short-season/*.go
 
   run:
     deps: [server]
