@@ -33,6 +33,23 @@ func renderWithOpener(path string, readFunc handlers.Opener) (*template.Template
 	return template.New("ui").Parse(str.String())
 }
 
+type layout struct {
+	PrideMonth bool
+}
+
+type data struct {
+	Layout layout
+}
+
+func newData(r *http.Request) *data {
+	now := time.Now()
+	return &data{
+		Layout: layout{
+			PrideMonth: now.Month() == time.June,
+		},
+	}
+}
+
 func renderTemplate(opener handlers.Opener, path string) (*template.Template, error) {
 	return renderWithOpener(path, opener)
 }
@@ -40,21 +57,21 @@ func renderTemplate(opener handlers.Opener, path string) (*template.Template, er
 func Home(opener handlers.Opener) http.HandlerFunc {
 	tmpl := template.Must(renderTemplate(opener, "tmpl/home.html"))
 	return func(w http.ResponseWriter, r *http.Request) {
-		tmpl.ExecuteTemplate(w, "layout", nil)
+		tmpl.ExecuteTemplate(w, "layout", newData(r))
 	}
 }
 
 func LoginPage(opener handlers.Opener) http.HandlerFunc {
 	tmpl := template.Must(renderTemplate(opener, "tmpl/login.html"))
 	return func(w http.ResponseWriter, r *http.Request) {
-		tmpl.ExecuteTemplate(w, "layout", nil)
+		tmpl.ExecuteTemplate(w, "layout", newData(r))
 	}
 }
 
 func Register(opener handlers.Opener) http.HandlerFunc {
 	tmpl := template.Must(renderTemplate(opener, "tmpl/register.html"))
 	return func(w http.ResponseWriter, r *http.Request) {
-		tmpl.ExecuteTemplate(w, "layout", nil)
+		tmpl.ExecuteTemplate(w, "layout", newData(r))
 	}
 }
 
@@ -75,6 +92,6 @@ func Logout() http.HandlerFunc {
 func Devices(opener handlers.Opener) http.HandlerFunc {
 	tmpl := template.Must(renderTemplate(opener, "tmpl/devices.html"))
 	return func(w http.ResponseWriter, r *http.Request) {
-		tmpl.ExecuteTemplate(w, "layout", nil)
+		tmpl.ExecuteTemplate(w, "layout", newData(r))
 	}
 }
