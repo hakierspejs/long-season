@@ -1,0 +1,4 @@
+.home {
+  background: linear-gradient(115deg, rgba(255,0,24,1) 0%, rgba(255,165,44,1) 25%, rgba(255,255,65,1) 40%, rgba(0,128,24,1) 57%, rgba(0,0,249,1) 78%, rgba(134,0,125,1) 100%);
+  color: var(--light);
+}
