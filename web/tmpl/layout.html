@@ -9,12 +9,17 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/normalize.css@8.0.1/normalize.css">
     <link rel="stylesheet" href="/static/neat.css">
     <link rel="stylesheet" href="/static/custom.css">
+    {{ if .Layout.PrideMonth }}
+      <link rel="stylesheet" href="/static/pride.css">
+    {{ end }}
     <script src="/static/js/utils.js"></script>
     <script src="/static/js/navbar.js"></script>
     {{ block "scripts" . }}{{ end }}
   </head>
   <body>
     <header>
+      <a class="home" href="/">・ᴥ・</a>
+
       <h1>hs@lodz:~$</h1>
 
       <nav>
