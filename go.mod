@@ -1,5 +1,8 @@
 module github.com/hakierspejs/long-season
 
+// +heroku goVersion go1.16
+// +heroku install ./cmd/...
+
 go 1.16
 
 require (

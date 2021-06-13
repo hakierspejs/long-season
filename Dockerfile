@@ -13,10 +13,10 @@ COPY . .
 
 RUN go get -d -v ./...
 
-RUN go build -o "long-season" ./cmd/server/main.go \
+RUN go build -o "long-season" ./cmd/long-season/*.go \
     && mv "long-season" $GOPATH/bin/
 
-RUN go build -o "short-season" ./cmd/cli/main.go \
+RUN go build -o "short-season" ./cmd/short-season/*.go \
     && mv "short-season" $GOPATH/bin/
 
-WORKDIR /
+COPY Procfile .

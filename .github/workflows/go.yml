@@ -35,8 +35,8 @@ jobs:
 
     - name: Build
       run: |
-        go build -v ./cmd/server/main.go
-        go build -v ./cmd/cli/main.go
+        go build -v ./cmd/long-season/*.go
+        go build -v ./cmd/short-season/*.go
 
     - name: Test
       run: go test -v ./...
