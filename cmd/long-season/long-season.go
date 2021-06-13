@@ -7,17 +7,13 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/go-chi/chi"
-	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/cors"
 	bolt "go.etcd.io/bbolt"
 
 	"github.com/hakierspejs/long-season/pkg/services/config"
 	"github.com/hakierspejs/long-season/pkg/services/handlers"
-	"github.com/hakierspejs/long-season/pkg/services/handlers/api/v1"
-	lsmiddleware "github.com/hakierspejs/long-season/pkg/services/middleware"
+	"github.com/hakierspejs/long-season/pkg/services/router"
 	"github.com/hakierspejs/long-season/pkg/services/status"
-	"github.com/hakierspejs/long-season/pkg/services/ui"
 	"github.com/hakierspejs/long-season/pkg/storage/memory"
 	"github.com/hakierspejs/long-season/web"
 )
@@ -68,72 +64,14 @@ func main() {
 		opener = web.Open
 	}
 
-	r := chi.NewRouter()
-	r.Use(middleware.Logger)
-	r.Use(middleware.Recoverer)
-	r.Use(middleware.RequestID)
-	r.Use(middleware.NoCache)
-
-	r.Get("/", ui.Home(opener))
-	r.With(lsmiddleware.ApiAuth(*config, true), lsmiddleware.RedirectLoggedIn).Get("/login", ui.LoginPage(opener))
-
-	r.Route("/api/v1", func(r chi.Router) {
-		r.Route("/users", func(r chi.Router) {
-			// Use CORS to allow GET/OPTIONS to GET /api/v1/users from
-			// anywhere.
-			// This technically wraps a nil handler around publicCors, but the
-			// nil handler never gets called. This is weirdness stemming from
-			// how go-chi/cors is supposed to be applied globally to the entire
-			// application, and not to particular endpoints.
-			r.With(publicCors.Handler).Options("/", nil)
-			r.With(publicCors.Handler).Get("/", api.UsersAll(factoryStorage.Users()))
-			r.Post("/", api.UserCreate(factoryStorage.Users()))
-
-			r.With(lsmiddleware.UserID).Route("/{user-id}", func(r chi.Router) {
-				r.With(
-					lsmiddleware.ApiAuth(*config, true),
-				).Get("/", api.UserRead(factoryStorage.Users()))
-
-				// Users can only delete themselves.
-				r.With(
-					lsmiddleware.ApiAuth(*config, false),
-					lsmiddleware.Private,
-				).Delete("/", api.UserRemove(factoryStorage.Users()))
-
-				r.With(
-					lsmiddleware.ApiAuth(*config, false),
-					lsmiddleware.Private,
-				).Patch("/", api.UserUpdate(factoryStorage.Users()))
-
-				r.With(
-					lsmiddleware.ApiAuth(*config, false),
-					lsmiddleware.Private,
-				).Route("/devices", func(r chi.Router) {
-					r.Get("/", api.UserDevices(factoryStorage.Devices()))
-					r.Post("/", api.DeviceAdd(factoryStorage.Devices()))
-
-					r.With(lsmiddleware.DeviceID).Route("/{device-id}", func(r chi.Router) {
-						r.Get("/", api.DeviceRead(factoryStorage.Devices()))
-						r.Delete("/", api.DeviceRemove(factoryStorage.Devices()))
-						r.Patch("/", api.DeviceUpdate(factoryStorage.Devices()))
-					})
-				})
-			})
-		})
-		r.Post("/login", api.ApiAuth(*config, factoryStorage.Users()))
-		r.With(lsmiddleware.UpdateAuth(config)).Put(
-			"/update",
-			api.UpdateStatus(macChannel),
-		)
-		r.Get("/status", api.Status(factoryStorage.StatusTx()))
+	r := router.NewRouter(*config, router.Args{
+		Opener:     opener,
+		Users:      factoryStorage.Users(),
+		Devices:    factoryStorage.Devices(),
+		StatusTx:   factoryStorage.StatusTx(),
+		MacsChan:   macChannel,
+		PublicCors: publicCors,
 	})
-
-	r.With(lsmiddleware.ApiAuth(*config, false)).Get("/who", handlers.Who())
-	r.With(lsmiddleware.ApiAuth(*config, false)).Get("/devices", ui.Devices(opener))
-	r.Get("/logout", ui.Logout())
-	r.With(lsmiddleware.ApiAuth(*config, true), lsmiddleware.RedirectLoggedIn).Get("/register", ui.Register(opener))
-
-	handlers.FileServer(r, "/static", opener)
 
 	// start daemon for updating mac addresses
 	go macDeamon()
