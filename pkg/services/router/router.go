@@ -45,8 +45,11 @@ func NewRouter(config models.Config, args Args) http.Handler {
 	r.Use(middleware.RequestID)
 	r.Use(middleware.NoCache)
 
-	r.Get("/", ui.Home(args.Opener))
-	r.With(lsmiddleware.ApiAuth(config, true), lsmiddleware.RedirectLoggedIn).Get("/login", ui.LoginPage(args.Opener))
+	r.Get("/", ui.Home(config, args.Opener))
+	r.With(
+		lsmiddleware.ApiAuth(config, true),
+		lsmiddleware.RedirectLoggedIn,
+	).Get("/login", ui.LoginPage(config, args.Opener))
 
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Route("/users", func(r chi.Router) {
@@ -100,9 +103,12 @@ func NewRouter(config models.Config, args Args) http.Handler {
 	})
 
 	r.With(lsmiddleware.ApiAuth(config, false)).Get("/who", handlers.Who())
-	r.With(lsmiddleware.ApiAuth(config, false)).Get("/devices", ui.Devices(args.Opener))
+	r.With(lsmiddleware.ApiAuth(config, false)).Get("/devices", ui.Devices(config, args.Opener))
 	r.Get("/logout", ui.Logout())
-	r.With(lsmiddleware.ApiAuth(config, true), lsmiddleware.RedirectLoggedIn).Get("/register", ui.Register(args.Opener))
+	r.With(
+		lsmiddleware.ApiAuth(config, true),
+		lsmiddleware.RedirectLoggedIn,
+	).Get("/register", ui.Register(config, args.Opener))
 
 	handlers.FileServer(r, "/static", args.Opener)
 

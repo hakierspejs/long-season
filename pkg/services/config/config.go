@@ -39,6 +39,12 @@ const (
 
 	singleAddrTTLEnv     = "LS_SINGLE_ADDR_TTL"
 	defaultSingleAddrTTL = time.Duration(60 * 5) // seconds
+
+	spaceEnv     = "LS_SPACE"
+	defaultSpace = "hs"
+
+	cityEnv     = "LS_CITY"
+	defaultCity = "lodz"
 )
 
 // Env returns pointer to models.Config which is
@@ -46,6 +52,8 @@ const (
 // Unset variables will be
 func Env() *models.Config {
 	return &models.Config{
+		Space:         DefaultEnv(spaceEnv, defaultSpace),
+		City:          DefaultEnv(cityEnv, defaultCity),
 		Debug:         parseBoolEnv(DefaultEnv(debugEnv, defaultDebug)),
 		Host:          DefaultEnv(hostEnv, defaultHost),
 		Port:          DefaultEnv(portEnv, defaultPort),
