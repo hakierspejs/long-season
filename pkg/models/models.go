@@ -56,6 +56,14 @@ type DevicePublicData struct {
 // Config represents configuration that is
 // being used by server.
 type Config struct {
+	// Space is the name of the space
+	// where long-season is watching for macs.
+	Space string
+
+	// City is name of city, where
+	// long-season is watching for macs.
+	City string
+
 	Debug         bool
 	Host          string
 	Port          string
