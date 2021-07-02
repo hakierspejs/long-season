@@ -9,9 +9,11 @@ import (
 	"net/http"
 
 	"github.com/alioygur/gores"
+	"github.com/thinkofher/horror"
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/hakierspejs/long-season/pkg/models"
+	"github.com/hakierspejs/long-season/pkg/services/apierr"
 	"github.com/hakierspejs/long-season/pkg/services/devices"
 	"github.com/hakierspejs/long-season/pkg/services/requests"
 	"github.com/hakierspejs/long-season/pkg/services/result"
@@ -28,39 +30,39 @@ func conflict(msg string, w http.ResponseWriter) {
 	})
 }
 
-func UserCreate(db storage.Users) http.HandlerFunc {
+const internalServerErrorResponse = "Internal server error. Please try again later."
+
+func UserCreate(db storage.Users) horror.HandlerFunc {
 	type payload struct {
 		Nickname string `json:"nickname"`
 		Password string `json:"password"`
 	}
 
-	return func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		var p payload
+		errFactory := apierr.FromRequest(r)
 
 		err := json.NewDecoder(r.Body).Decode(&p)
 		if err != nil {
-			// TODO(thinkofher) Implement proper error handling.
-			result.JSONError(w, &result.JSONErrorBody{
-				Message: fmt.Sprintf("decoding payload failed, error: %s", err.Error()),
-				Code:    http.StatusInternalServerError,
-				Type:    "internal-server-error",
-			})
-			return
+			return errFactory.InternalServerError(
+				fmt.Errorf("api.UserCreate: decoding payload failed: %w", err),
+				internalServerErrorResponse,
+			)
 		}
 
 		if err := users.VerifyRegisterData(p.Nickname, p.Password); err != nil {
-			badRequest(fmt.Sprintf("invalid input: %s", err.Error()), w)
-			return
+			return errFactory.BadRequest(
+				fmt.Errorf("api.UserCreate: invalid input: %w", err),
+				fmt.Sprintf("Invalid input: %s.", err.Error()),
+			)
 		}
 
 		pass, err := bcrypt.GenerateFromPassword([]byte(p.Password), bcrypt.DefaultCost)
 		if err != nil {
-			result.JSONError(w, &result.JSONErrorBody{
-				Message: fmt.Sprintf("hashing password failed, error: %s", err.Error()),
-				Code:    http.StatusInternalServerError,
-				Type:    "internal-server-error",
-			})
-			return
+			return errFactory.InternalServerError(
+				fmt.Errorf("api.UserCreate: hashing password failed: %w", err),
+				internalServerErrorResponse,
+			)
 		}
 
 		id, err := db.New(r.Context(), models.User{
@@ -71,22 +73,23 @@ func UserCreate(db storage.Users) http.HandlerFunc {
 			Password: pass,
 		})
 		if errors.Is(err, serrors.ErrNicknameTaken) {
-			conflict("given username is already taken", w)
-			return
+			return errFactory.Conflict(
+				fmt.Errorf("api.UserCreate: %w", err),
+				fmt.Sprintf("Given username: %w is already taken.", p.Nickname),
+			)
 		}
 		if err != nil {
-			result.JSONError(w, &result.JSONErrorBody{
-				Message: fmt.Sprintf("creating new user failed, error: %s", err.Error()),
-				Code:    http.StatusInternalServerError,
-				Type:    "internal-server-error",
-			})
-			return
+			return errFactory.InternalServerError(
+				fmt.Errorf("api.UserCreate: creating new user failed, reason: %w", err),
+				internalServerErrorResponse,
+			)
 		}
 
 		gores.JSONIndent(w, http.StatusOK, &models.UserPublicData{
 			ID:       id,
 			Nickname: p.Nickname,
 		}, defaultPrefix, defaultIndent)
+		return nil
 	}
 }
 

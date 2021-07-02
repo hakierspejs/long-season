@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
+	"github.com/thinkofher/horror"
 
 	"github.com/hakierspejs/long-season/pkg/models"
 	"github.com/hakierspejs/long-season/pkg/services/handlers"
@@ -61,7 +62,7 @@ func NewRouter(config models.Config, args Args) http.Handler {
 			// application, and not to particular endpoints.
 			r.With(args.PublicCors.Handler).Options("/", nil)
 			r.With(args.PublicCors.Handler).Get("/", api.UsersAll(args.Users))
-			r.Post("/", api.UserCreate(args.Users))
+			r.Method(http.MethodPost, "/", horror.WithError(api.UserCreate(args.Users)))
 
 			r.With(lsmiddleware.UserID).Route("/{user-id}", func(r chi.Router) {
 				r.With(
