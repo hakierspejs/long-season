@@ -11,7 +11,7 @@ import (
 // chi router, because it accepts only HandlerFuncs
 // to its routing methods along `pattern`.
 //
-// Use NewAdapter if you want to use Adapter.
+// Use NewAdapter as constructor if you want to use Adapter.
 type Adapter struct {
 	wrapped *horror.Adapter
 }
