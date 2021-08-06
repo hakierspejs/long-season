@@ -117,32 +117,34 @@ func UsersAll(db storage.Users) horror.HandlerFunc {
 	}
 }
 
-func UserRead(db storage.Users) http.HandlerFunc {
+func UserRead(db storage.Users) horror.HandlerFunc {
 	type response struct {
 		models.UserPublicData
 		Private *bool `json:"priv,omitempty"`
 	}
-	return func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		errFactory := happier.FromRequest(r)
+
 		id, err := requests.UserID(r)
 		if err != nil {
-			// TODO(thinkofher) Implement proper error handling.
-			result.JSONError(w, &result.JSONErrorBody{
-				Message: fmt.Sprintf("reading user id failed, error: %s", err.Error()),
-				Code:    http.StatusInternalServerError,
-				Type:    "internal-server-error",
-			})
-			return
+			return errFactory.InternalServerError(
+				fmt.Errorf("requests.UserID: %w", err),
+				internalServerErrorResponse,
+			)
 		}
 
 		user, err := db.Read(r.Context(), id)
+		if errors.Is(err, serrors.ErrNoID) {
+			return errFactory.NotFound(
+				fmt.Errorf("db.Read: %w", err),
+				fmt.Sprintf("there is no user with id: %d", id),
+			)
+		}
 		if err != nil {
-			// TODO(thinkofher) Implement proper error handling.
-			result.JSONError(w, &result.JSONErrorBody{
-				Message: fmt.Sprintf("reading user failed, error: %s", err.Error()),
-				Code:    http.StatusInternalServerError,
-				Type:    "internal-server-error",
-			})
-			return
+			return errFactory.InternalServerError(
+				fmt.Errorf("db.Read: %w", err),
+				internalServerErrorResponse,
+			)
 		}
 
 		var privateMode *bool = nil
@@ -151,10 +153,10 @@ func UserRead(db storage.Users) http.HandlerFunc {
 			privateMode = &user.Private
 		}
 
-		gores.JSONIndent(w, http.StatusOK, &response{
+		return happier.OK(w, r, &response{
 			UserPublicData: user.UserPublicData,
 			Private:        privateMode,
-		}, defaultPrefix, defaultIndent)
+		})
 	}
 }
 

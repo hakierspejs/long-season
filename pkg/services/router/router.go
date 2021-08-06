@@ -69,7 +69,7 @@ func NewRouter(config models.Config, args Args) http.Handler {
 			r.With(lsmiddleware.UserID).Route("/{user-id}", func(r chi.Router) {
 				r.With(
 					lsmiddleware.ApiAuth(config, true),
-				).Get("/", api.UserRead(args.Users))
+				).Get("/", args.Adapter.WithError(api.UserRead(args.Users)))
 
 				// Users can only delete themselves.
 				r.With(
