@@ -160,31 +160,34 @@ func UserRead(db storage.Users) horror.HandlerFunc {
 	}
 }
 
-func UserRemove(db storage.Users) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func UserRemove(db storage.Users) horror.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		errFactory := happier.FromRequest(r)
+
 		id, err := requests.UserID(r)
 		if err != nil {
-			// TODO(thinkofher) Implement proper error handling.
-			result.JSONError(w, &result.JSONErrorBody{
-				Message: fmt.Sprintf("reading user id failed, error: %s", err.Error()),
-				Code:    http.StatusInternalServerError,
-				Type:    "internal-server-error",
-			})
-			return
+			return errFactory.InternalServerError(
+				fmt.Errorf("requests.UserID: %w", err),
+				internalServerErrorResponse,
+			)
 		}
 
 		err = db.Remove(r.Context(), id)
+		if errors.Is(err, serrors.ErrNoID) {
+			return errFactory.NotFound(
+				fmt.Errorf("db.Remove: %w", err),
+				fmt.Sprintf("there is no user with id: %d", id),
+			)
+		}
 		if err != nil {
-			// TODO(thinkofher) Implement proper error handling.
-			result.JSONError(w, &result.JSONErrorBody{
-				Message: fmt.Sprintf("removing user id failed, error: %s", err.Error()),
-				Code:    http.StatusInternalServerError,
-				Type:    "internal-server-error",
-			})
-			return
+			return errFactory.InternalServerError(
+				fmt.Errorf("db.Remove: %w", err),
+				internalServerErrorResponse,
+			)
 		}
 
 		w.WriteHeader(http.StatusNoContent)
+		return nil
 	}
 }
 

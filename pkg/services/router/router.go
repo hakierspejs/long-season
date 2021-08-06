@@ -75,7 +75,7 @@ func NewRouter(config models.Config, args Args) http.Handler {
 				r.With(
 					lsmiddleware.ApiAuth(config, false),
 					lsmiddleware.Private,
-				).Delete("/", api.UserRemove(args.Users))
+				).Delete("/", args.Adapter.WithError(api.UserRemove(args.Users)))
 
 				r.With(
 					lsmiddleware.ApiAuth(config, false),
