@@ -92,18 +92,15 @@ func UserCreate(db storage.Users) horror.HandlerFunc {
 	}
 }
 
-func UsersAll(db storage.Users) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func UsersAll(db storage.Users) horror.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		data, err := db.All(r.Context())
 
 		if err != nil {
-			// TODO(thinkofher) Implement proper error handling.
-			result.JSONError(w, &result.JSONErrorBody{
-				Message: fmt.Sprintf("reading all users failed, error: %s", err.Error()),
-				Code:    http.StatusInternalServerError,
-				Type:    "internal-server-error",
-			})
-			return
+			return happier.FromRequest(r).InternalServerError(
+				fmt.Errorf("db.All: %w", err),
+				internalServerErrorResponse,
+			)
 		}
 
 		filters := users.DefaultFilters()
@@ -116,10 +113,7 @@ func UsersAll(db storage.Users) http.HandlerFunc {
 		}
 
 		filtered := users.Filter(data, filters...)
-		gores.JSONIndent(
-			w, http.StatusOK, users.PublicSlice(filtered),
-			defaultPrefix, defaultIndent,
-		)
+		return happier.OK(w, r, users.PublicSlice(filtered))
 	}
 }
 

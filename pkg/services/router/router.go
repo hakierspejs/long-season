@@ -63,8 +63,8 @@ func NewRouter(config models.Config, args Args) http.Handler {
 			// how go-chi/cors is supposed to be applied globally to the entire
 			// application, and not to particular endpoints.
 			r.With(args.PublicCors.Handler).Options("/", nil)
-			r.With(args.PublicCors.Handler).Get("/", api.UsersAll(args.Users))
-			r.Method(http.MethodPost, "/", horror.WithError(api.UserCreate(args.Users)))
+			r.With(args.PublicCors.Handler).Get("/", args.Adapter.WithError(api.UsersAll(args.Users)))
+			r.Post("/", args.Adapter.WithError(api.UserCreate(args.Users)))
 
 			r.With(lsmiddleware.UserID).Route("/{user-id}", func(r chi.Router) {
 				r.With(
