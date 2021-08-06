@@ -75,7 +75,7 @@ func UserCreate(db storage.Users) horror.HandlerFunc {
 		if errors.Is(err, serrors.ErrNicknameTaken) {
 			return errFactory.Conflict(
 				fmt.Errorf("api.UserCreate: %w", err),
-				fmt.Sprintf("Given username: %w is already taken.", p.Nickname),
+				fmt.Sprintf("Given username: %s is already taken.", p.Nickname),
 			)
 		}
 		if err != nil {
