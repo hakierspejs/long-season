@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/hakierspejs/long-season/pkg/models"
+	"github.com/hakierspejs/long-season/pkg/services/ctxkey"
 	"github.com/hakierspejs/long-season/pkg/services/result"
 )
 
@@ -54,6 +55,17 @@ func UpdateAuth(c *models.Config) func(http.Handler) http.Handler {
 			}
 
 			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+// Debug injects information about application debug mode
+// to every http request's context.
+func Debug(c models.Config) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ctx := context.WithValue(r.Context(), ctxkey.DebugKey, c.Debug)
+			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
 }

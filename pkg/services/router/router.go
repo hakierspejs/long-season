@@ -45,6 +45,7 @@ func NewRouter(config models.Config, args Args) http.Handler {
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.RequestID)
 	r.Use(middleware.NoCache)
+	r.Use(lsmiddleware.Debug(config))
 
 	r.Get("/", ui.Home(config, args.Opener))
 	r.With(

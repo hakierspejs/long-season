@@ -1,4 +1,4 @@
-package apierr
+package happier
 
 import (
 	"errors"
@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/alioygur/gores"
+	"github.com/hakierspejs/long-season/pkg/services/requests"
 	"github.com/thinkofher/horror"
 )
 
@@ -17,12 +18,17 @@ type errorHandler struct {
 }
 
 type errorResponse struct {
-	Data interface{} `json:"error"`
+	Data  interface{} `json:"error"`
+	Debug interface{} `json:"debug,omitempty"`
 }
 
-type responseData struct {
+type dataResponse struct {
 	Code    int    `json:"code"`
 	Message string `json:"message"`
+}
+
+type debugResponse struct {
+	ErrorMessage string `json:"err"`
 }
 
 func (e *errorHandler) Error() string {
@@ -39,21 +45,34 @@ const (
 )
 
 func (e *errorHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	gores.JSONIndent(w, e.code, &errorResponse{
-		Data: &responseData{
+	res := &errorResponse{
+		Data: &dataResponse{
 			Code:    e.code,
 			Message: e.message,
 		},
-	}, defaultPrefix, defaultIndent)
+	}
+
+	if e.debug {
+		res.Debug = &debugResponse{
+			ErrorMessage: e.wrapped.Error(),
+		}
+	}
+	gores.JSONIndent(w, e.code, res, defaultPrefix, defaultIndent)
 }
 
+// Factory contains method for declaring
+// http oriented errors.
 type Factory struct {
 	debug bool
 }
 
 func FromRequest(r *http.Request) *Factory {
+	debug, err := requests.Debug(r)
+	if err != nil {
+		debug = false
+	}
 	return &Factory{
-		debug: false,
+		debug: debug,
 	}
 }
 

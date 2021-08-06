@@ -13,8 +13,8 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/hakierspejs/long-season/pkg/models"
-	"github.com/hakierspejs/long-season/pkg/services/apierr"
 	"github.com/hakierspejs/long-season/pkg/services/devices"
+	"github.com/hakierspejs/long-season/pkg/services/happier"
 	"github.com/hakierspejs/long-season/pkg/services/requests"
 	"github.com/hakierspejs/long-season/pkg/services/result"
 	"github.com/hakierspejs/long-season/pkg/services/users"
@@ -40,7 +40,7 @@ func UserCreate(db storage.Users) horror.HandlerFunc {
 
 	return func(w http.ResponseWriter, r *http.Request) error {
 		var p payload
-		errFactory := apierr.FromRequest(r)
+		errFactory := happier.FromRequest(r)
 
 		err := json.NewDecoder(r.Body).Decode(&p)
 		if err != nil {
