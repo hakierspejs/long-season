@@ -9,11 +9,11 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
-	"github.com/thinkofher/horror"
 
 	"github.com/hakierspejs/long-season/pkg/models"
 	"github.com/hakierspejs/long-season/pkg/services/handlers"
 	"github.com/hakierspejs/long-season/pkg/services/handlers/api/v1"
+	"github.com/hakierspejs/long-season/pkg/services/happier"
 	lsmiddleware "github.com/hakierspejs/long-season/pkg/services/middleware"
 	"github.com/hakierspejs/long-season/pkg/services/ui"
 	"github.com/hakierspejs/long-season/pkg/storage"
@@ -34,6 +34,7 @@ type Args struct {
 	StatusTx   storage.StatusTx
 	MacsChan   chan<- []net.HardwareAddr
 	PublicCors Cors
+	Adapter    *happier.Adapter
 }
 
 // NewRouter returns Handler, which contains all the handlers and

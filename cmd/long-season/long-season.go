@@ -12,6 +12,7 @@ import (
 
 	"github.com/hakierspejs/long-season/pkg/services/config"
 	"github.com/hakierspejs/long-season/pkg/services/handlers"
+	"github.com/hakierspejs/long-season/pkg/services/happier"
 	"github.com/hakierspejs/long-season/pkg/services/router"
 	"github.com/hakierspejs/long-season/pkg/services/status"
 	"github.com/hakierspejs/long-season/pkg/storage/memory"
@@ -71,6 +72,7 @@ func main() {
 		StatusTx:   factoryStorage.StatusTx(),
 		MacsChan:   macChannel,
 		PublicCors: publicCors,
+		Adapter:    happier.NewAdapter(),
 	})
 
 	// start daemon for updating mac addresses
