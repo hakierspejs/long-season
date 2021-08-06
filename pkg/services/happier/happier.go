@@ -95,6 +95,21 @@ func (e *errorHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	gores.JSONIndent(w, e.code, res, defaultPrefix, defaultIndent)
 }
 
+// OK outputs given payload to http client with http status OK.
+//
+// If json package fails to marshal given payload, OK returns internal server
+// error.
+func OK(w http.ResponseWriter, r *http.Request, payload interface{}) horror.Error {
+	err := gores.JSONIndent(w, http.StatusOK, payload, defaultPrefix, defaultIndent)
+	if err != nil {
+		return FromRequest(r).InternalServerError(
+			fmt.Errorf("gores.JSONIndent: %w", err),
+			"internal server error, please try again later",
+		)
+	}
+	return nil
+}
+
 type errorResponse struct {
 	Data  interface{} `json:"error"`
 	Debug interface{} `json:"debug,omitempty"`

@@ -85,11 +85,10 @@ func UserCreate(db storage.Users) horror.HandlerFunc {
 			)
 		}
 
-		gores.JSONIndent(w, http.StatusOK, &models.UserPublicData{
+		return happier.OK(w, r, &models.UserPublicData{
 			ID:       id,
 			Nickname: p.Nickname,
-		}, defaultPrefix, defaultIndent)
-		return nil
+		})
 	}
 }
 
