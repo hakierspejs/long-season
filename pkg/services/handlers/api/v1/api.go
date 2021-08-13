@@ -264,30 +264,31 @@ func UserUpdate(db storage.Users) horror.HandlerFunc {
 // UpdateStatus updates online field of every user id database
 // with MAC address equal to one from slice provided by
 // user in request payload.
-func UpdateStatus(ch chan<- []net.HardwareAddr) http.HandlerFunc {
+func UpdateStatus(ch chan<- []net.HardwareAddr) horror.HandlerFunc {
 	type payload struct {
 		Addresses []string `json:"addresses"`
 	}
 
-	return func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		p := new(payload)
+		errFactory := happier.FromRequest(r)
 
 		err := json.NewDecoder(r.Body).Decode(p)
 		if err != nil {
-			result.JSONError(w, &result.JSONErrorBody{
-				Message: fmt.Sprintf("invalid input: %s", err.Error()),
-				Code:    http.StatusBadRequest,
-				Type:    "bad-request",
-			})
-			return
+			return errFactory.BadRequest(
+				fmt.Errorf("json.NewDecoder().Decode: %w", err),
+				fmt.Sprintf("Invalid input: %s.", err.Error()),
+			)
 		}
 
 		parsedAddresses := []net.HardwareAddr{}
 		for _, address := range p.Addresses {
 			parsedAddress, err := net.ParseMAC(address)
 			if err != nil {
-				badRequest("invalid mac address", w)
-				return
+				return errFactory.BadRequest(
+					fmt.Errorf("net.ParseMAC: %w", err),
+					fmt.Sprintf("invalid input: invalid mac address %s", address),
+				)
 			}
 			parsedAddresses = append(parsedAddresses, parsedAddress)
 		}
@@ -295,8 +296,7 @@ func UpdateStatus(ch chan<- []net.HardwareAddr) http.HandlerFunc {
 		// Send parsed addresses to deamon running in the background
 		ch <- parsedAddresses
 
-		w.WriteHeader(http.StatusAccepted)
-		return
+		return happier.Accepted(w, r)
 	}
 }
 

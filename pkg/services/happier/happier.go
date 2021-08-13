@@ -125,6 +125,12 @@ func Created(w http.ResponseWriter, r *http.Request, payload interface{}) horror
 	return nil
 }
 
+// Accepted outputs given payload to http client with http status accepted.
+func Accepted(w http.ResponseWriter, r *http.Request) horror.Error {
+	w.WriteHeader(http.StatusAccepted)
+	return nil
+}
+
 type errorResponse struct {
 	Data  interface{} `json:"error"`
 	Debug interface{} `json:"debug,omitempty"`

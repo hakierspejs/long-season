@@ -100,7 +100,7 @@ func NewRouter(config models.Config, args Args) http.Handler {
 		r.Post("/login", api.ApiAuth(config, args.Users))
 		r.With(lsmiddleware.UpdateAuth(&config)).Put(
 			"/update",
-			api.UpdateStatus(args.MacsChan),
+			args.Adapter.WithError(api.UpdateStatus(args.MacsChan)),
 		)
 		r.Get("/status", api.Status(args.StatusTx))
 	})
