@@ -87,7 +87,7 @@ func NewRouter(config models.Config, args Args) http.Handler {
 					lsmiddleware.Private,
 				).Route("/devices", func(r chi.Router) {
 					r.Get("/", api.UserDevices(args.Devices))
-					r.Post("/", api.DeviceAdd(args.Devices))
+					r.Post("/", args.Adapter.WithError(api.DeviceAdd(args.Devices)))
 
 					r.With(lsmiddleware.DeviceID).Route("/{device-id}", func(r chi.Router) {
 						r.Get("/", api.DeviceRead(args.Devices))

@@ -371,18 +371,22 @@ type singleDevice struct {
 // Make sure to use with middleware.JWT (or another middleware that
 // appends models.Claims to request), because this handler has
 // to know some arbitrary user data.
-func DeviceAdd(db storage.Devices) http.HandlerFunc {
+func DeviceAdd(db storage.Devices) horror.HandlerFunc {
 	type payload struct {
 		Tag string `json:"tag"`
 		MAC string `json:"mac"`
 	}
 
 	// TODO(thinkofher) Add Location header.
-	return func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		errFactory := happier.FromRequest(r)
+
 		userID, err := requests.UserID(r)
 		if err != nil {
-			notFound(w)
-			return
+			return errFactory.InternalServerError(
+				fmt.Errorf("requests.UserID: %w", err),
+				internalServerErrorResponse,
+			)
 		}
 
 		claims, err := requests.JWTClaims(r)
@@ -390,27 +394,35 @@ func DeviceAdd(db storage.Devices) http.HandlerFunc {
 			// At this point handler should have
 			// been provided with JWT claims, so we
 			// will just return 500.
-			internalServerError(w)
-			return
+			return errFactory.InternalServerError(
+				fmt.Errorf("requests.JWTClaims: %w", err),
+				internalServerErrorResponse,
+			)
 		}
 
 		p := new(payload)
 		err = json.NewDecoder(r.Body).Decode(&p)
 		if err != nil {
-			internalServerError(w)
-			return
+			return errFactory.BadRequest(
+				fmt.Errorf("json.NewDecoder().Decode: %w", err),
+				fmt.Sprintf("Invalid input: %s.", err.Error()),
+			)
 		}
 
 		mac, err := net.ParseMAC(p.MAC)
 		if err != nil {
-			badRequest("invalid mac address", w)
-			return
+			return errFactory.BadRequest(
+				fmt.Errorf("net.ParseMAC: %w", err),
+				fmt.Sprintf("invalid input: invalid mac address %s", mac),
+			)
 		}
 
 		hashedMac, err := bcrypt.GenerateFromPassword(mac, bcrypt.DefaultCost)
 		if err != nil {
-			internalServerError(w)
-			return
+			return errFactory.InternalServerError(
+				fmt.Errorf("bcrypt.GenerateFromPassword: %w", err),
+				internalServerErrorResponse,
+			)
 		}
 
 		device := models.Device{
@@ -424,22 +436,22 @@ func DeviceAdd(db storage.Devices) http.HandlerFunc {
 
 		newID, err := db.New(r.Context(), userID, device)
 		if errors.Is(err, serrors.ErrDeviceDuplication) {
-			result.JSONError(w, &result.JSONErrorBody{
-				Code:    http.StatusConflict,
-				Type:    "conflict",
-				Message: "tag already used",
-			})
-			return
+			return errFactory.Conflict(
+				fmt.Errorf("db.New: %w", err),
+				fmt.Sprintf("tag already used"),
+			)
 		}
 		if err != nil {
-			internalServerError(w)
-			return
+			return errFactory.InternalServerError(
+				fmt.Errorf("db.New: %w", err),
+				internalServerErrorResponse,
+			)
 		}
 
-		gores.JSONIndent(w, http.StatusCreated, &singleDevice{
+		return happier.Created(w, r, &singleDevice{
 			ID:  newID,
 			Tag: device.Tag,
-		}, defaultPrefix, defaultIndent)
+		})
 	}
 }
 
