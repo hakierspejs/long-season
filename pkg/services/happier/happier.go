@@ -140,7 +140,7 @@ type debugResponse struct {
 }
 
 func (e *errorHandler) Error() string {
-	return fmt.Sprint("apierr: code=%d public-message=%s err=%w", e.code, e.message, e.wrapped)
+	return fmt.Sprintf("apierr: code=\"%d\" public-message=\"%s\" err=\"%s\"", e.code, e.message, e.wrapped)
 }
 
 func (e *errorHandler) Is(target error) bool {
