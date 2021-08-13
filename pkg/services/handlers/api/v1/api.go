@@ -300,13 +300,15 @@ func UpdateStatus(ch chan<- []net.HardwareAddr) horror.HandlerFunc {
 	}
 }
 
-func Status(counters storage.StatusTx) http.HandlerFunc {
+func Status(counters storage.StatusTx) horror.HandlerFunc {
 	var response struct {
 		Online  int `json:"online"`
 		Unknown int `json:"unknown"`
 	}
 
-	return func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		errFactory := happier.FromRequest(r)
+
 		err := counters.DevicesStatus(
 			r.Context(),
 			func(ctx context.Context, s storage.Status) error {
@@ -326,11 +328,13 @@ func Status(counters storage.StatusTx) http.HandlerFunc {
 			},
 		)
 		if err != nil {
-			internalServerError(w)
-			return
+			return errFactory.InternalServerError(
+				fmt.Errorf("counters.DevicesStatus: %w", err),
+				internalServerErrorResponse,
+			)
 		}
 
-		gores.JSONIndent(w, http.StatusOK, response, defaultPrefix, defaultIndent)
+		return happier.OK(w, r, response)
 	}
 }
 

@@ -102,7 +102,7 @@ func NewRouter(config models.Config, args Args) http.Handler {
 			"/update",
 			args.Adapter.WithError(api.UpdateStatus(args.MacsChan)),
 		)
-		r.Get("/status", api.Status(args.StatusTx))
+		r.Get("/status", args.Adapter.WithError(api.Status(args.StatusTx)))
 	})
 
 	r.With(lsmiddleware.ApiAuth(config, false)).Get("/who", handlers.Who())
