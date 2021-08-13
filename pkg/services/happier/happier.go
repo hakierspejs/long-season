@@ -110,6 +110,21 @@ func OK(w http.ResponseWriter, r *http.Request, payload interface{}) horror.Erro
 	return nil
 }
 
+// Created outputs given payload to http client with http status created.
+//
+// If json package fails to marshal given payload, Created returns internal server
+// error.
+func Created(w http.ResponseWriter, r *http.Request, payload interface{}) horror.Error {
+	err := gores.JSONIndent(w, http.StatusCreated, payload, defaultPrefix, defaultIndent)
+	if err != nil {
+		return FromRequest(r).InternalServerError(
+			fmt.Errorf("gores.JSONIndent: %w", err),
+			"internal server error, please try again later",
+		)
+	}
+	return nil
+}
+
 type errorResponse struct {
 	Data  interface{} `json:"error"`
 	Debug interface{} `json:"debug,omitempty"`
