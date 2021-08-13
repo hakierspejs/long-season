@@ -457,18 +457,24 @@ func DeviceAdd(db storage.Devices) horror.HandlerFunc {
 
 // UserDevices handler responses with list of devices owned by
 // requesting user.
-func UserDevices(db storage.Devices) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func UserDevices(db storage.Devices) horror.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		errFactory := happier.FromRequest(r)
+
 		userID, err := requests.UserID(r)
 		if err != nil {
-			notFound(w)
-			return
+			return errFactory.InternalServerError(
+				fmt.Errorf("requests.UserID: %w", err),
+				internalServerErrorResponse,
+			)
 		}
 
 		devices, err := db.OfUser(r.Context(), userID)
 		if err != nil {
-			notFound(w)
-			return
+			return errFactory.NotFound(
+				fmt.Errorf("db.OfUser: %w", err),
+				fmt.Sprintf("there is no user with id: %d", userID),
+			)
 		}
 
 		result := make([]singleDevice, len(devices), cap(devices))
@@ -476,7 +482,7 @@ func UserDevices(db storage.Devices) http.HandlerFunc {
 			result[i] = singleDevice{device.ID, device.Tag}
 		}
 
-		gores.JSONIndent(w, http.StatusOK, result, defaultPrefix, defaultIndent)
+		return happier.OK(w, r, result)
 	}
 }
 
