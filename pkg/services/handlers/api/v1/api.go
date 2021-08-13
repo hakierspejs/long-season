@@ -490,18 +490,24 @@ func sameOwner(userID, deviceOwnerID, claimsID int) bool {
 	return (userID == deviceOwnerID) && (deviceOwnerID == claimsID)
 }
 
-func DeviceRead(db storage.Devices) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func DeviceRead(db storage.Devices) horror.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		errFactory := happier.FromRequest(r)
+
 		deviceID, err := requests.DeviceID(r)
 		if err != nil {
-			badRequest("invalid device id. please fix your request", w)
-			return
+			return errFactory.InternalServerError(
+				fmt.Errorf("requests.DeviceID: %w", err),
+				internalServerErrorResponse,
+			)
 		}
 
 		userID, err := requests.UserID(r)
 		if err != nil {
-			badRequest("invalid user id. please fix your request", w)
-			return
+			return errFactory.InternalServerError(
+				fmt.Errorf("requests.UserID: %w", err),
+				internalServerErrorResponse,
+			)
 		}
 
 		claims, err := requests.JWTClaims(r)
@@ -509,31 +515,41 @@ func DeviceRead(db storage.Devices) http.HandlerFunc {
 			// At this point handler should have
 			// been provided with JWT claims, so we
 			// will just return 500.
-			internalServerError(w)
-			return
+			if err != nil {
+				return errFactory.InternalServerError(
+					fmt.Errorf("requests.JWTClaims: %w", err),
+					internalServerErrorResponse,
+				)
+			}
 		}
 
 		device, err := db.Read(r.Context(), deviceID)
 		if errors.As(err, &serrors.ErrNoID) {
-			notFound(w)
-			return
+			return errFactory.BadRequest(
+				fmt.Errorf("db.Read: %w", err),
+				fmt.Sprintf("there is no device with given id: %d", deviceID),
+			)
 		}
 		if err != nil {
-			internalServerError(w)
-			return
+			return errFactory.InternalServerError(
+				fmt.Errorf("db.Read: %w", err),
+				internalServerErrorResponse,
+			)
 		}
 
 		// Check if requesting user owns resources.
 		if !sameOwner(userID, device.OwnerID, claims.UserID) {
-			notFound(w)
-			return
+			return errFactory.NotFound(
+				fmt.Errorf("sameOwner error: userID=%d, deviceOwnerID=%d, claimsID=%d",
+					userID, device.OwnerID, claims.UserID),
+				fmt.Sprintf("you don't have device with id=%d", deviceID),
+			)
 		}
 
-		result := &singleDevice{
+		return happier.OK(w, r, &singleDevice{
 			ID:  device.ID,
 			Tag: device.Tag,
-		}
-		gores.JSONIndent(w, http.StatusOK, result, defaultPrefix, defaultIndent)
+		})
 	}
 }
 

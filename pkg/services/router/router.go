@@ -90,7 +90,7 @@ func NewRouter(config models.Config, args Args) http.Handler {
 					r.Post("/", args.Adapter.WithError(api.DeviceAdd(args.Devices)))
 
 					r.With(lsmiddleware.DeviceID).Route("/{device-id}", func(r chi.Router) {
-						r.Get("/", api.DeviceRead(args.Devices))
+						r.Get("/", args.Adapter.WithError(api.DeviceRead(args.Devices)))
 						r.Delete("/", api.DeviceRemove(args.Devices))
 						r.Patch("/", api.DeviceUpdate(args.Devices))
 					})
