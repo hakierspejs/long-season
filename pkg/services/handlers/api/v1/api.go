@@ -191,7 +191,7 @@ func UserRemove(db storage.Users) horror.HandlerFunc {
 	}
 }
 
-func UserUpdate(db storage.Users) http.HandlerFunc {
+func UserUpdate(db storage.Users) horror.HandlerFunc {
 	type payload struct {
 		Private *bool `json:"priv,omitempty"`
 	}
@@ -200,56 +200,64 @@ func UserUpdate(db storage.Users) http.HandlerFunc {
 		payload
 		models.UserPublicData
 	}
-	return func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		errFactory := happier.FromRequest(r)
+
 		userID, err := requests.UserID(r)
 		if err != nil {
-			notFound(w)
-			return
+			return errFactory.InternalServerError(
+				fmt.Errorf("requests.UserID: %w", err),
+				internalServerErrorResponse,
+			)
 		}
 
 		p := new(payload)
 		if err := json.NewDecoder(r.Body).Decode(p); err != nil {
-			result.JSONError(w, &result.JSONErrorBody{
-				Message: fmt.Sprintf("invalid input: %s", err.Error()),
-				Code:    http.StatusBadRequest,
-				Type:    "bad-request",
-			})
-			return
+			return errFactory.BadRequest(
+				fmt.Errorf("json.NewDecoder().Decode: %w", err),
+				fmt.Sprintf("Invalid input: %s.", err.Error()),
+			)
 		}
 
 		if p.Private == nil {
-			gores.JSONIndent(w, http.StatusCreated, struct{}{},
-				defaultPrefix, defaultIndent)
-			return
+			return happier.Created(w, r, struct{}{})
 		}
 
 		data, err := db.Read(r.Context(), userID)
 		switch {
 		case errors.As(err, &serrors.ErrNoID):
-			notFound(w)
-			return
+			return errFactory.NotFound(
+				fmt.Errorf("db.Read: %w", err),
+				fmt.Sprintf("there is no user with id: %d", userID),
+			)
 		case err != nil:
-			internalServerError(w)
-			return
+			return errFactory.InternalServerError(
+				fmt.Errorf("db.Read: %w", err),
+				internalServerErrorResponse,
+			)
 		}
 		data.Private = *p.Private
 
 		err = db.Update(r.Context(), *data)
 		switch {
 		case errors.As(err, &serrors.ErrNoID):
-			notFound(w)
-			return
+			return errFactory.NotFound(
+				fmt.Errorf("db.Update: %w", err),
+				fmt.Sprintf("there is no user with id: %d", userID),
+			)
 		case err != nil:
-			internalServerError(w)
-			return
+			return errFactory.InternalServerError(
+				fmt.Errorf("db.Update: %w", err),
+				internalServerErrorResponse,
+			)
 		}
 
-		gores.JSONIndent(w, http.StatusOK, &response{
+		return happier.OK(w, r, &response{
 			payload: payload{
 				Private: p.Private,
 			},
 			UserPublicData: data.UserPublicData,
-		}, defaultPrefix, defaultIndent)
+		})
 	}
 }
 

@@ -80,7 +80,7 @@ func NewRouter(config models.Config, args Args) http.Handler {
 				r.With(
 					lsmiddleware.ApiAuth(config, false),
 					lsmiddleware.Private,
-				).Patch("/", api.UserUpdate(args.Users))
+				).Patch("/", args.Adapter.WithError(api.UserUpdate(args.Users)))
 
 				r.With(
 					lsmiddleware.ApiAuth(config, false),
