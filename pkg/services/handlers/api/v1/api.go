@@ -225,7 +225,7 @@ func UserUpdate(db storage.Users) horror.HandlerFunc {
 
 		data, err := db.Read(r.Context(), userID)
 		switch {
-		case errors.As(err, &serrors.ErrNoID):
+		case errors.Is(err, serrors.ErrNoID):
 			return errFactory.NotFound(
 				fmt.Errorf("db.Read: %w", err),
 				fmt.Sprintf("there is no user with id: %d", userID),
@@ -240,7 +240,7 @@ func UserUpdate(db storage.Users) horror.HandlerFunc {
 
 		err = db.Update(r.Context(), *data)
 		switch {
-		case errors.As(err, &serrors.ErrNoID):
+		case errors.Is(err, serrors.ErrNoID):
 			return errFactory.NotFound(
 				fmt.Errorf("db.Update: %w", err),
 				fmt.Sprintf("there is no user with id: %d", userID),
@@ -524,7 +524,7 @@ func DeviceRead(db storage.Devices) horror.HandlerFunc {
 		}
 
 		device, err := db.Read(r.Context(), deviceID)
-		if errors.As(err, &serrors.ErrNoID) {
+		if errors.Is(err, serrors.ErrNoID) {
 			return errFactory.BadRequest(
 				fmt.Errorf("db.Read: %w", err),
 				fmt.Sprintf("there is no device with given id: %d", deviceID),
@@ -577,7 +577,7 @@ func DeviceRemove(db storage.Devices) http.HandlerFunc {
 		}
 
 		device, err := db.Read(r.Context(), deviceID)
-		if errors.As(err, &serrors.ErrNoID) {
+		if errors.Is(err, serrors.ErrNoID) {
 			notFound(w)
 			return
 		}
@@ -593,7 +593,7 @@ func DeviceRemove(db storage.Devices) http.HandlerFunc {
 		}
 
 		err = db.Remove(r.Context(), deviceID)
-		if errors.As(err, &serrors.ErrNoID) {
+		if errors.Is(err, serrors.ErrNoID) {
 			notFound(w)
 			return
 		}
@@ -641,7 +641,7 @@ func DeviceUpdate(db storage.Devices) http.HandlerFunc {
 		}
 
 		device, err := db.Read(r.Context(), deviceID)
-		if errors.As(err, &serrors.ErrNoID) {
+		if errors.Is(err, serrors.ErrNoID) {
 			notFound(w)
 			return
 		}
