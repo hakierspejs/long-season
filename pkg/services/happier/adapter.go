@@ -2,6 +2,7 @@ package happier
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/thinkofher/horror"
@@ -21,6 +22,9 @@ type Adapter struct {
 func NewAdapter() *Adapter {
 	return &Adapter{
 		wrapped: horror.NewAdapter(&horror.AdapterBuilder{
+			BeforeError: func(err error, w http.ResponseWriter, r *http.Request) {
+				log.Println("<error>", err)
+			},
 			InternalHandler: func(err error, w http.ResponseWriter, r *http.Request) {
 				FromRequest(r).InternalServerError(
 					err,
