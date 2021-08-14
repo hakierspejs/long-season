@@ -125,9 +125,15 @@ func Created(w http.ResponseWriter, r *http.Request, payload interface{}) horror
 	return nil
 }
 
-// Accepted outputs given payload to http client with http status accepted.
+// Accepted outputs empty payload to http client with http status accepted.
 func Accepted(w http.ResponseWriter, r *http.Request) horror.Error {
 	w.WriteHeader(http.StatusAccepted)
+	return nil
+}
+
+// NoContent outputs empty payload to http client with http status no content.
+func NoContent(w http.ResponseWriter, r *http.Request) horror.Error {
+	w.WriteHeader(http.StatusNoContent)
 	return nil
 }
 
