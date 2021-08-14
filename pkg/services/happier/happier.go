@@ -72,6 +72,17 @@ func (f *Factory) BadRequest(err error, message string) horror.Error {
 	}
 }
 
+// Unauthorized implements http unauthorized (401) error for horror.Error
+// interface to use in long-season REST API.
+func (f *Factory) Unauthorized(err error, message string) horror.Error {
+	return &errorHandler{
+		message: message,
+		wrapped: err,
+		code:    http.StatusUnauthorized,
+		debug:   f.debug,
+	}
+}
+
 type errorHandler struct {
 	message string
 	wrapped error

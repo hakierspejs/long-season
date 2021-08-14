@@ -666,12 +666,10 @@ func DeviceUpdate(db storage.Devices) horror.HandlerFunc {
 			// At this point handler should have
 			// been provided with JWT claims, so we
 			// will just return 500.
-			if err != nil {
-				return errFactory.InternalServerError(
-					fmt.Errorf("requests.JWTClaims: %w", err),
-					internalServerErrorResponse,
-				)
-			}
+			return errFactory.InternalServerError(
+				fmt.Errorf("requests.JWTClaims: %w", err),
+				internalServerErrorResponse,
+			)
 		}
 
 		device, err := db.Read(r.Context(), deviceID)
@@ -682,12 +680,10 @@ func DeviceUpdate(db storage.Devices) horror.HandlerFunc {
 			)
 		}
 		if err != nil {
-			if err != nil {
-				return errFactory.InternalServerError(
-					fmt.Errorf("db.Read: %w", err),
-					internalServerErrorResponse,
-				)
-			}
+			return errFactory.InternalServerError(
+				fmt.Errorf("db.Read: %w", err),
+				internalServerErrorResponse,
+			)
 		}
 
 		// Check if requesting user owns resources.
