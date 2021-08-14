@@ -8,7 +8,6 @@ import (
 	"net"
 	"net/http"
 
-	"github.com/alioygur/gores"
 	"github.com/thinkofher/horror"
 	"golang.org/x/crypto/bcrypt"
 
@@ -525,7 +524,7 @@ func DeviceRead(db storage.Devices) horror.HandlerFunc {
 
 		device, err := db.Read(r.Context(), deviceID)
 		if errors.Is(err, serrors.ErrNoID) {
-			return errFactory.BadRequest(
+			return errFactory.NotFound(
 				fmt.Errorf("db.Read: %w", err),
 				fmt.Sprintf("there is no device with given id: %d", deviceID),
 			)
@@ -628,29 +627,38 @@ func DeviceRemove(db storage.Devices) horror.HandlerFunc {
 	}
 }
 
-func DeviceUpdate(db storage.Devices) http.HandlerFunc {
+func DeviceUpdate(db storage.Devices) horror.HandlerFunc {
 	type payload struct {
 		MAC string `json:"mac"`
 		Tag string `json:"tag"`
 	}
 
-	return func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		errFactory := happier.FromRequest(r)
+
 		deviceID, err := requests.DeviceID(r)
 		if err != nil {
-			badRequest("invalid device id. please fix your request", w)
-			return
+			return errFactory.BadRequest(
+				fmt.Errorf("requests.DeviceID: %w", err),
+				fmt.Sprintf("invalid input: given divece id is invalid"),
+			)
 		}
 
 		userID, err := requests.UserID(r)
 		if err != nil {
-			badRequest("invalid user id. please fix your request", w)
-			return
+			return errFactory.BadRequest(
+				fmt.Errorf("requests.userID: %w", err),
+				fmt.Sprintf("invalid input: given user id is invalid"),
+			)
 		}
 
 		input := new(payload)
 		err = json.NewDecoder(r.Body).Decode(input)
 		if err != nil {
-			badRequest("invalid input data", w)
+			return errFactory.BadRequest(
+				fmt.Errorf("json.NewDecoder().Decode: %w", err),
+				fmt.Sprintf("Invalid input: %s.", err.Error()),
+			)
 		}
 
 		claims, err := requests.JWTClaims(r)
@@ -658,36 +666,53 @@ func DeviceUpdate(db storage.Devices) http.HandlerFunc {
 			// At this point handler should have
 			// been provided with JWT claims, so we
 			// will just return 500.
-			internalServerError(w)
-			return
+			if err != nil {
+				return errFactory.InternalServerError(
+					fmt.Errorf("requests.JWTClaims: %w", err),
+					internalServerErrorResponse,
+				)
+			}
 		}
 
 		device, err := db.Read(r.Context(), deviceID)
 		if errors.Is(err, serrors.ErrNoID) {
-			notFound(w)
-			return
+			return errFactory.NotFound(
+				fmt.Errorf("db.Read: %w", err),
+				fmt.Sprintf("there is no device with given id: %d", deviceID),
+			)
 		}
 		if err != nil {
-			internalServerError(w)
-			return
+			if err != nil {
+				return errFactory.InternalServerError(
+					fmt.Errorf("db.Read: %w", err),
+					internalServerErrorResponse,
+				)
+			}
 		}
 
 		// Check if requesting user owns resources.
 		if !sameOwner(userID, device.OwnerID, claims.UserID) {
-			notFound(w)
-			return
+			return errFactory.NotFound(
+				fmt.Errorf("sameOwner error: userID=%d, deviceOwnerID=%d, claimsID=%d",
+					userID, device.OwnerID, claims.UserID),
+				fmt.Sprintf("you don't have device with id=%d", deviceID),
+			)
 		}
 
 		mac, err := net.ParseMAC(input.MAC)
 		if err != nil {
-			badRequest("invalid mac address", w)
-			return
+			return errFactory.BadRequest(
+				fmt.Errorf("net.ParseMAC: %w", err),
+				fmt.Sprintf("invalid input: invalid mac address %s", mac),
+			)
 		}
 
 		hashedMac, err := bcrypt.GenerateFromPassword(mac, bcrypt.DefaultCost)
 		if err != nil {
-			internalServerError(w)
-			return
+			return errFactory.InternalServerError(
+				fmt.Errorf("bcrypt.GenerateFromPassword: %w", err),
+				internalServerErrorResponse,
+			)
 		}
 
 		updated := devices.Update(*device, &devices.Changes{
@@ -697,10 +722,12 @@ func DeviceUpdate(db storage.Devices) http.HandlerFunc {
 
 		err = db.Update(r.Context(), updated)
 		if err != nil {
-			internalServerError(w)
-			return
+			return errFactory.InternalServerError(
+				fmt.Errorf("db.Update: %w", err),
+				internalServerErrorResponse,
+			)
 		}
 
-		gores.JSONIndent(w, http.StatusOK, &updated.DevicePublicData, defaultPrefix, defaultIndent)
+		return happier.OK(w, r, &updated.DevicePublicData)
 	}
 }
