@@ -2,20 +2,22 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
-	"github.com/alioygur/gores"
 	"github.com/cristalhq/jwt/v3"
 	"github.com/google/uuid"
+	"github.com/thinkofher/horror"
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/hakierspejs/long-season/pkg/models"
+	"github.com/hakierspejs/long-season/pkg/services/happier"
 	"github.com/hakierspejs/long-season/pkg/services/result"
 	"github.com/hakierspejs/long-season/pkg/storage"
 )
 
-func ApiAuth(config models.Config, db storage.Users) http.HandlerFunc {
+func ApiAuth(config models.Config, db storage.Users) horror.HandlerFunc {
 	type payload struct {
 		Nickname string `json:"nickname"`
 		Password string `json:"password"`
@@ -25,26 +27,24 @@ func ApiAuth(config models.Config, db storage.Users) http.HandlerFunc {
 		Token string `json:"token"`
 	}
 
-	return func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		errFactory := happier.FromRequest(r)
+
 		input := new(payload)
 		err := json.NewDecoder(r.Body).Decode(input)
 		if err != nil {
-			result.JSONError(w, &result.JSONErrorBody{
-				Message: "could not understand payload",
-				Code:    http.StatusBadRequest,
-				Type:    "bad-request",
-			})
-			return
+			return errFactory.BadRequest(
+				fmt.Errorf("json.NewDecoder().Decode: %w", err),
+				fmt.Sprintf("Invalid input: %s.", err.Error()),
+			)
 		}
 
 		users, err := db.All(r.Context())
 		if err != nil {
-			result.JSONError(w, &result.JSONErrorBody{
-				Message: "ooops! things are not going that great after all",
-				Code:    http.StatusInternalServerError,
-				Type:    "internal-server-error",
-			})
-			return
+			return errFactory.InternalServerError(
+				fmt.Errorf("db.All: %w", err),
+				internalServerErrorResponse,
+			)
 		}
 
 		// Search for user with exactly same nickname.
@@ -64,7 +64,10 @@ func ApiAuth(config models.Config, db storage.Users) http.HandlerFunc {
 				Code:    http.StatusNotFound,
 				Type:    "not-found",
 			})
-			return
+			return errFactory.NotFound(
+				fmt.Errorf("match == nil, user given nickname: %s, not found", input.Nickname),
+				fmt.Sprintf("there is no user with given nickname: \"%s\"", input.Nickname),
+			)
 		}
 
 		// Check if passwords do match.
@@ -72,22 +75,18 @@ func ApiAuth(config models.Config, db storage.Users) http.HandlerFunc {
 			match.Password,
 			[]byte(input.Password),
 		); err != nil {
-			result.JSONError(w, &result.JSONErrorBody{
-				Message: "given password does not match",
-				Code:    http.StatusUnauthorized,
-				Type:    "unauthorized",
-			})
-			return
+			return errFactory.Unauthorized(
+				fmt.Errorf("bcrypt.CompareHashAndPassword: %w", err),
+				fmt.Sprintf("given password does not match"),
+			)
 		}
 
 		signer, err := jwt.NewSignerHS(jwt.HS256, []byte(config.JWTSecret))
 		if err != nil {
-			result.JSONError(w, &result.JSONErrorBody{
-				Message: "ooops! things are not going that great after all",
-				Code:    http.StatusInternalServerError,
-				Type:    "internal-server-error",
-			})
-			return
+			return errFactory.InternalServerError(
+				fmt.Errorf("jwt.NewSignerHS: %w", err),
+				internalServerErrorResponse,
+			)
 		}
 
 		builder := jwt.NewBuilder(signer)
@@ -109,12 +108,10 @@ func ApiAuth(config models.Config, db storage.Users) http.HandlerFunc {
 			Private:  match.Private,
 		})
 		if err != nil {
-			result.JSONError(w, &result.JSONErrorBody{
-				Message: "ooops! things are not going that great after all",
-				Code:    http.StatusInternalServerError,
-				Type:    "internal-server-error",
-			})
-			return
+			return errFactory.InternalServerError(
+				fmt.Errorf("builder.Build: %w", err),
+				internalServerErrorResponse,
+			)
 		}
 
 		http.SetCookie(w, &http.Cookie{
@@ -125,8 +122,8 @@ func ApiAuth(config models.Config, db storage.Users) http.HandlerFunc {
 			Path:     "/",
 		})
 
-		gores.JSONIndent(w, http.StatusOK, &response{
+		return happier.OK(w, r, &response{
 			Token: token.String(),
-		}, defaultPrefix, defaultIndent)
+		})
 	}
 }

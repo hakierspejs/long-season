@@ -8,11 +8,12 @@ import (
 	"net"
 	"net/http"
 
-	"github.com/alioygur/gores"
+	"github.com/thinkofher/horror"
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/hakierspejs/long-season/pkg/models"
 	"github.com/hakierspejs/long-season/pkg/services/devices"
+	"github.com/hakierspejs/long-season/pkg/services/happier"
 	"github.com/hakierspejs/long-season/pkg/services/requests"
 	"github.com/hakierspejs/long-season/pkg/services/result"
 	"github.com/hakierspejs/long-season/pkg/services/users"
@@ -28,39 +29,39 @@ func conflict(msg string, w http.ResponseWriter) {
 	})
 }
 
-func UserCreate(db storage.Users) http.HandlerFunc {
+const internalServerErrorResponse = "Internal server error. Please try again later."
+
+func UserCreate(db storage.Users) horror.HandlerFunc {
 	type payload struct {
 		Nickname string `json:"nickname"`
 		Password string `json:"password"`
 	}
 
-	return func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		var p payload
+		errFactory := happier.FromRequest(r)
 
 		err := json.NewDecoder(r.Body).Decode(&p)
 		if err != nil {
-			// TODO(thinkofher) Implement proper error handling.
-			result.JSONError(w, &result.JSONErrorBody{
-				Message: fmt.Sprintf("decoding payload failed, error: %s", err.Error()),
-				Code:    http.StatusInternalServerError,
-				Type:    "internal-server-error",
-			})
-			return
+			return errFactory.InternalServerError(
+				fmt.Errorf("api.UserCreate: decoding payload failed: %w", err),
+				internalServerErrorResponse,
+			)
 		}
 
 		if err := users.VerifyRegisterData(p.Nickname, p.Password); err != nil {
-			badRequest(fmt.Sprintf("invalid input: %s", err.Error()), w)
-			return
+			return errFactory.BadRequest(
+				fmt.Errorf("api.UserCreate: invalid input: %w", err),
+				fmt.Sprintf("Invalid input: %s.", err.Error()),
+			)
 		}
 
 		pass, err := bcrypt.GenerateFromPassword([]byte(p.Password), bcrypt.DefaultCost)
 		if err != nil {
-			result.JSONError(w, &result.JSONErrorBody{
-				Message: fmt.Sprintf("hashing password failed, error: %s", err.Error()),
-				Code:    http.StatusInternalServerError,
-				Type:    "internal-server-error",
-			})
-			return
+			return errFactory.InternalServerError(
+				fmt.Errorf("api.UserCreate: hashing password failed: %w", err),
+				internalServerErrorResponse,
+			)
 		}
 
 		id, err := db.New(r.Context(), models.User{
@@ -71,37 +72,34 @@ func UserCreate(db storage.Users) http.HandlerFunc {
 			Password: pass,
 		})
 		if errors.Is(err, serrors.ErrNicknameTaken) {
-			conflict("given username is already taken", w)
-			return
+			return errFactory.Conflict(
+				fmt.Errorf("api.UserCreate: %w", err),
+				fmt.Sprintf("Given username: %s is already taken.", p.Nickname),
+			)
 		}
 		if err != nil {
-			result.JSONError(w, &result.JSONErrorBody{
-				Message: fmt.Sprintf("creating new user failed, error: %s", err.Error()),
-				Code:    http.StatusInternalServerError,
-				Type:    "internal-server-error",
-			})
-			return
+			return errFactory.InternalServerError(
+				fmt.Errorf("api.UserCreate: creating new user failed, reason: %w", err),
+				internalServerErrorResponse,
+			)
 		}
 
-		gores.JSONIndent(w, http.StatusOK, &models.UserPublicData{
+		return happier.OK(w, r, &models.UserPublicData{
 			ID:       id,
 			Nickname: p.Nickname,
-		}, defaultPrefix, defaultIndent)
+		})
 	}
 }
 
-func UsersAll(db storage.Users) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func UsersAll(db storage.Users) horror.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		data, err := db.All(r.Context())
 
 		if err != nil {
-			// TODO(thinkofher) Implement proper error handling.
-			result.JSONError(w, &result.JSONErrorBody{
-				Message: fmt.Sprintf("reading all users failed, error: %s", err.Error()),
-				Code:    http.StatusInternalServerError,
-				Type:    "internal-server-error",
-			})
-			return
+			return happier.FromRequest(r).InternalServerError(
+				fmt.Errorf("db.All: %w", err),
+				internalServerErrorResponse,
+			)
 		}
 
 		filters := users.DefaultFilters()
@@ -114,39 +112,38 @@ func UsersAll(db storage.Users) http.HandlerFunc {
 		}
 
 		filtered := users.Filter(data, filters...)
-		gores.JSONIndent(
-			w, http.StatusOK, users.PublicSlice(filtered),
-			defaultPrefix, defaultIndent,
-		)
+		return happier.OK(w, r, users.PublicSlice(filtered))
 	}
 }
 
-func UserRead(db storage.Users) http.HandlerFunc {
+func UserRead(db storage.Users) horror.HandlerFunc {
 	type response struct {
 		models.UserPublicData
 		Private *bool `json:"priv,omitempty"`
 	}
-	return func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		errFactory := happier.FromRequest(r)
+
 		id, err := requests.UserID(r)
 		if err != nil {
-			// TODO(thinkofher) Implement proper error handling.
-			result.JSONError(w, &result.JSONErrorBody{
-				Message: fmt.Sprintf("reading user id failed, error: %s", err.Error()),
-				Code:    http.StatusInternalServerError,
-				Type:    "internal-server-error",
-			})
-			return
+			return errFactory.InternalServerError(
+				fmt.Errorf("requests.UserID: %w", err),
+				internalServerErrorResponse,
+			)
 		}
 
 		user, err := db.Read(r.Context(), id)
+		if errors.Is(err, serrors.ErrNoID) {
+			return errFactory.NotFound(
+				fmt.Errorf("db.Read: %w", err),
+				fmt.Sprintf("there is no user with id: %d", id),
+			)
+		}
 		if err != nil {
-			// TODO(thinkofher) Implement proper error handling.
-			result.JSONError(w, &result.JSONErrorBody{
-				Message: fmt.Sprintf("reading user failed, error: %s", err.Error()),
-				Code:    http.StatusInternalServerError,
-				Type:    "internal-server-error",
-			})
-			return
+			return errFactory.InternalServerError(
+				fmt.Errorf("db.Read: %w", err),
+				internalServerErrorResponse,
+			)
 		}
 
 		var privateMode *bool = nil
@@ -155,42 +152,45 @@ func UserRead(db storage.Users) http.HandlerFunc {
 			privateMode = &user.Private
 		}
 
-		gores.JSONIndent(w, http.StatusOK, &response{
+		return happier.OK(w, r, &response{
 			UserPublicData: user.UserPublicData,
 			Private:        privateMode,
-		}, defaultPrefix, defaultIndent)
+		})
 	}
 }
 
-func UserRemove(db storage.Users) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func UserRemove(db storage.Users) horror.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		errFactory := happier.FromRequest(r)
+
 		id, err := requests.UserID(r)
 		if err != nil {
-			// TODO(thinkofher) Implement proper error handling.
-			result.JSONError(w, &result.JSONErrorBody{
-				Message: fmt.Sprintf("reading user id failed, error: %s", err.Error()),
-				Code:    http.StatusInternalServerError,
-				Type:    "internal-server-error",
-			})
-			return
+			return errFactory.InternalServerError(
+				fmt.Errorf("requests.UserID: %w", err),
+				internalServerErrorResponse,
+			)
 		}
 
 		err = db.Remove(r.Context(), id)
+		if errors.Is(err, serrors.ErrNoID) {
+			return errFactory.NotFound(
+				fmt.Errorf("db.Remove: %w", err),
+				fmt.Sprintf("there is no user with id: %d", id),
+			)
+		}
 		if err != nil {
-			// TODO(thinkofher) Implement proper error handling.
-			result.JSONError(w, &result.JSONErrorBody{
-				Message: fmt.Sprintf("removing user id failed, error: %s", err.Error()),
-				Code:    http.StatusInternalServerError,
-				Type:    "internal-server-error",
-			})
-			return
+			return errFactory.InternalServerError(
+				fmt.Errorf("db.Remove: %w", err),
+				internalServerErrorResponse,
+			)
 		}
 
 		w.WriteHeader(http.StatusNoContent)
+		return nil
 	}
 }
 
-func UserUpdate(db storage.Users) http.HandlerFunc {
+func UserUpdate(db storage.Users) horror.HandlerFunc {
 	type payload struct {
 		Private *bool `json:"priv,omitempty"`
 	}
@@ -199,86 +199,95 @@ func UserUpdate(db storage.Users) http.HandlerFunc {
 		payload
 		models.UserPublicData
 	}
-	return func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		errFactory := happier.FromRequest(r)
+
 		userID, err := requests.UserID(r)
 		if err != nil {
-			notFound(w)
-			return
+			return errFactory.InternalServerError(
+				fmt.Errorf("requests.UserID: %w", err),
+				internalServerErrorResponse,
+			)
 		}
 
 		p := new(payload)
 		if err := json.NewDecoder(r.Body).Decode(p); err != nil {
-			result.JSONError(w, &result.JSONErrorBody{
-				Message: fmt.Sprintf("invalid input: %s", err.Error()),
-				Code:    http.StatusBadRequest,
-				Type:    "bad-request",
-			})
-			return
+			return errFactory.BadRequest(
+				fmt.Errorf("json.NewDecoder().Decode: %w", err),
+				fmt.Sprintf("Invalid input: %s.", err.Error()),
+			)
 		}
 
 		if p.Private == nil {
-			gores.JSONIndent(w, http.StatusCreated, struct{}{},
-				defaultPrefix, defaultIndent)
-			return
+			return happier.Created(w, r, struct{}{})
 		}
 
 		data, err := db.Read(r.Context(), userID)
 		switch {
-		case errors.As(err, &serrors.ErrNoID):
-			notFound(w)
-			return
+		case errors.Is(err, serrors.ErrNoID):
+			return errFactory.NotFound(
+				fmt.Errorf("db.Read: %w", err),
+				fmt.Sprintf("there is no user with id: %d", userID),
+			)
 		case err != nil:
-			internalServerError(w)
-			return
+			return errFactory.InternalServerError(
+				fmt.Errorf("db.Read: %w", err),
+				internalServerErrorResponse,
+			)
 		}
 		data.Private = *p.Private
 
 		err = db.Update(r.Context(), *data)
 		switch {
-		case errors.As(err, &serrors.ErrNoID):
-			notFound(w)
-			return
+		case errors.Is(err, serrors.ErrNoID):
+			return errFactory.NotFound(
+				fmt.Errorf("db.Update: %w", err),
+				fmt.Sprintf("there is no user with id: %d", userID),
+			)
 		case err != nil:
-			internalServerError(w)
-			return
+			return errFactory.InternalServerError(
+				fmt.Errorf("db.Update: %w", err),
+				internalServerErrorResponse,
+			)
 		}
 
-		gores.JSONIndent(w, http.StatusOK, &response{
+		return happier.OK(w, r, &response{
 			payload: payload{
 				Private: p.Private,
 			},
 			UserPublicData: data.UserPublicData,
-		}, defaultPrefix, defaultIndent)
+		})
 	}
 }
 
 // UpdateStatus updates online field of every user id database
 // with MAC address equal to one from slice provided by
 // user in request payload.
-func UpdateStatus(ch chan<- []net.HardwareAddr) http.HandlerFunc {
+func UpdateStatus(ch chan<- []net.HardwareAddr) horror.HandlerFunc {
 	type payload struct {
 		Addresses []string `json:"addresses"`
 	}
 
-	return func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		p := new(payload)
+		errFactory := happier.FromRequest(r)
 
 		err := json.NewDecoder(r.Body).Decode(p)
 		if err != nil {
-			result.JSONError(w, &result.JSONErrorBody{
-				Message: fmt.Sprintf("invalid input: %s", err.Error()),
-				Code:    http.StatusBadRequest,
-				Type:    "bad-request",
-			})
-			return
+			return errFactory.BadRequest(
+				fmt.Errorf("json.NewDecoder().Decode: %w", err),
+				fmt.Sprintf("Invalid input: %s.", err.Error()),
+			)
 		}
 
 		parsedAddresses := []net.HardwareAddr{}
 		for _, address := range p.Addresses {
 			parsedAddress, err := net.ParseMAC(address)
 			if err != nil {
-				badRequest("invalid mac address", w)
-				return
+				return errFactory.BadRequest(
+					fmt.Errorf("net.ParseMAC: %w", err),
+					fmt.Sprintf("invalid input: invalid mac address %s", address),
+				)
 			}
 			parsedAddresses = append(parsedAddresses, parsedAddress)
 		}
@@ -286,18 +295,19 @@ func UpdateStatus(ch chan<- []net.HardwareAddr) http.HandlerFunc {
 		// Send parsed addresses to deamon running in the background
 		ch <- parsedAddresses
 
-		w.WriteHeader(http.StatusAccepted)
-		return
+		return happier.Accepted(w, r)
 	}
 }
 
-func Status(counters storage.StatusTx) http.HandlerFunc {
+func Status(counters storage.StatusTx) horror.HandlerFunc {
 	var response struct {
 		Online  int `json:"online"`
 		Unknown int `json:"unknown"`
 	}
 
-	return func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		errFactory := happier.FromRequest(r)
+
 		err := counters.DevicesStatus(
 			r.Context(),
 			func(ctx context.Context, s storage.Status) error {
@@ -317,11 +327,13 @@ func Status(counters storage.StatusTx) http.HandlerFunc {
 			},
 		)
 		if err != nil {
-			internalServerError(w)
-			return
+			return errFactory.InternalServerError(
+				fmt.Errorf("counters.DevicesStatus: %w", err),
+				internalServerErrorResponse,
+			)
 		}
 
-		gores.JSONIndent(w, http.StatusOK, response, defaultPrefix, defaultIndent)
+		return happier.OK(w, r, response)
 	}
 }
 
@@ -358,18 +370,22 @@ type singleDevice struct {
 // Make sure to use with middleware.JWT (or another middleware that
 // appends models.Claims to request), because this handler has
 // to know some arbitrary user data.
-func DeviceAdd(db storage.Devices) http.HandlerFunc {
+func DeviceAdd(db storage.Devices) horror.HandlerFunc {
 	type payload struct {
 		Tag string `json:"tag"`
 		MAC string `json:"mac"`
 	}
 
 	// TODO(thinkofher) Add Location header.
-	return func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		errFactory := happier.FromRequest(r)
+
 		userID, err := requests.UserID(r)
 		if err != nil {
-			notFound(w)
-			return
+			return errFactory.InternalServerError(
+				fmt.Errorf("requests.UserID: %w", err),
+				internalServerErrorResponse,
+			)
 		}
 
 		claims, err := requests.JWTClaims(r)
@@ -377,27 +393,35 @@ func DeviceAdd(db storage.Devices) http.HandlerFunc {
 			// At this point handler should have
 			// been provided with JWT claims, so we
 			// will just return 500.
-			internalServerError(w)
-			return
+			return errFactory.InternalServerError(
+				fmt.Errorf("requests.JWTClaims: %w", err),
+				internalServerErrorResponse,
+			)
 		}
 
 		p := new(payload)
 		err = json.NewDecoder(r.Body).Decode(&p)
 		if err != nil {
-			internalServerError(w)
-			return
+			return errFactory.BadRequest(
+				fmt.Errorf("json.NewDecoder().Decode: %w", err),
+				fmt.Sprintf("Invalid input: %s.", err.Error()),
+			)
 		}
 
 		mac, err := net.ParseMAC(p.MAC)
 		if err != nil {
-			badRequest("invalid mac address", w)
-			return
+			return errFactory.BadRequest(
+				fmt.Errorf("net.ParseMAC: %w", err),
+				fmt.Sprintf("invalid input: invalid mac address %s", mac),
+			)
 		}
 
 		hashedMac, err := bcrypt.GenerateFromPassword(mac, bcrypt.DefaultCost)
 		if err != nil {
-			internalServerError(w)
-			return
+			return errFactory.InternalServerError(
+				fmt.Errorf("bcrypt.GenerateFromPassword: %w", err),
+				internalServerErrorResponse,
+			)
 		}
 
 		device := models.Device{
@@ -411,39 +435,45 @@ func DeviceAdd(db storage.Devices) http.HandlerFunc {
 
 		newID, err := db.New(r.Context(), userID, device)
 		if errors.Is(err, serrors.ErrDeviceDuplication) {
-			result.JSONError(w, &result.JSONErrorBody{
-				Code:    http.StatusConflict,
-				Type:    "conflict",
-				Message: "tag already used",
-			})
-			return
+			return errFactory.Conflict(
+				fmt.Errorf("db.New: %w", err),
+				fmt.Sprintf("tag already used"),
+			)
 		}
 		if err != nil {
-			internalServerError(w)
-			return
+			return errFactory.InternalServerError(
+				fmt.Errorf("db.New: %w", err),
+				internalServerErrorResponse,
+			)
 		}
 
-		gores.JSONIndent(w, http.StatusCreated, &singleDevice{
+		return happier.Created(w, r, &singleDevice{
 			ID:  newID,
 			Tag: device.Tag,
-		}, defaultPrefix, defaultIndent)
+		})
 	}
 }
 
 // UserDevices handler responses with list of devices owned by
 // requesting user.
-func UserDevices(db storage.Devices) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func UserDevices(db storage.Devices) horror.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		errFactory := happier.FromRequest(r)
+
 		userID, err := requests.UserID(r)
 		if err != nil {
-			notFound(w)
-			return
+			return errFactory.InternalServerError(
+				fmt.Errorf("requests.UserID: %w", err),
+				internalServerErrorResponse,
+			)
 		}
 
 		devices, err := db.OfUser(r.Context(), userID)
 		if err != nil {
-			notFound(w)
-			return
+			return errFactory.NotFound(
+				fmt.Errorf("db.OfUser: %w", err),
+				fmt.Sprintf("there is no user with id: %d", userID),
+			)
 		}
 
 		result := make([]singleDevice, len(devices), cap(devices))
@@ -451,7 +481,7 @@ func UserDevices(db storage.Devices) http.HandlerFunc {
 			result[i] = singleDevice{device.ID, device.Tag}
 		}
 
-		gores.JSONIndent(w, http.StatusOK, result, defaultPrefix, defaultIndent)
+		return happier.OK(w, r, result)
 	}
 }
 
@@ -459,18 +489,24 @@ func sameOwner(userID, deviceOwnerID, claimsID int) bool {
 	return (userID == deviceOwnerID) && (deviceOwnerID == claimsID)
 }
 
-func DeviceRead(db storage.Devices) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func DeviceRead(db storage.Devices) horror.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		errFactory := happier.FromRequest(r)
+
 		deviceID, err := requests.DeviceID(r)
 		if err != nil {
-			badRequest("invalid device id. please fix your request", w)
-			return
+			return errFactory.InternalServerError(
+				fmt.Errorf("requests.DeviceID: %w", err),
+				internalServerErrorResponse,
+			)
 		}
 
 		userID, err := requests.UserID(r)
 		if err != nil {
-			badRequest("invalid user id. please fix your request", w)
-			return
+			return errFactory.InternalServerError(
+				fmt.Errorf("requests.UserID: %w", err),
+				internalServerErrorResponse,
+			)
 		}
 
 		claims, err := requests.JWTClaims(r)
@@ -478,46 +514,62 @@ func DeviceRead(db storage.Devices) http.HandlerFunc {
 			// At this point handler should have
 			// been provided with JWT claims, so we
 			// will just return 500.
-			internalServerError(w)
-			return
+			if err != nil {
+				return errFactory.InternalServerError(
+					fmt.Errorf("requests.JWTClaims: %w", err),
+					internalServerErrorResponse,
+				)
+			}
 		}
 
 		device, err := db.Read(r.Context(), deviceID)
-		if errors.As(err, &serrors.ErrNoID) {
-			notFound(w)
-			return
+		if errors.Is(err, serrors.ErrNoID) {
+			return errFactory.NotFound(
+				fmt.Errorf("db.Read: %w", err),
+				fmt.Sprintf("there is no device with given id: %d", deviceID),
+			)
 		}
 		if err != nil {
-			internalServerError(w)
-			return
+			return errFactory.InternalServerError(
+				fmt.Errorf("db.Read: %w", err),
+				internalServerErrorResponse,
+			)
 		}
 
 		// Check if requesting user owns resources.
 		if !sameOwner(userID, device.OwnerID, claims.UserID) {
-			notFound(w)
-			return
+			return errFactory.NotFound(
+				fmt.Errorf("sameOwner error: userID=%d, deviceOwnerID=%d, claimsID=%d",
+					userID, device.OwnerID, claims.UserID),
+				fmt.Sprintf("you don't have device with id=%d", deviceID),
+			)
 		}
 
-		result := &singleDevice{
+		return happier.OK(w, r, &singleDevice{
 			ID:  device.ID,
 			Tag: device.Tag,
-		}
-		gores.JSONIndent(w, http.StatusOK, result, defaultPrefix, defaultIndent)
+		})
 	}
 }
 
-func DeviceRemove(db storage.Devices) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func DeviceRemove(db storage.Devices) horror.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		errFactory := happier.FromRequest(r)
+
 		deviceID, err := requests.DeviceID(r)
 		if err != nil {
-			badRequest("invalid device id. please fix your request", w)
-			return
+			return errFactory.InternalServerError(
+				fmt.Errorf("requests.DeviceID: %w", err),
+				internalServerErrorResponse,
+			)
 		}
 
 		userID, err := requests.UserID(r)
 		if err != nil {
-			badRequest("invalid user id. please fix your request", w)
-			return
+			return errFactory.InternalServerError(
+				fmt.Errorf("requests.UserID: %w", err),
+				internalServerErrorResponse,
+			)
 		}
 
 		claims, err := requests.JWTClaims(r)
@@ -525,63 +577,88 @@ func DeviceRemove(db storage.Devices) http.HandlerFunc {
 			// At this point handler should have
 			// been provided with JWT claims, so we
 			// will just return 500.
-			internalServerError(w)
-			return
+			if err != nil {
+				return errFactory.InternalServerError(
+					fmt.Errorf("requests.JWTClaims: %w", err),
+					internalServerErrorResponse,
+				)
+			}
 		}
 
 		device, err := db.Read(r.Context(), deviceID)
-		if errors.As(err, &serrors.ErrNoID) {
-			notFound(w)
-			return
+		if errors.Is(err, serrors.ErrNoID) {
+			return errFactory.NotFound(
+				fmt.Errorf("db.Read: %w", err),
+				fmt.Sprintf("there is no device with given id: %d", deviceID),
+			)
 		}
 		if err != nil {
-			internalServerError(w)
-			return
+			return errFactory.InternalServerError(
+				fmt.Errorf("db.Read: %w", err),
+				internalServerErrorResponse,
+			)
 		}
 
 		// Check if requesting user owns resources.
 		if !sameOwner(userID, device.OwnerID, claims.UserID) {
-			notFound(w)
-			return
+			return errFactory.NotFound(
+				fmt.Errorf("sameOwner error: userID=%d, deviceOwnerID=%d, claimsID=%d",
+					userID, device.OwnerID, claims.UserID),
+				fmt.Sprintf("you don't have device with id=%d", deviceID),
+			)
 		}
 
 		err = db.Remove(r.Context(), deviceID)
-		if errors.As(err, &serrors.ErrNoID) {
+		if errors.Is(err, serrors.ErrNoID) {
 			notFound(w)
-			return
+			return errFactory.NotFound(
+				fmt.Errorf("db.Remove: %w", err),
+				fmt.Sprintf("there is no device with given id: %d", deviceID),
+			)
 		}
 		if err != nil {
-			internalServerError(w)
-			return
+			return errFactory.InternalServerError(
+				fmt.Errorf("db.Remove: %w", err),
+				internalServerErrorResponse,
+			)
 		}
 
-		w.WriteHeader(http.StatusNoContent)
+		return happier.NoContent(w, r)
 	}
 }
 
-func DeviceUpdate(db storage.Devices) http.HandlerFunc {
+func DeviceUpdate(db storage.Devices) horror.HandlerFunc {
 	type payload struct {
 		MAC string `json:"mac"`
 		Tag string `json:"tag"`
 	}
 
-	return func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		errFactory := happier.FromRequest(r)
+
 		deviceID, err := requests.DeviceID(r)
 		if err != nil {
-			badRequest("invalid device id. please fix your request", w)
-			return
+			return errFactory.BadRequest(
+				fmt.Errorf("requests.DeviceID: %w", err),
+				fmt.Sprintf("invalid input: given divece id is invalid"),
+			)
 		}
 
 		userID, err := requests.UserID(r)
 		if err != nil {
-			badRequest("invalid user id. please fix your request", w)
-			return
+			return errFactory.BadRequest(
+				fmt.Errorf("requests.userID: %w", err),
+				fmt.Sprintf("invalid input: given user id is invalid"),
+			)
 		}
 
 		input := new(payload)
 		err = json.NewDecoder(r.Body).Decode(input)
 		if err != nil {
-			badRequest("invalid input data", w)
+			return errFactory.BadRequest(
+				fmt.Errorf("json.NewDecoder().Decode: %w", err),
+				fmt.Sprintf("Invalid input: %s.", err.Error()),
+			)
 		}
 
 		claims, err := requests.JWTClaims(r)
@@ -589,36 +666,49 @@ func DeviceUpdate(db storage.Devices) http.HandlerFunc {
 			// At this point handler should have
 			// been provided with JWT claims, so we
 			// will just return 500.
-			internalServerError(w)
-			return
+			return errFactory.InternalServerError(
+				fmt.Errorf("requests.JWTClaims: %w", err),
+				internalServerErrorResponse,
+			)
 		}
 
 		device, err := db.Read(r.Context(), deviceID)
-		if errors.As(err, &serrors.ErrNoID) {
-			notFound(w)
-			return
+		if errors.Is(err, serrors.ErrNoID) {
+			return errFactory.NotFound(
+				fmt.Errorf("db.Read: %w", err),
+				fmt.Sprintf("there is no device with given id: %d", deviceID),
+			)
 		}
 		if err != nil {
-			internalServerError(w)
-			return
+			return errFactory.InternalServerError(
+				fmt.Errorf("db.Read: %w", err),
+				internalServerErrorResponse,
+			)
 		}
 
 		// Check if requesting user owns resources.
 		if !sameOwner(userID, device.OwnerID, claims.UserID) {
-			notFound(w)
-			return
+			return errFactory.NotFound(
+				fmt.Errorf("sameOwner error: userID=%d, deviceOwnerID=%d, claimsID=%d",
+					userID, device.OwnerID, claims.UserID),
+				fmt.Sprintf("you don't have device with id=%d", deviceID),
+			)
 		}
 
 		mac, err := net.ParseMAC(input.MAC)
 		if err != nil {
-			badRequest("invalid mac address", w)
-			return
+			return errFactory.BadRequest(
+				fmt.Errorf("net.ParseMAC: %w", err),
+				fmt.Sprintf("invalid input: invalid mac address %s", mac),
+			)
 		}
 
 		hashedMac, err := bcrypt.GenerateFromPassword(mac, bcrypt.DefaultCost)
 		if err != nil {
-			internalServerError(w)
-			return
+			return errFactory.InternalServerError(
+				fmt.Errorf("bcrypt.GenerateFromPassword: %w", err),
+				internalServerErrorResponse,
+			)
 		}
 
 		updated := devices.Update(*device, &devices.Changes{
@@ -628,10 +718,12 @@ func DeviceUpdate(db storage.Devices) http.HandlerFunc {
 
 		err = db.Update(r.Context(), updated)
 		if err != nil {
-			internalServerError(w)
-			return
+			return errFactory.InternalServerError(
+				fmt.Errorf("db.Update: %w", err),
+				internalServerErrorResponse,
+			)
 		}
 
-		gores.JSONIndent(w, http.StatusOK, &updated.DevicePublicData, defaultPrefix, defaultIndent)
+		return happier.OK(w, r, &updated.DevicePublicData)
 	}
 }

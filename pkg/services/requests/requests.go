@@ -10,7 +10,10 @@ import (
 
 	"github.com/hakierspejs/long-season/pkg/models"
 	"github.com/hakierspejs/long-season/pkg/services/config"
+	"github.com/hakierspejs/long-season/pkg/services/ctxkey"
 )
+
+var ErrValueNotFound = errors.New("requests: value not found in ctx")
 
 func id(key string, r *http.Request) (int, error) {
 	id, ok := r.Context().Value(key).(string)
@@ -43,4 +46,12 @@ func JWTClaims(r *http.Request) (*models.Claims, error) {
 		return nil, fmt.Errorf("long-season: there are no jwt claims in context")
 	}
 	return claims, nil
+}
+
+func Debug(r *http.Request) (bool, error) {
+	mode, ok := r.Context().Value(ctxkey.DebugKey).(bool)
+	if !ok {
+		return false, ErrValueNotFound
+	}
+	return mode, nil
 }

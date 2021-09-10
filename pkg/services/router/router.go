@@ -13,6 +13,7 @@ import (
 	"github.com/hakierspejs/long-season/pkg/models"
 	"github.com/hakierspejs/long-season/pkg/services/handlers"
 	"github.com/hakierspejs/long-season/pkg/services/handlers/api/v1"
+	"github.com/hakierspejs/long-season/pkg/services/happier"
 	lsmiddleware "github.com/hakierspejs/long-season/pkg/services/middleware"
 	"github.com/hakierspejs/long-season/pkg/services/ui"
 	"github.com/hakierspejs/long-season/pkg/storage"
@@ -33,6 +34,7 @@ type Args struct {
 	StatusTx   storage.StatusTx
 	MacsChan   chan<- []net.HardwareAddr
 	PublicCors Cors
+	Adapter    *happier.Adapter
 }
 
 // NewRouter returns Handler, which contains all the handlers and
@@ -44,6 +46,7 @@ func NewRouter(config models.Config, args Args) http.Handler {
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.RequestID)
 	r.Use(middleware.NoCache)
+	r.Use(lsmiddleware.Debug(config))
 
 	r.Get("/", ui.Home(config, args.Opener))
 	r.With(
@@ -60,46 +63,46 @@ func NewRouter(config models.Config, args Args) http.Handler {
 			// how go-chi/cors is supposed to be applied globally to the entire
 			// application, and not to particular endpoints.
 			r.With(args.PublicCors.Handler).Options("/", nil)
-			r.With(args.PublicCors.Handler).Get("/", api.UsersAll(args.Users))
-			r.Post("/", api.UserCreate(args.Users))
+			r.With(args.PublicCors.Handler).Get("/", args.Adapter.WithError(api.UsersAll(args.Users)))
+			r.Post("/", args.Adapter.WithError(api.UserCreate(args.Users)))
 
 			r.With(lsmiddleware.UserID).Route("/{user-id}", func(r chi.Router) {
 				r.With(
 					lsmiddleware.ApiAuth(config, true),
-				).Get("/", api.UserRead(args.Users))
+				).Get("/", args.Adapter.WithError(api.UserRead(args.Users)))
 
 				// Users can only delete themselves.
 				r.With(
 					lsmiddleware.ApiAuth(config, false),
 					lsmiddleware.Private,
-				).Delete("/", api.UserRemove(args.Users))
+				).Delete("/", args.Adapter.WithError(api.UserRemove(args.Users)))
 
 				r.With(
 					lsmiddleware.ApiAuth(config, false),
 					lsmiddleware.Private,
-				).Patch("/", api.UserUpdate(args.Users))
+				).Patch("/", args.Adapter.WithError(api.UserUpdate(args.Users)))
 
 				r.With(
 					lsmiddleware.ApiAuth(config, false),
 					lsmiddleware.Private,
 				).Route("/devices", func(r chi.Router) {
-					r.Get("/", api.UserDevices(args.Devices))
-					r.Post("/", api.DeviceAdd(args.Devices))
+					r.Get("/", args.Adapter.WithError(api.UserDevices(args.Devices)))
+					r.Post("/", args.Adapter.WithError(api.DeviceAdd(args.Devices)))
 
 					r.With(lsmiddleware.DeviceID).Route("/{device-id}", func(r chi.Router) {
-						r.Get("/", api.DeviceRead(args.Devices))
-						r.Delete("/", api.DeviceRemove(args.Devices))
-						r.Patch("/", api.DeviceUpdate(args.Devices))
+						r.Get("/", args.Adapter.WithError(api.DeviceRead(args.Devices)))
+						r.Delete("/", args.Adapter.WithError(api.DeviceRemove(args.Devices)))
+						r.Patch("/", args.Adapter.WithError(api.DeviceUpdate(args.Devices)))
 					})
 				})
 			})
 		})
-		r.Post("/login", api.ApiAuth(config, args.Users))
+		r.Post("/login", args.Adapter.WithError(api.ApiAuth(config, args.Users)))
 		r.With(lsmiddleware.UpdateAuth(&config)).Put(
 			"/update",
-			api.UpdateStatus(args.MacsChan),
+			args.Adapter.WithError(api.UpdateStatus(args.MacsChan)),
 		)
-		r.Get("/status", api.Status(args.StatusTx))
+		r.Get("/status", args.Adapter.WithError(api.Status(args.StatusTx)))
 	})
 
 	r.With(lsmiddleware.ApiAuth(config, false)).Get("/who", handlers.Who())

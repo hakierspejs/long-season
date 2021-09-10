@@ -2,11 +2,13 @@ package middleware
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
 	"github.com/go-chi/chi"
 	"github.com/hakierspejs/long-season/pkg/models"
-	"github.com/hakierspejs/long-season/pkg/services/result"
+	"github.com/hakierspejs/long-season/pkg/services/ctxkey"
+	"github.com/hakierspejs/long-season/pkg/services/happier"
 )
 
 // URLParamInjection injects given chi parameter into request context.
@@ -34,26 +36,37 @@ func UpdateAuth(c *models.Config) func(http.Handler) http.Handler {
 	// TODO(thinkofher) Add doc.
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			errFactory := happier.FromRequest(r)
+
 			token, err := apiExtractor("Status")(r)
 			if err != nil {
-				result.JSONError(w, &result.JSONErrorBody{
-					Code:    http.StatusUnauthorized,
-					Message: "invalid authorization header",
-					Type:    "unauthorized",
-				})
+				errFactory.Unauthorized(
+					fmt.Errorf("apiExtractor: %w", err),
+					fmt.Sprintf("invalid authorization header"),
+				).ServeHTTP(w, r)
 				return
 			}
 
 			if token != c.UpdateSecret {
-				result.JSONError(w, &result.JSONErrorBody{
-					Code:    http.StatusUnauthorized,
-					Message: "invalid authorization token",
-					Type:    "unauthorized",
-				})
+				errFactory.Unauthorized(
+					fmt.Errorf("token != c.UpdateSecret"),
+					fmt.Sprintf("invalid authorization token"),
+				).ServeHTTP(w, r)
 				return
 			}
 
 			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+// Debug injects information about application debug mode
+// to every http request's context.
+func Debug(c models.Config) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ctx := context.WithValue(r.Context(), ctxkey.DebugKey, c.Debug)
+			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
 }

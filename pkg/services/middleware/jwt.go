@@ -11,8 +11,8 @@ import (
 	"github.com/cristalhq/jwt/v3"
 	"github.com/hakierspejs/long-season/pkg/models"
 	"github.com/hakierspejs/long-season/pkg/services/config"
+	"github.com/hakierspejs/long-season/pkg/services/happier"
 	"github.com/hakierspejs/long-season/pkg/services/requests"
-	"github.com/hakierspejs/long-season/pkg/services/result"
 )
 
 // Extractor is function for extracting JWT token in form of
@@ -152,19 +152,17 @@ func defaultJwtOptions(c models.Config, optional bool) JWTOptions {
 		Extractors: []Extractor{apiExtractor("Bearer"), viewExtractor},
 		ContextKey: config.JWTUserKey,
 		InternalServerError: func(w http.ResponseWriter, r *http.Request) {
-			result.JSONError(w, &result.JSONErrorBody{
-				Code:    http.StatusInternalServerError,
-				Message: "Authorization failed due to internal error. Please try again.",
-				Type:    "internal-server-error",
-			})
+			happier.FromRequest(r).InternalServerError(
+				fmt.Errorf("JWTOptions.InternalServerError"),
+				"Authorization failed due to internal error. Please try again.",
+			).ServeHTTP(w, r)
 			return
 		},
 		Unauthorized: func(msg string, w http.ResponseWriter, r *http.Request) {
-			result.JSONError(w, &result.JSONErrorBody{
-				Code:    http.StatusUnauthorized,
-				Message: msg,
-				Type:    "unauthorized",
-			})
+			happier.FromRequest(r).Unauthorized(
+				fmt.Errorf("JWTOptions.Unauthorized"),
+				msg,
+			).ServeHTTP(w, r)
 			return
 		},
 	}
@@ -179,28 +177,28 @@ func ApiAuth(c models.Config, optional bool) func(next http.Handler) http.Handle
 // Private checks if given user id is equal to user id at JWT claims.
 func Private(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fail := func(w http.ResponseWriter) {
-			result.JSONError(w, &result.JSONErrorBody{
-				Code:    http.StatusUnauthorized,
-				Message: "You are not allowed to operate at requested resources.",
-				Type:    "unauthorized",
-			})
+		fail := func(err error, w http.ResponseWriter, r *http.Request) {
+			happier.FromRequest(r).Unauthorized(
+				fmt.Errorf("Private middleware fail func: %w", err),
+				"You are not allowed to operate at requested resources.",
+			).ServeHTTP(w, r)
+			return
 		}
 
 		userID, err := requests.UserID(r)
 		if err != nil {
-			fail(w)
+			fail(err, w, r)
 			return
 		}
 
 		claims, err := requests.JWTClaims(r)
 		if err != nil {
-			fail(w)
+			fail(err, w, r)
 			return
 		}
 
 		if userID != claims.UserID {
-			fail(w)
+			fail(nil, w, r)
 			return
 		}
 
