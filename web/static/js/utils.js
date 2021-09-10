@@ -1,30 +1,9 @@
 /*!
- * Run event after the DOM is ready
- * (c) 2017 Chris Ferdinandi, MIT License, https://gomakethings.com
- * @param  {Function} fn Callback function
- */
-window.ready = function (fn) {
-  // Sanity check
-  if (typeof fn !== "function") return;
-
-  // If document is already loaded, run method
-  if (
-    document.readyState === "interactive" ||
-    document.readyState === "complete"
-  ) {
-    return fn();
-  }
-
-  // Otherwise, wait until document is loaded
-  document.addEventListener("DOMContentLoaded", fn, false);
-};
-
-/*!
  * The identity function takes one argument and
  * returns that argument.
  * @param {Any} arg argument
  */
-window.id = (arg) => arg;
+const id = (arg) => arg;
 
 /*!
  * Just the bare necessities of state management
@@ -35,7 +14,7 @@ window.id = (arg) => arg;
  * @param {Any} v initial value
  * @param {Array.<Function>} cb array with callback functions
  */
-window.valoo = function (v, cb) {
+function valoo(v, cb) {
   cb = cb || [];
   return function (c) {
     if (c === void 0) return v;
@@ -45,7 +24,7 @@ window.valoo = function (v, cb) {
       cb[i] && cb[i](v);
     }
   };
-};
+}
 
 /*!
  * Creates new HTMLElement with given tag, props and children.
@@ -58,7 +37,8 @@ window.valoo = function (v, cb) {
  * @param {Array.<HTMLElement|String>} children
  * @return {HTMLElement} Created node
  */
-window.el = function (tag, props, ...children) {
+
+function el(tag, props, ...children) {
   if (typeof tag === "undefined") return false;
 
   // Pass empty string if children is undefined.
@@ -89,4 +69,6 @@ window.el = function (tag, props, ...children) {
   });
 
   return result;
-};
+}
+
+export { el, id, valoo };
