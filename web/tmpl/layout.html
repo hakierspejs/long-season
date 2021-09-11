@@ -12,8 +12,7 @@
     {{ if .Layout.PrideMonth }}
       <link rel="stylesheet" href="/static/pride.css">
     {{ end }}
-    <script src="/static/js/utils.js"></script>
-    <script src="/static/js/navbar.js"></script>
+    <script type="module" src="/static/js/navbar.js"></script>
     {{ block "scripts" . }}{{ end }}
   </head>
   <body>
