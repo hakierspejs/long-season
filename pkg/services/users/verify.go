@@ -66,7 +66,11 @@ func VerifyRegisterData(nickname, password string) error {
 // AuthenticateRequest holds input data for AuthenticateWithPassword
 // function.
 type AuthenticateRequest struct {
-	// Nickname is used to find user.
+	// UserID is used to find user.
+	UserID int
+
+	// Nickname can be also used to find user as
+	// alternative to UserID.
 	Nickname string
 
 	// Password is used to verify user with
@@ -96,25 +100,40 @@ func AuthenticateWithPassword(ctx context.Context, deps AuthenticateDependencies
 		deps.ErrorFactory = happier.Default()
 	}
 
-	users, err := deps.Storage.All(ctx)
-	if err != nil {
-		return nil, deps.ErrorFactory.InternalServerError(
-			fmt.Errorf("deps.Storage.All: %w", err),
-			"Internal Server Error please try again later.",
-		)
-	}
-
-	// Search for user with exactly same nickname.
-	var match *models.User = nil
-	for _, user := range users {
-		if user.Nickname == deps.Request.Nickname {
-			match = &user
-			break
+	var match *models.User
+	var err error
+	if deps.Request.UserID != 0 {
+		// UserID is not empty, try to find matching user.
+		match, err = deps.Storage.Read(ctx, deps.Request.UserID)
+		if err != nil {
+			return nil, deps.ErrorFactory.NotFound(
+				fmt.Errorf("deps.Storage.Read: %w", err),
+				"There is no user with given user ID",
+			)
 		}
+	} else {
+		// UserID is empty, so try to find matching user
+		// by nickname.
+		users, err := deps.Storage.All(ctx)
+		if err != nil {
+			return nil, deps.ErrorFactory.InternalServerError(
+				fmt.Errorf("deps.Storage.All: %w", err),
+				"Internal Server Error please try again later.",
+			)
+		}
+
+		// Search for user with exactly same nickname.
+		for _, user := range users {
+			if user.Nickname == deps.Request.Nickname {
+				match = &user
+				break
+			}
+		}
+
 	}
 
 	// Check if there is the user with given nickname
-	// in the database.
+	// or ID in the database.
 	if match == nil {
 		return nil, deps.ErrorFactory.NotFound(
 			fmt.Errorf("match == nil, user given nickname: %s, not found", deps.Request.Nickname),

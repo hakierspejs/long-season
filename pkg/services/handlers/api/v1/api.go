@@ -260,6 +260,80 @@ func UserUpdate(db storage.Users) horror.HandlerFunc {
 	}
 }
 
+// UpdateUserPassword updates password of given user after
+// successfully authentication of previous one.
+func UpdateUserPassword(db storage.Users) horror.HandlerFunc {
+	type payload struct {
+		old         string `json:"old"`
+		newPassword string `json:"new"`
+	}
+
+	return func(w http.ResponseWriter, r *http.Request) error {
+		ctx := r.Context()
+		errFactory := happier.FromRequest(r)
+
+		p := new(payload)
+		if err := json.NewDecoder(r.Body).Decode(p); err != nil {
+			return errFactory.BadRequest(
+				fmt.Errorf("json.NewDecoder.Decode: %w", err),
+				fmt.Sprintf("Invalid input: %s.", err.Error()),
+			)
+		}
+
+		if ok := users.VerifyPassword(p.newPassword); !ok {
+			return errFactory.BadRequest(
+				users.ErrInvaliPassword,
+				fmt.Sprintf("Invalid password."),
+			)
+		}
+
+		userID, err := requests.UserID(r)
+		if err != nil {
+			return errFactory.InternalServerError(
+				fmt.Errorf("requests.UserID: %w", err),
+				internalServerErrorResponse,
+			)
+		}
+
+		match, err := users.AuthenticateWithPassword(ctx, users.AuthenticateDependencies{
+			Request: users.AuthenticateRequest{
+				UserID:   userID,
+				Password: []byte(p.old),
+			},
+			Storage:      db,
+			ErrorFactory: errFactory,
+		})
+		if err != nil {
+			return errFactory.Unauthorized(
+				fmt.Errorf("users.AuthenticateWithPassword: %w", err),
+				"Invalid old password.",
+			)
+		}
+
+		newPass, err := bcrypt.GenerateFromPassword([]byte(p.newPassword), bcrypt.DefaultCost)
+		if err != nil {
+			return errFactory.InternalServerError(
+				fmt.Errorf("api.UserCreate: hashing password failed: %w", err),
+				internalServerErrorResponse,
+			)
+		}
+
+		err = db.Update(ctx, models.User{
+			UserPublicData: match.UserPublicData,
+			Password:       newPass,
+			Private:        match.Private,
+		})
+		if err != nil {
+			return errFactory.InternalServerError(
+				fmt.Errorf("db.Update: %w", err),
+				internalServerErrorResponse,
+			)
+		}
+
+		return happier.NoContent(w, r)
+	}
+}
+
 // UpdateStatus updates online field of every user id database
 // with MAC address equal to one from slice provided by
 // user in request payload.
