@@ -9,11 +9,10 @@ import (
 	"github.com/cristalhq/jwt/v3"
 	"github.com/google/uuid"
 	"github.com/thinkofher/horror"
-	"golang.org/x/crypto/bcrypt"
 
 	"github.com/hakierspejs/long-season/pkg/models"
 	"github.com/hakierspejs/long-season/pkg/services/happier"
-	"github.com/hakierspejs/long-season/pkg/services/result"
+	"github.com/hakierspejs/long-season/pkg/services/users"
 	"github.com/hakierspejs/long-season/pkg/storage"
 )
 
@@ -28,6 +27,7 @@ func ApiAuth(config models.Config, db storage.Users) horror.HandlerFunc {
 	}
 
 	return func(w http.ResponseWriter, r *http.Request) error {
+		ctx := r.Context()
 		errFactory := happier.FromRequest(r)
 
 		input := new(payload)
@@ -39,46 +39,16 @@ func ApiAuth(config models.Config, db storage.Users) horror.HandlerFunc {
 			)
 		}
 
-		users, err := db.All(r.Context())
+		match, err := users.AuthenticateWithPassword(ctx, users.AuthenticateDependencies{
+			Request: users.AuthenticateRequest{
+				Nickname: input.Nickname,
+				Password: []byte(input.Password),
+			},
+			Storage:      db,
+			ErrorFactory: errFactory,
+		})
 		if err != nil {
-			return errFactory.InternalServerError(
-				fmt.Errorf("db.All: %w", err),
-				internalServerErrorResponse,
-			)
-		}
-
-		// Search for user with exactly same nickname.
-		var match *models.User = nil
-		for _, user := range users {
-			if user.Nickname == input.Nickname {
-				match = &user
-				break
-			}
-		}
-
-		// Check if there is the user with given nickname
-		// in the database.
-		if match == nil {
-			result.JSONError(w, &result.JSONErrorBody{
-				Message: "there is no user with given nickname",
-				Code:    http.StatusNotFound,
-				Type:    "not-found",
-			})
-			return errFactory.NotFound(
-				fmt.Errorf("match == nil, user given nickname: %s, not found", input.Nickname),
-				fmt.Sprintf("there is no user with given nickname: \"%s\"", input.Nickname),
-			)
-		}
-
-		// Check if passwords do match.
-		if err := bcrypt.CompareHashAndPassword(
-			match.Password,
-			[]byte(input.Password),
-		); err != nil {
-			return errFactory.Unauthorized(
-				fmt.Errorf("bcrypt.CompareHashAndPassword: %w", err),
-				fmt.Sprintf("given password does not match"),
-			)
+			return fmt.Errorf("users.AuthenticateWithPassword: %w", err)
 		}
 
 		signer, err := jwt.NewSignerHS(jwt.HS256, []byte(config.JWTSecret))
