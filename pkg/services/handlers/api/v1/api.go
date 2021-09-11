@@ -264,8 +264,8 @@ func UserUpdate(db storage.Users) horror.HandlerFunc {
 // successfully authentication of previous one.
 func UpdateUserPassword(db storage.Users) horror.HandlerFunc {
 	type payload struct {
-		old         string `json:"old"`
-		newPassword string `json:"new"`
+		Old string `json:"old"`
+		New string `json:"new"`
 	}
 
 	return func(w http.ResponseWriter, r *http.Request) error {
@@ -280,7 +280,7 @@ func UpdateUserPassword(db storage.Users) horror.HandlerFunc {
 			)
 		}
 
-		if ok := users.VerifyPassword(p.newPassword); !ok {
+		if ok := users.VerifyPassword(p.New); !ok {
 			return errFactory.BadRequest(
 				users.ErrInvaliPassword,
 				fmt.Sprintf("Invalid password."),
@@ -298,7 +298,7 @@ func UpdateUserPassword(db storage.Users) horror.HandlerFunc {
 		match, err := users.AuthenticateWithPassword(ctx, users.AuthenticateDependencies{
 			Request: users.AuthenticateRequest{
 				UserID:   userID,
-				Password: []byte(p.old),
+				Password: []byte(p.Old),
 			},
 			Storage:      db,
 			ErrorFactory: errFactory,
@@ -310,7 +310,7 @@ func UpdateUserPassword(db storage.Users) horror.HandlerFunc {
 			)
 		}
 
-		newPass, err := bcrypt.GenerateFromPassword([]byte(p.newPassword), bcrypt.DefaultCost)
+		newPass, err := bcrypt.GenerateFromPassword([]byte(p.New), bcrypt.DefaultCost)
 		if err != nil {
 			return errFactory.InternalServerError(
 				fmt.Errorf("api.UserCreate: hashing password failed: %w", err),
