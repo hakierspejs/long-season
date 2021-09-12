@@ -112,6 +112,7 @@ func NewRouter(config models.Config, args Args) http.Handler {
 
 	r.With(lsmiddleware.ApiAuth(config, false)).Get("/who", handlers.Who())
 	r.With(lsmiddleware.ApiAuth(config, false)).Get("/devices", ui.Devices(config, args.Opener))
+	r.With(lsmiddleware.ApiAuth(config, false)).Get("/account", ui.Account(config, args.Opener))
 	r.Get("/logout", ui.Logout())
 	r.With(
 		lsmiddleware.ApiAuth(config, true),

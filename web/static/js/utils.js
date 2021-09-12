@@ -71,4 +71,18 @@ function el(tag, props, ...children) {
   return result;
 }
 
-export { el, id, valoo };
+/*
+ * withErr awaits for given promises and returns result
+ * and null if there were error or null and error if some
+ * error had occurred.
+ */
+async function withErr(promise) {
+  try {
+    let res = await promise;
+    return [res, null];
+  } catch (error) {
+    return [null, error];
+  }
+}
+
+export { el, id, valoo, withErr };
