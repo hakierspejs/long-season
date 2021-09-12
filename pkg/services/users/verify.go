@@ -63,9 +63,9 @@ func VerifyRegisterData(nickname, password string) error {
 	return nil
 }
 
-// AuthenticateRequest holds input data for AuthenticateWithPassword
+// AuthenticationRequest holds input data for AuthenticateWithPassword
 // function.
-type AuthenticateRequest struct {
+type AuthenticationRequest struct {
 	// UserID is used to find user.
 	UserID int
 
@@ -78,11 +78,11 @@ type AuthenticateRequest struct {
 	Password []byte
 }
 
-// AuthenticateDependencies are dependencies for
+// AuthenticationDependencies are dependencies for
 // authenticating user with password.
-type AuthenticateDependencies struct {
+type AuthenticationDependencies struct {
 	// Request holds input data.
-	Request AuthenticateRequest
+	Request AuthenticationRequest
 
 	// Storage operates on user data in database.
 	Storage storage.Users
@@ -93,7 +93,11 @@ type AuthenticateDependencies struct {
 	ErrorFactory *happier.Factory
 }
 
-func AuthenticateWithPassword(ctx context.Context, deps AuthenticateDependencies) (*models.User, error) {
+// AuthenticateWithPassword takes aut dependencies with authenticate request
+// and process user data to verify whether given passwords matches or not.
+// It returns user data for convince if authentication passes and nil pointer with error
+// if it doesn't.
+func AuthenticateWithPassword(ctx context.Context, deps AuthenticationDependencies) (*models.User, error) {
 	if deps.ErrorFactory == nil {
 		// ErrorFactory is optional parameter, so if it is nil
 		// we replace it with default happier error factory.

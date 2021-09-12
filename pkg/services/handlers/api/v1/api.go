@@ -295,8 +295,8 @@ func UpdateUserPassword(db storage.Users) horror.HandlerFunc {
 			)
 		}
 
-		match, err := users.AuthenticateWithPassword(ctx, users.AuthenticateDependencies{
-			Request: users.AuthenticateRequest{
+		match, err := users.AuthenticateWithPassword(ctx, users.AuthenticationDependencies{
+			Request: users.AuthenticationRequest{
 				UserID:   userID,
 				Password: []byte(p.Old),
 			},

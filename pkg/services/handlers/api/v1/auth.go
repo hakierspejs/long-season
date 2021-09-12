@@ -39,8 +39,8 @@ func ApiAuth(config models.Config, db storage.Users) horror.HandlerFunc {
 			)
 		}
 
-		match, err := users.AuthenticateWithPassword(ctx, users.AuthenticateDependencies{
-			Request: users.AuthenticateRequest{
+		match, err := users.AuthenticateWithPassword(ctx, users.AuthenticationDependencies{
+			Request: users.AuthenticationRequest{
 				Nickname: input.Nickname,
 				Password: []byte(input.Password),
 			},
