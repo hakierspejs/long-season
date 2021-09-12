@@ -12,7 +12,8 @@ const navbar = ({ nickname }) => {
     a("/", "Home"),
     ...(nickname
       ? [
-        a("/devices", `${nickname}@lodz`),
+        a("/devices", "Devices"),
+        a("/account", `${nickname}@lodz`),
         a("/logout", "Logout"),
       ]
       : [

@@ -100,3 +100,10 @@ func Devices(config models.Config, opener handlers.Opener) http.HandlerFunc {
 		tmpl.ExecuteTemplate(w, "layout", newData(r, config))
 	}
 }
+
+func Account(config models.Config, opener handlers.Opener) http.HandlerFunc {
+	tmpl := template.Must(renderTemplate(opener, "tmpl/account.html"))
+	return func(w http.ResponseWriter, r *http.Request) {
+		tmpl.ExecuteTemplate(w, "layout", newData(r, config))
+	}
+}

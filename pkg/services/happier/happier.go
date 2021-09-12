@@ -16,6 +16,14 @@ type Factory struct {
 	debug bool
 }
 
+// Default returns default error factory not associated
+// with any http request.
+func Default() *Factory {
+	return &Factory{
+		debug: false,
+	}
+}
+
 // FromRequest returns factory that should be used only with
 // given http request.
 func FromRequest(r *http.Request) *Factory {

@@ -85,6 +85,11 @@ func NewRouter(config models.Config, args Args) http.Handler {
 				r.With(
 					lsmiddleware.ApiAuth(config, false),
 					lsmiddleware.Private,
+				).Put("/password", args.Adapter.WithError(api.UpdateUserPassword(args.Users)))
+
+				r.With(
+					lsmiddleware.ApiAuth(config, false),
+					lsmiddleware.Private,
 				).Route("/devices", func(r chi.Router) {
 					r.Get("/", args.Adapter.WithError(api.UserDevices(args.Devices)))
 					r.Post("/", args.Adapter.WithError(api.DeviceAdd(args.Devices)))
@@ -107,6 +112,7 @@ func NewRouter(config models.Config, args Args) http.Handler {
 
 	r.With(lsmiddleware.ApiAuth(config, false)).Get("/who", handlers.Who())
 	r.With(lsmiddleware.ApiAuth(config, false)).Get("/devices", ui.Devices(config, args.Opener))
+	r.With(lsmiddleware.ApiAuth(config, false)).Get("/account", ui.Account(config, args.Opener))
 	r.Get("/logout", ui.Logout())
 	r.With(
 		lsmiddleware.ApiAuth(config, true),
