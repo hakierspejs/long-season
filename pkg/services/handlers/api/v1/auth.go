@@ -75,7 +75,6 @@ func ApiAuth(config models.Config, db storage.Users) horror.HandlerFunc {
 			},
 			Nickname: match.Nickname,
 			UserID:   match.ID,
-			Private:  match.Private,
 		})
 		if err != nil {
 			return errFactory.InternalServerError(

@@ -32,7 +32,6 @@ func Who() http.HandlerFunc {
 		gores.JSON(w, http.StatusOK, &response{
 			ID:       claims.UserID,
 			Nickname: claims.Nickname,
-			Private:  claims.Private,
 		})
 	}
 }
