@@ -55,11 +55,27 @@ func NewRouter(config models.Config, args Args) http.Handler {
 
 	guard := session.Guard(args.SessionRenewer)
 
+	// UI routes.
 	r.Get("/", ui.Home(config, args.Opener))
+
 	r.With(
 		lsmiddleware.RedirectLoggedIn(args.SessionRenewer),
 	).Get("/login", ui.LoginPage(config, args.Opener))
+	r.Post("/login", args.Adapter.WithError(ui.Auth(args.SessionSaver, args.Users)))
 
+	r.With(guard).Get("/who", handlers.Who(args.SessionRenewer))
+
+	r.With(guard).Get("/devices", ui.Devices(config, args.Opener))
+
+	r.With(guard).Get("/account", ui.Account(config, args.Opener))
+
+	r.Get("/logout", ui.Logout(args.SessionKiller))
+
+	r.With(
+		lsmiddleware.RedirectLoggedIn(args.SessionRenewer),
+	).Get("/register", ui.Register(config, args.Opener))
+
+	// API routes.
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Route("/users", func(r chi.Router) {
 			// Use CORS to allow GET/OPTIONS to GET /api/v1/users from
@@ -109,12 +125,6 @@ func NewRouter(config models.Config, args Args) http.Handler {
 		)
 		r.Get("/status", args.Adapter.WithError(api.Status(args.StatusTx)))
 	})
-
-	r.With(guard).Get("/who", handlers.Who(args.SessionRenewer))
-	r.With(guard).Get("/devices", ui.Devices(config, args.Opener))
-	r.With(guard).Get("/account", ui.Account(config, args.Opener))
-	r.Get("/logout", ui.Logout(args.SessionKiller))
-	r.With(lsmiddleware.RedirectLoggedIn(args.SessionRenewer)).Get("/register", ui.Register(config, args.Opener))
 
 	handlers.FileServer(r, "/static", args.Opener)
 

@@ -30,7 +30,7 @@ const submitData = ({ login, password }) => {
     password: password,
   };
 
-  fetch("/api/v1/login", {
+  fetch("/login", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
