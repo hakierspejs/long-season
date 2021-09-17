@@ -79,9 +79,9 @@ func New(ctx context.Context, b Builder) *State {
 	}
 }
 
-// SessionGuard returns http middleware which guards from
+// Guard returns http middleware which guards from
 // clients accessing given handler without valid session.
-func SessionGuard(renewer Renewer) func(http.Handler) http.Handler {
+func Guard(renewer Renewer) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			_, err := renewer.Renew(r)
