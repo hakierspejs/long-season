@@ -15,6 +15,7 @@ import (
 	"github.com/hakierspejs/long-season/pkg/services/handlers/api/v1"
 	"github.com/hakierspejs/long-season/pkg/services/happier"
 	lsmiddleware "github.com/hakierspejs/long-season/pkg/services/middleware"
+	"github.com/hakierspejs/long-season/pkg/services/session"
 	"github.com/hakierspejs/long-season/pkg/services/ui"
 	"github.com/hakierspejs/long-season/pkg/storage"
 )
@@ -28,13 +29,17 @@ type Cors interface {
 
 // Args contains dependencies for router.
 type Args struct {
-	Opener     handlers.Opener
-	Users      storage.Users
-	Devices    storage.Devices
-	StatusTx   storage.StatusTx
-	MacsChan   chan<- []net.HardwareAddr
-	PublicCors Cors
-	Adapter    *happier.Adapter
+	Opener         handlers.Opener
+	Users          storage.Users
+	Devices        storage.Devices
+	StatusTx       storage.StatusTx
+	MacsChan       chan<- []net.HardwareAddr
+	PublicCors     Cors
+	Adapter        *happier.Adapter
+	Tokenizer      api.Tokenizer
+	SessionRenewer session.Renewer
+	SessionSaver   session.Saver
+	SessionKiller  session.Killer
 }
 
 // NewRouter returns Handler, which contains all the handlers and
@@ -48,12 +53,29 @@ func NewRouter(config models.Config, args Args) http.Handler {
 	r.Use(middleware.NoCache)
 	r.Use(lsmiddleware.Debug(config))
 
-	r.Get("/", ui.Home(config, args.Opener))
-	r.With(
-		lsmiddleware.ApiAuth(config, true),
-		lsmiddleware.RedirectLoggedIn,
-	).Get("/login", ui.LoginPage(config, args.Opener))
+	guard := session.Guard(args.SessionRenewer)
 
+	// UI routes.
+	r.Get("/", ui.Home(config, args.Opener))
+
+	r.With(
+		lsmiddleware.RedirectLoggedIn(args.SessionRenewer),
+	).Get("/login", ui.LoginPage(config, args.Opener))
+	r.Post("/login", args.Adapter.WithError(ui.Auth(args.SessionSaver, args.Users)))
+
+	r.With(guard).Get("/who", handlers.Who(args.SessionRenewer))
+
+	r.With(guard).Get("/devices", ui.Devices(config, args.Opener))
+
+	r.With(guard).Get("/account", ui.Account(config, args.Opener))
+
+	r.Get("/logout", ui.Logout(args.SessionKiller))
+
+	r.With(
+		lsmiddleware.RedirectLoggedIn(args.SessionRenewer),
+	).Get("/register", ui.Register(config, args.Opener))
+
+	// API routes.
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Route("/users", func(r chi.Router) {
 			// Use CORS to allow GET/OPTIONS to GET /api/v1/users from
@@ -67,57 +89,42 @@ func NewRouter(config models.Config, args Args) http.Handler {
 			r.Post("/", args.Adapter.WithError(api.UserCreate(args.Users)))
 
 			r.With(lsmiddleware.UserID).Route("/{user-id}", func(r chi.Router) {
-				r.With(
-					lsmiddleware.ApiAuth(config, true),
-				).Get("/", args.Adapter.WithError(api.UserRead(args.Users)))
+				r.With(guard).Get("/", args.Adapter.WithError(api.UserRead(args.SessionRenewer, args.Users)))
 
 				// Users can only delete themselves.
 				r.With(
-					lsmiddleware.ApiAuth(config, false),
-					lsmiddleware.Private,
+					lsmiddleware.Private(args.SessionRenewer),
 				).Delete("/", args.Adapter.WithError(api.UserRemove(args.Users)))
 
 				r.With(
-					lsmiddleware.ApiAuth(config, false),
-					lsmiddleware.Private,
+					guard, lsmiddleware.Private(args.SessionRenewer),
 				).Patch("/", args.Adapter.WithError(api.UserUpdate(args.Users)))
 
 				r.With(
-					lsmiddleware.ApiAuth(config, false),
-					lsmiddleware.Private,
+					guard, lsmiddleware.Private(args.SessionRenewer),
 				).Put("/password", args.Adapter.WithError(api.UpdateUserPassword(args.Users)))
 
 				r.With(
-					lsmiddleware.ApiAuth(config, false),
-					lsmiddleware.Private,
+					guard, lsmiddleware.Private(args.SessionRenewer),
 				).Route("/devices", func(r chi.Router) {
 					r.Get("/", args.Adapter.WithError(api.UserDevices(args.Devices)))
-					r.Post("/", args.Adapter.WithError(api.DeviceAdd(args.Devices)))
+					r.Post("/", args.Adapter.WithError(api.DeviceAdd(args.SessionRenewer, args.Devices)))
 
 					r.With(lsmiddleware.DeviceID).Route("/{device-id}", func(r chi.Router) {
-						r.Get("/", args.Adapter.WithError(api.DeviceRead(args.Devices)))
-						r.Delete("/", args.Adapter.WithError(api.DeviceRemove(args.Devices)))
-						r.Patch("/", args.Adapter.WithError(api.DeviceUpdate(args.Devices)))
+						r.Get("/", args.Adapter.WithError(api.DeviceRead(args.SessionRenewer, args.Devices)))
+						r.Delete("/", args.Adapter.WithError(api.DeviceRemove(args.SessionRenewer, args.Devices)))
+						r.Patch("/", args.Adapter.WithError(api.DeviceUpdate(args.SessionRenewer, args.Devices)))
 					})
 				})
 			})
 		})
-		r.Post("/login", args.Adapter.WithError(api.ApiAuth(config, args.Users)))
+		r.Post("/login", args.Adapter.WithError(api.Auth(args.Tokenizer, args.Users)))
 		r.With(lsmiddleware.UpdateAuth(&config)).Put(
 			"/update",
 			args.Adapter.WithError(api.UpdateStatus(args.MacsChan)),
 		)
 		r.Get("/status", args.Adapter.WithError(api.Status(args.StatusTx)))
 	})
-
-	r.With(lsmiddleware.ApiAuth(config, false)).Get("/who", handlers.Who())
-	r.With(lsmiddleware.ApiAuth(config, false)).Get("/devices", ui.Devices(config, args.Opener))
-	r.With(lsmiddleware.ApiAuth(config, false)).Get("/account", ui.Account(config, args.Opener))
-	r.Get("/logout", ui.Logout())
-	r.With(
-		lsmiddleware.ApiAuth(config, true),
-		lsmiddleware.RedirectLoggedIn,
-	).Get("/register", ui.Register(config, args.Opener))
 
 	handlers.FileServer(r, "/static", args.Opener)
 

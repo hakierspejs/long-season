@@ -84,7 +84,7 @@ func (c Config) Address() string {
 // Claims represents custom claims for jwt authentication.
 type Claims struct {
 	jwt.StandardClaims
-	UserID   int    `json:"id"`
-	Nickname string `json:"nck"`
-	Private  bool   `json:"prv"`
+	UserID   int                    `json:"id"`
+	Nickname string                 `json:"nck"`
+	Values   map[string]interface{} `json:"vls,omitempty"`
 }

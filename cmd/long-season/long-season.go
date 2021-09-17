@@ -7,13 +7,16 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/cristalhq/jwt/v3"
 	"github.com/go-chi/cors"
 	bolt "go.etcd.io/bbolt"
 
 	"github.com/hakierspejs/long-season/pkg/services/config"
 	"github.com/hakierspejs/long-season/pkg/services/handlers"
 	"github.com/hakierspejs/long-season/pkg/services/happier"
+	"github.com/hakierspejs/long-season/pkg/services/jojo"
 	"github.com/hakierspejs/long-season/pkg/services/router"
+	"github.com/hakierspejs/long-season/pkg/services/session"
 	"github.com/hakierspejs/long-season/pkg/services/status"
 	"github.com/hakierspejs/long-season/pkg/storage/memory"
 	"github.com/hakierspejs/long-season/web"
@@ -65,6 +68,13 @@ func main() {
 		opener = web.Open
 	}
 
+	jwtSession := &jojo.JWT{
+		Secret:    []byte(config.JWTSecret),
+		Algorithm: jwt.HS256,
+		AppName:   config.AppName,
+		CookieKey: "jwt-token",
+	}
+
 	r := router.NewRouter(*config, router.Args{
 		Opener:     opener,
 		Users:      factoryStorage.Users(),
@@ -73,6 +83,13 @@ func main() {
 		MacsChan:   macChannel,
 		PublicCors: publicCors,
 		Adapter:    happier.NewAdapter(),
+		Tokenizer:  jwtSession,
+		SessionRenewer: session.RenewerComposite(
+			jwtSession.RenewFromHeaderToken("Authorization", "Bearer"),
+			jwtSession.RenewFromCookies(),
+		),
+		SessionSaver:  jwtSession,
+		SessionKiller: jwtSession,
 	})
 
 	// start daemon for updating mac addresses

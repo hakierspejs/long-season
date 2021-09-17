@@ -4,12 +4,9 @@ package requests
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 	"strconv"
 
-	"github.com/hakierspejs/long-season/pkg/models"
-	"github.com/hakierspejs/long-season/pkg/services/config"
 	"github.com/hakierspejs/long-season/pkg/services/ctxkey"
 )
 
@@ -36,16 +33,6 @@ func UserID(r *http.Request) (int, error) {
 
 func DeviceID(r *http.Request) (int, error) {
 	return id("device-id", r)
-}
-
-// JWTClaims retrieves jwt claims specific for long-season from
-// http.Request.
-func JWTClaims(r *http.Request) (*models.Claims, error) {
-	claims, ok := r.Context().Value(config.JWTUserKey).(*models.Claims)
-	if !ok {
-		return nil, fmt.Errorf("long-season: there are no jwt claims in context")
-	}
-	return claims, nil
 }
 
 func Debug(r *http.Request) (bool, error) {

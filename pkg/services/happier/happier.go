@@ -1,12 +1,13 @@
 package happier
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
 
 	"github.com/alioygur/gores"
-	"github.com/hakierspejs/long-season/pkg/services/requests"
+	"github.com/hakierspejs/long-season/pkg/services/ctxkey"
 	"github.com/thinkofher/horror"
 )
 
@@ -24,16 +25,22 @@ func Default() *Factory {
 	}
 }
 
-// FromRequest returns factory that should be used only with
-// given http request.
-func FromRequest(r *http.Request) *Factory {
-	debug, err := requests.Debug(r)
+// FromContext returns factory that should be used only
+// within given context range.
+func FromContext(ctx context.Context) *Factory {
+	debug, err := ctxkey.Debug(ctx)
 	if err != nil {
 		debug = false
 	}
 	return &Factory{
 		debug: debug,
 	}
+}
+
+// FromRequest returns factory that should be used only with
+// given http request.
+func FromRequest(r *http.Request) *Factory {
+	return FromContext(r.Context())
 }
 
 // NotFound implements http NotFound (404) error for horror.Error
