@@ -4,11 +4,14 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi"
 	"github.com/hakierspejs/long-season/pkg/models"
 	"github.com/hakierspejs/long-season/pkg/services/ctxkey"
 	"github.com/hakierspejs/long-season/pkg/services/happier"
+	"github.com/hakierspejs/long-season/pkg/services/requests"
+	"github.com/hakierspejs/long-season/pkg/services/session"
 )
 
 // URLParamInjection injects given chi parameter into request context.
@@ -67,6 +70,73 @@ func Debug(c models.Config) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx := context.WithValue(r.Context(), ctxkey.DebugKey, c.Debug)
 			next.ServeHTTP(w, r.WithContext(ctx))
+		})
+	}
+}
+
+func apiExtractor(prefix string) func(r *http.Request) (string, error) {
+	return func(r *http.Request) (string, error) {
+		header := r.Header.Get("Authorization")
+		if header == "" {
+			// TODO(thinkofher) replace with generic error for very extractor
+			return "", fmt.Errorf("Authorization header is empty.")
+		}
+
+		if !strings.HasPrefix(header, prefix+" ") {
+			return "", fmt.Errorf("JWT authorization header should has `%s ` prefix.", prefix)
+		}
+
+		token := strings.TrimPrefix(header, prefix+" ")
+		return token, nil
+	}
+}
+
+// Private checks if given user id is equal to user id at current
+// session state.
+func Private(renewer session.Renewer) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			fail := func(err error, w http.ResponseWriter, r *http.Request) {
+				happier.FromRequest(r).Unauthorized(
+					fmt.Errorf("Private middleware fail func: %w", err),
+					"You are not allowed to operate at requested resources.",
+				).ServeHTTP(w, r)
+				return
+			}
+
+			userID, err := requests.UserID(r)
+			if err != nil {
+				fail(err, w, r)
+				return
+			}
+
+			state, err := renewer.Renew(r)
+			if err != nil {
+				fail(err, w, r)
+				return
+			}
+
+			if userID != state.UserID {
+				fail(nil, w, r)
+				return
+			}
+
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+// RedirectLoggedIn redirects logged in users to homepage.
+func RedirectLoggedIn(renewer session.Renewer) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			_, err := renewer.Renew(r)
+			if err == nil {
+				http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
+				return
+			}
+
+			next.ServeHTTP(w, r)
 		})
 	}
 }

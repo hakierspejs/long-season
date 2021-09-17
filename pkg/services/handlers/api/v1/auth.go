@@ -1,22 +1,25 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"time"
 
-	"github.com/cristalhq/jwt/v3"
-	"github.com/google/uuid"
 	"github.com/thinkofher/horror"
 
-	"github.com/hakierspejs/long-season/pkg/models"
 	"github.com/hakierspejs/long-season/pkg/services/happier"
+	"github.com/hakierspejs/long-season/pkg/services/session"
 	"github.com/hakierspejs/long-season/pkg/services/users"
 	"github.com/hakierspejs/long-season/pkg/storage"
 )
 
-func ApiAuth(config models.Config, db storage.Users) horror.HandlerFunc {
+// Tokenizer turns given session State into single string.
+type Tokenizer interface {
+	Tokenize(context.Context, session.State) (string, error)
+}
+
+func Auth(tokenizer Tokenizer, db storage.Users) horror.HandlerFunc {
 	type payload struct {
 		Nickname string `json:"nickname"`
 		Password string `json:"password"`
@@ -51,48 +54,18 @@ func ApiAuth(config models.Config, db storage.Users) horror.HandlerFunc {
 			return fmt.Errorf("users.AuthenticateWithPassword: %w", err)
 		}
 
-		signer, err := jwt.NewSignerHS(jwt.HS256, []byte(config.JWTSecret))
-		if err != nil {
-			return errFactory.InternalServerError(
-				fmt.Errorf("jwt.NewSignerHS: %w", err),
-				internalServerErrorResponse,
-			)
-		}
-
-		builder := jwt.NewBuilder(signer)
-
-		now := time.Now()
-		id := uuid.New()
-
-		token, err := builder.Build(&models.Claims{
-			StandardClaims: jwt.StandardClaims{
-				Issuer:    config.AppName,
-				Audience:  []string{"ls-apiv1"},
-				Subject:   "auth",
-				ExpiresAt: jwt.NewNumericDate(now.Add(time.Hour * 48)),
-				IssuedAt:  jwt.NewNumericDate(now),
-				ID:        id.String(),
-			},
-			Nickname: match.Nickname,
+		newSession := session.New(ctx, session.Builder{
 			UserID:   match.ID,
+			Nickname: match.Nickname,
 		})
-		if err != nil {
-			return errFactory.InternalServerError(
-				fmt.Errorf("builder.Build: %w", err),
-				internalServerErrorResponse,
-			)
-		}
 
-		http.SetCookie(w, &http.Cookie{
-			Name:     "jwt-token",
-			Expires:  now.Add(time.Hour * 4),
-			Value:    token.String(),
-			HttpOnly: true,
-			Path:     "/",
-		})
+		token, err := tokenizer.Tokenize(ctx, *newSession)
+		if err != nil {
+			return fmt.Errorf("tokenizer.Tokenize: %w", err)
+		}
 
 		return happier.OK(w, r, &response{
-			Token: token.String(),
+			Token: token,
 		})
 	}
 }

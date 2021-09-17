@@ -16,6 +16,7 @@ import (
 	"github.com/hakierspejs/long-season/pkg/services/happier"
 	"github.com/hakierspejs/long-season/pkg/services/requests"
 	"github.com/hakierspejs/long-season/pkg/services/result"
+	"github.com/hakierspejs/long-season/pkg/services/session"
 	"github.com/hakierspejs/long-season/pkg/services/users"
 	"github.com/hakierspejs/long-season/pkg/storage"
 	serrors "github.com/hakierspejs/long-season/pkg/storage/errors"
@@ -116,7 +117,7 @@ func UsersAll(db storage.Users) horror.HandlerFunc {
 	}
 }
 
-func UserRead(db storage.Users) horror.HandlerFunc {
+func UserRead(renewer session.Renewer, db storage.Users) horror.HandlerFunc {
 	type response struct {
 		models.UserPublicData
 		Private *bool `json:"priv,omitempty"`
@@ -147,8 +148,8 @@ func UserRead(db storage.Users) horror.HandlerFunc {
 		}
 
 		var privateMode *bool = nil
-		claims, err := requests.JWTClaims(r)
-		if err == nil && (claims.UserID == user.ID) {
+		state, err := renewer.Renew(r)
+		if err == nil && (state.UserID == user.ID) {
 			privateMode = &user.Private
 		}
 
@@ -441,10 +442,7 @@ type singleDevice struct {
 }
 
 // DeviceAdd handles creation of new device for requesting user.
-// Make sure to use with middleware.JWT (or another middleware that
-// appends models.Claims to request), because this handler has
-// to know some arbitrary user data.
-func DeviceAdd(db storage.Devices) horror.HandlerFunc {
+func DeviceAdd(renewer session.Renewer, db storage.Devices) horror.HandlerFunc {
 	type payload struct {
 		Tag string `json:"tag"`
 		MAC string `json:"mac"`
@@ -462,13 +460,13 @@ func DeviceAdd(db storage.Devices) horror.HandlerFunc {
 			)
 		}
 
-		claims, err := requests.JWTClaims(r)
+		state, err := renewer.Renew(r)
 		if err != nil {
 			// At this point handler should have
-			// been provided with JWT claims, so we
+			// been provided with session, so we
 			// will just return 500.
 			return errFactory.InternalServerError(
-				fmt.Errorf("requests.JWTClaims: %w", err),
+				fmt.Errorf("renewer.Renew: %w", err),
 				internalServerErrorResponse,
 			)
 		}
@@ -500,11 +498,11 @@ func DeviceAdd(db storage.Devices) horror.HandlerFunc {
 
 		device := models.Device{
 			DevicePublicData: models.DevicePublicData{
-				Owner: claims.Nickname,
+				Owner: state.Nickname,
 				Tag:   p.Tag,
 			},
 			MAC:     hashedMac,
-			OwnerID: claims.UserID,
+			OwnerID: state.UserID,
 		}
 
 		newID, err := db.New(r.Context(), userID, device)
@@ -559,11 +557,11 @@ func UserDevices(db storage.Devices) horror.HandlerFunc {
 	}
 }
 
-func sameOwner(userID, deviceOwnerID, claimsID int) bool {
-	return (userID == deviceOwnerID) && (deviceOwnerID == claimsID)
+func sameOwner(userID, deviceOwnerID, stateUserID int) bool {
+	return (userID == deviceOwnerID) && (deviceOwnerID == stateUserID)
 }
 
-func DeviceRead(db storage.Devices) horror.HandlerFunc {
+func DeviceRead(renewer session.Renewer, db storage.Devices) horror.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		errFactory := happier.FromRequest(r)
 
@@ -583,14 +581,14 @@ func DeviceRead(db storage.Devices) horror.HandlerFunc {
 			)
 		}
 
-		claims, err := requests.JWTClaims(r)
+		state, err := renewer.Renew(r)
 		if err != nil {
 			// At this point handler should have
-			// been provided with JWT claims, so we
+			// been provided with session, so we
 			// will just return 500.
 			if err != nil {
 				return errFactory.InternalServerError(
-					fmt.Errorf("requests.JWTClaims: %w", err),
+					fmt.Errorf("renewer.Renew: %w", err),
 					internalServerErrorResponse,
 				)
 			}
@@ -611,10 +609,10 @@ func DeviceRead(db storage.Devices) horror.HandlerFunc {
 		}
 
 		// Check if requesting user owns resources.
-		if !sameOwner(userID, device.OwnerID, claims.UserID) {
+		if !sameOwner(userID, device.OwnerID, state.UserID) {
 			return errFactory.NotFound(
-				fmt.Errorf("sameOwner error: userID=%d, deviceOwnerID=%d, claimsID=%d",
-					userID, device.OwnerID, claims.UserID),
+				fmt.Errorf("sameOwner error: userID=%d, deviceOwnerID=%d, stateUserID=%d",
+					userID, device.OwnerID, state.UserID),
 				fmt.Sprintf("you don't have device with id=%d", deviceID),
 			)
 		}
@@ -626,7 +624,7 @@ func DeviceRead(db storage.Devices) horror.HandlerFunc {
 	}
 }
 
-func DeviceRemove(db storage.Devices) horror.HandlerFunc {
+func DeviceRemove(renewer session.Renewer, db storage.Devices) horror.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		errFactory := happier.FromRequest(r)
 
@@ -646,14 +644,14 @@ func DeviceRemove(db storage.Devices) horror.HandlerFunc {
 			)
 		}
 
-		claims, err := requests.JWTClaims(r)
+		state, err := renewer.Renew(r)
 		if err != nil {
 			// At this point handler should have
-			// been provided with JWT claims, so we
+			// been provided with session, so we
 			// will just return 500.
 			if err != nil {
 				return errFactory.InternalServerError(
-					fmt.Errorf("requests.JWTClaims: %w", err),
+					fmt.Errorf("renewer.Renew: %w", err),
 					internalServerErrorResponse,
 				)
 			}
@@ -674,10 +672,10 @@ func DeviceRemove(db storage.Devices) horror.HandlerFunc {
 		}
 
 		// Check if requesting user owns resources.
-		if !sameOwner(userID, device.OwnerID, claims.UserID) {
+		if !sameOwner(userID, device.OwnerID, state.UserID) {
 			return errFactory.NotFound(
-				fmt.Errorf("sameOwner error: userID=%d, deviceOwnerID=%d, claimsID=%d",
-					userID, device.OwnerID, claims.UserID),
+				fmt.Errorf("sameOwner error: userID=%d, deviceOwnerID=%d, stateUserID=%d",
+					userID, device.OwnerID, state.UserID),
 				fmt.Sprintf("you don't have device with id=%d", deviceID),
 			)
 		}
@@ -701,7 +699,7 @@ func DeviceRemove(db storage.Devices) horror.HandlerFunc {
 	}
 }
 
-func DeviceUpdate(db storage.Devices) horror.HandlerFunc {
+func DeviceUpdate(renewer session.Renewer, db storage.Devices) horror.HandlerFunc {
 	type payload struct {
 		MAC string `json:"mac"`
 		Tag string `json:"tag"`
@@ -735,13 +733,13 @@ func DeviceUpdate(db storage.Devices) horror.HandlerFunc {
 			)
 		}
 
-		claims, err := requests.JWTClaims(r)
+		state, err := renewer.Renew(r)
 		if err != nil {
 			// At this point handler should have
-			// been provided with JWT claims, so we
+			// been provided with session, so we
 			// will just return 500.
 			return errFactory.InternalServerError(
-				fmt.Errorf("requests.JWTClaims: %w", err),
+				fmt.Errorf("renewer.Renew: %w", err),
 				internalServerErrorResponse,
 			)
 		}
@@ -761,10 +759,10 @@ func DeviceUpdate(db storage.Devices) horror.HandlerFunc {
 		}
 
 		// Check if requesting user owns resources.
-		if !sameOwner(userID, device.OwnerID, claims.UserID) {
+		if !sameOwner(userID, device.OwnerID, state.UserID) {
 			return errFactory.NotFound(
-				fmt.Errorf("sameOwner error: userID=%d, deviceOwnerID=%d, claimsID=%d",
-					userID, device.OwnerID, claims.UserID),
+				fmt.Errorf("sameOwner error: userID=%d, deviceOwnerID=%d, stateUserID=%d",
+					userID, device.OwnerID, state.UserID),
 				fmt.Sprintf("you don't have device with id=%d", deviceID),
 			)
 		}

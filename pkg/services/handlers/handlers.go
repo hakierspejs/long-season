@@ -5,13 +5,13 @@ import (
 
 	"github.com/alioygur/gores"
 
-	"github.com/hakierspejs/long-season/pkg/services/requests"
 	"github.com/hakierspejs/long-season/pkg/services/result"
+	"github.com/hakierspejs/long-season/pkg/services/session"
 )
 
 // Who is handler, which returns JSON with user data
 // used for authentication.
-func Who() http.HandlerFunc {
+func Who(renewer session.Renewer) http.HandlerFunc {
 	type response struct {
 		ID       int    `json:"id"`
 		Nickname string `json:"nickname"`
@@ -19,10 +19,10 @@ func Who() http.HandlerFunc {
 	}
 
 	return func(w http.ResponseWriter, r *http.Request) {
-		claims, err := requests.JWTClaims(r)
+		state, err := renewer.Renew(r)
 		if err != nil {
 			result.JSONError(w, &result.JSONErrorBody{
-				Message: "You have to provide correct bearer token.",
+				Message: "Failed to authorize user.",
 				Code:    http.StatusUnauthorized,
 				Type:    "unauthorized",
 			})
@@ -30,8 +30,8 @@ func Who() http.HandlerFunc {
 		}
 
 		gores.JSON(w, http.StatusOK, &response{
-			ID:       claims.UserID,
-			Nickname: claims.Nickname,
+			ID:       state.UserID,
+			Nickname: state.Nickname,
 		})
 	}
 }
