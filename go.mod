@@ -12,6 +12,7 @@ require (
 	github.com/go-chi/cors v1.1.1
 	github.com/google/uuid v1.1.2
 	github.com/matryer/is v1.4.0
+	github.com/pquerna/otp v1.3.0
 	github.com/thinkofher/horror v0.1.2
 	github.com/urfave/cli/v2 v2.3.0
 	go.etcd.io/bbolt v1.3.5
