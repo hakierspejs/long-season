@@ -64,11 +64,18 @@ type Builder struct {
 // database. You can output returned session to user after
 // tokenizing it.
 func New(ctx context.Context, b Builder) *State {
+	values := map[string]interface{}{}
+	if b.Values != nil {
+		for k, v := range b.Values {
+			values[k] = v
+		}
+	}
+
 	return &State{
 		ID:       uuid.New().String(),
 		UserID:   b.UserID,
 		Nickname: b.Nickname,
-		Values:   b.Values,
+		Values:   values,
 	}
 }
 
