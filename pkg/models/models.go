@@ -23,6 +23,10 @@ type User struct {
 	// Private is flag for enabling private-mode that hides
 	// user activity from others.
 	Private bool
+
+	// TwoFactor is not nil if the user has any
+	// two factor method activated.
+	TwoFactor *TwoFactor
 }
 
 // UserPublicData is subset of User containing
@@ -36,6 +40,30 @@ type UserPublicData struct {
 	Nickname string `json:"nickname"`
 	// Online indicates if player is currently in the hackerspace.
 	Online bool `json:"online"`
+}
+
+// TwoFactor holds two factor methods with
+// data required to verify with one of the
+// following methods.
+type TwoFactor struct {
+	OneTimeCodes []OneTimeCode
+}
+
+// OneTimeCode holds data stored in database for two factor
+// verification with one time codes.
+type OneTimeCode struct {
+	// ID is unique id of one time code.
+	ID string
+
+	// Name is human readable name of one time code
+	// provided by user.
+	Name string
+
+	// Secret is used to verify one time code.
+	Secret string
+}
+
+type TwoFactorMethods struct {
 }
 
 type Device struct {
