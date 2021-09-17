@@ -21,3 +21,6 @@ long-season.db
 
 # embedded go file
 pkg/static/files.gen.go
+
+# ctags file
+tags
