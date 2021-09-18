@@ -7,6 +7,7 @@ import (
 	"context"
 	"sync"
 
+	"github.com/google/uuid"
 	"github.com/hakierspejs/long-season/pkg/models"
 	serrors "github.com/hakierspejs/long-season/pkg/storage/errors"
 )
@@ -33,41 +34,38 @@ func (f Factory) Users() *UsersStorage {
 // UsersStorage implements storage.Users interface
 // for mocking purposes.
 type UsersStorage struct {
-	data    map[int]models.User
-	counter int
-	mutex   *sync.Mutex
+	data  map[string]models.User
+	mutex *sync.Mutex
 }
 
 func newUserStorage() *UsersStorage {
 	return &UsersStorage{
-		data:    make(map[int]models.User),
-		counter: 0,
-		mutex:   new(sync.Mutex),
+		data:  make(map[string]models.User),
+		mutex: new(sync.Mutex),
 	}
 }
 
 // New stores given user data in database and returns
 // assigned id.
-func (s *UsersStorage) New(ctx context.Context, newUser models.User) (int, error) {
+func (s *UsersStorage) New(ctx context.Context, newUser models.User) (string, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
 	for _, u := range s.data {
 		if u.Nickname == newUser.Nickname {
-			return 0, serrors.ErrNicknameTaken
+			return "", serrors.ErrNicknameTaken
 		}
 	}
 
-	newUser.ID = s.counter
+	newUser.ID = uuid.New().String()
 
-	s.data[s.counter] = newUser
-	defer func() { s.counter += 1 }()
+	s.data[newUser.ID] = newUser
 
-	return s.counter, nil
+	return newUser.ID, nil
 }
 
 // Read returns single user data with given ID.
-func (s *UsersStorage) Read(ctx context.Context, id int) (*models.User, error) {
+func (s *UsersStorage) Read(ctx context.Context, id string) (*models.User, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -129,7 +127,7 @@ func (s *UsersStorage) UpdateMany(ctx context.Context, u []models.User) error {
 }
 
 // Remove deletes user with given id from storage.
-func (s *UsersStorage) Remove(ctx context.Context, id int) error {
+func (s *UsersStorage) Remove(ctx context.Context, id string) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 

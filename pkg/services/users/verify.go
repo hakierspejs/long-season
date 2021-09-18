@@ -67,7 +67,7 @@ func VerifyRegisterData(nickname, password string) error {
 // function.
 type AuthenticationRequest struct {
 	// UserID is used to find user.
-	UserID int
+	UserID string
 
 	// Nickname can be also used to find user as
 	// alternative to UserID.
@@ -106,7 +106,7 @@ func AuthenticateWithPassword(ctx context.Context, deps AuthenticationDependenci
 
 	var match *models.User
 	var err error
-	if deps.Request.UserID != 0 {
+	if deps.Request.UserID != "" {
 		// UserID is not empty, try to find matching user.
 		match, err = deps.Storage.Read(ctx, deps.Request.UserID)
 		if err != nil {

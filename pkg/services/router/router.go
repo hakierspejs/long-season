@@ -89,7 +89,7 @@ func NewRouter(config models.Config, args Args) http.Handler {
 			r.Post("/", args.Adapter.WithError(api.UserCreate(args.Users)))
 
 			r.With(lsmiddleware.UserID).Route("/{user-id}", func(r chi.Router) {
-				r.With(guard).Get("/", args.Adapter.WithError(api.UserRead(args.SessionRenewer, args.Users)))
+				r.Get("/", args.Adapter.WithError(api.UserRead(args.SessionRenewer, args.Users)))
 
 				// Users can only delete themselves.
 				r.With(
@@ -113,7 +113,6 @@ func NewRouter(config models.Config, args Args) http.Handler {
 					r.With(lsmiddleware.DeviceID).Route("/{device-id}", func(r chi.Router) {
 						r.Get("/", args.Adapter.WithError(api.DeviceRead(args.SessionRenewer, args.Devices)))
 						r.Delete("/", args.Adapter.WithError(api.DeviceRemove(args.SessionRenewer, args.Devices)))
-						r.Patch("/", args.Adapter.WithError(api.DeviceUpdate(args.SessionRenewer, args.Devices)))
 					})
 				})
 			})

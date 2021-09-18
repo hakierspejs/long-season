@@ -12,7 +12,6 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/hakierspejs/long-season/pkg/models"
-	"github.com/hakierspejs/long-season/pkg/services/devices"
 	"github.com/hakierspejs/long-season/pkg/services/happier"
 	"github.com/hakierspejs/long-season/pkg/services/requests"
 	"github.com/hakierspejs/long-season/pkg/services/result"
@@ -137,7 +136,7 @@ func UserRead(renewer session.Renewer, db storage.Users) horror.HandlerFunc {
 		if errors.Is(err, serrors.ErrNoID) {
 			return errFactory.NotFound(
 				fmt.Errorf("db.Read: %w", err),
-				fmt.Sprintf("there is no user with id: %d", id),
+				fmt.Sprintf("there is no user with id: %s", id),
 			)
 		}
 		if err != nil {
@@ -176,7 +175,7 @@ func UserRemove(db storage.Users) horror.HandlerFunc {
 		if errors.Is(err, serrors.ErrNoID) {
 			return errFactory.NotFound(
 				fmt.Errorf("db.Remove: %w", err),
-				fmt.Sprintf("there is no user with id: %d", id),
+				fmt.Sprintf("there is no user with id: %s", id),
 			)
 		}
 		if err != nil {
@@ -223,41 +222,28 @@ func UserUpdate(db storage.Users) horror.HandlerFunc {
 			return happier.Created(w, r, struct{}{})
 		}
 
-		data, err := db.Read(r.Context(), userID)
-		switch {
-		case errors.Is(err, serrors.ErrNoID):
-			return errFactory.NotFound(
-				fmt.Errorf("db.Read: %w", err),
-				fmt.Sprintf("there is no user with id: %d", userID),
-			)
-		case err != nil:
-			return errFactory.InternalServerError(
-				fmt.Errorf("db.Read: %w", err),
-				internalServerErrorResponse,
-			)
-		}
-		data.Private = *p.Private
+		res := new(response)
+		res.payload = *p
 
-		err = db.Update(r.Context(), *data)
-		switch {
-		case errors.Is(err, serrors.ErrNoID):
-			return errFactory.NotFound(
-				fmt.Errorf("db.Update: %w", err),
-				fmt.Sprintf("there is no user with id: %d", userID),
-			)
-		case err != nil:
-			return errFactory.InternalServerError(
-				fmt.Errorf("db.Update: %w", err),
-				internalServerErrorResponse,
-			)
-		}
-
-		return happier.OK(w, r, &response{
-			payload: payload{
-				Private: p.Private,
-			},
-			UserPublicData: data.UserPublicData,
+		err = db.Update(r.Context(), userID, func(u *models.User) error {
+			u.Private = *p.Private
+			res.UserPublicData = u.UserPublicData
+			return nil
 		})
+		switch {
+		case errors.Is(err, serrors.ErrNoID):
+			return errFactory.NotFound(
+				fmt.Errorf("db.Read: %w", err),
+				fmt.Sprintf("there is no user with id: %s", userID),
+			)
+		case err != nil:
+			return errFactory.InternalServerError(
+				fmt.Errorf("db.Read: %w", err),
+				internalServerErrorResponse,
+			)
+		}
+
+		return happier.OK(w, r, res)
 	}
 }
 
@@ -296,7 +282,7 @@ func UpdateUserPassword(db storage.Users) horror.HandlerFunc {
 			)
 		}
 
-		match, err := users.AuthenticateWithPassword(ctx, users.AuthenticationDependencies{
+		_, err = users.AuthenticateWithPassword(ctx, users.AuthenticationDependencies{
 			Request: users.AuthenticationRequest{
 				UserID:   userID,
 				Password: []byte(p.Old),
@@ -319,10 +305,9 @@ func UpdateUserPassword(db storage.Users) horror.HandlerFunc {
 			)
 		}
 
-		err = db.Update(ctx, models.User{
-			UserPublicData: match.UserPublicData,
-			Password:       newPass,
-			Private:        match.Private,
+		err = db.Update(ctx, userID, func(u *models.User) error {
+			u.Password = newPass
+			return nil
 		})
 		if err != nil {
 			return errFactory.InternalServerError(
@@ -437,7 +422,7 @@ func badRequest(msg string, w http.ResponseWriter) {
 }
 
 type singleDevice struct {
-	ID  int    `json:"id"`
+	ID  string `json:"id"`
 	Tag string `json:"tag"`
 }
 
@@ -544,7 +529,7 @@ func UserDevices(db storage.Devices) horror.HandlerFunc {
 		if err != nil {
 			return errFactory.NotFound(
 				fmt.Errorf("db.OfUser: %w", err),
-				fmt.Sprintf("there is no user with id: %d", userID),
+				fmt.Sprintf("there is no user with id: %s", userID),
 			)
 		}
 
@@ -557,7 +542,7 @@ func UserDevices(db storage.Devices) horror.HandlerFunc {
 	}
 }
 
-func sameOwner(userID, deviceOwnerID, stateUserID int) bool {
+func sameOwner(userID, deviceOwnerID, stateUserID string) bool {
 	return (userID == deviceOwnerID) && (deviceOwnerID == stateUserID)
 }
 
@@ -598,7 +583,7 @@ func DeviceRead(renewer session.Renewer, db storage.Devices) horror.HandlerFunc 
 		if errors.Is(err, serrors.ErrNoID) {
 			return errFactory.NotFound(
 				fmt.Errorf("db.Read: %w", err),
-				fmt.Sprintf("there is no device with given id: %d", deviceID),
+				fmt.Sprintf("there is no device with given id: %s", deviceID),
 			)
 		}
 		if err != nil {
@@ -611,9 +596,9 @@ func DeviceRead(renewer session.Renewer, db storage.Devices) horror.HandlerFunc 
 		// Check if requesting user owns resources.
 		if !sameOwner(userID, device.OwnerID, state.UserID) {
 			return errFactory.NotFound(
-				fmt.Errorf("sameOwner error: userID=%d, deviceOwnerID=%d, stateUserID=%d",
+				fmt.Errorf("sameOwner error: userID=%s, deviceOwnerID=%s, stateUserID=%s",
 					userID, device.OwnerID, state.UserID),
-				fmt.Sprintf("you don't have device with id=%d", deviceID),
+				fmt.Sprintf("you don't have device with id=%s", deviceID),
 			)
 		}
 
@@ -661,7 +646,7 @@ func DeviceRemove(renewer session.Renewer, db storage.Devices) horror.HandlerFun
 		if errors.Is(err, serrors.ErrNoID) {
 			return errFactory.NotFound(
 				fmt.Errorf("db.Read: %w", err),
-				fmt.Sprintf("there is no device with given id: %d", deviceID),
+				fmt.Sprintf("there is no device with given id: %s", deviceID),
 			)
 		}
 		if err != nil {
@@ -674,9 +659,9 @@ func DeviceRemove(renewer session.Renewer, db storage.Devices) horror.HandlerFun
 		// Check if requesting user owns resources.
 		if !sameOwner(userID, device.OwnerID, state.UserID) {
 			return errFactory.NotFound(
-				fmt.Errorf("sameOwner error: userID=%d, deviceOwnerID=%d, stateUserID=%d",
+				fmt.Errorf("sameOwner error: userID=%s, deviceOwnerID=%s, stateUserID=%s",
 					userID, device.OwnerID, state.UserID),
-				fmt.Sprintf("you don't have device with id=%d", deviceID),
+				fmt.Sprintf("you don't have device with id=%s", deviceID),
 			)
 		}
 
@@ -685,7 +670,7 @@ func DeviceRemove(renewer session.Renewer, db storage.Devices) horror.HandlerFun
 			notFound(w)
 			return errFactory.NotFound(
 				fmt.Errorf("db.Remove: %w", err),
-				fmt.Sprintf("there is no device with given id: %d", deviceID),
+				fmt.Sprintf("there is no device with given id: %s", deviceID),
 			)
 		}
 		if err != nil {
@@ -696,106 +681,5 @@ func DeviceRemove(renewer session.Renewer, db storage.Devices) horror.HandlerFun
 		}
 
 		return happier.NoContent(w, r)
-	}
-}
-
-func DeviceUpdate(renewer session.Renewer, db storage.Devices) horror.HandlerFunc {
-	type payload struct {
-		MAC string `json:"mac"`
-		Tag string `json:"tag"`
-	}
-
-	return func(w http.ResponseWriter, r *http.Request) error {
-		errFactory := happier.FromRequest(r)
-
-		deviceID, err := requests.DeviceID(r)
-		if err != nil {
-			return errFactory.BadRequest(
-				fmt.Errorf("requests.DeviceID: %w", err),
-				fmt.Sprintf("invalid input: given divece id is invalid"),
-			)
-		}
-
-		userID, err := requests.UserID(r)
-		if err != nil {
-			return errFactory.BadRequest(
-				fmt.Errorf("requests.userID: %w", err),
-				fmt.Sprintf("invalid input: given user id is invalid"),
-			)
-		}
-
-		input := new(payload)
-		err = json.NewDecoder(r.Body).Decode(input)
-		if err != nil {
-			return errFactory.BadRequest(
-				fmt.Errorf("json.NewDecoder().Decode: %w", err),
-				fmt.Sprintf("Invalid input: %s.", err.Error()),
-			)
-		}
-
-		state, err := renewer.Renew(r)
-		if err != nil {
-			// At this point handler should have
-			// been provided with session, so we
-			// will just return 500.
-			return errFactory.InternalServerError(
-				fmt.Errorf("renewer.Renew: %w", err),
-				internalServerErrorResponse,
-			)
-		}
-
-		device, err := db.Read(r.Context(), deviceID)
-		if errors.Is(err, serrors.ErrNoID) {
-			return errFactory.NotFound(
-				fmt.Errorf("db.Read: %w", err),
-				fmt.Sprintf("there is no device with given id: %d", deviceID),
-			)
-		}
-		if err != nil {
-			return errFactory.InternalServerError(
-				fmt.Errorf("db.Read: %w", err),
-				internalServerErrorResponse,
-			)
-		}
-
-		// Check if requesting user owns resources.
-		if !sameOwner(userID, device.OwnerID, state.UserID) {
-			return errFactory.NotFound(
-				fmt.Errorf("sameOwner error: userID=%d, deviceOwnerID=%d, stateUserID=%d",
-					userID, device.OwnerID, state.UserID),
-				fmt.Sprintf("you don't have device with id=%d", deviceID),
-			)
-		}
-
-		mac, err := net.ParseMAC(input.MAC)
-		if err != nil {
-			return errFactory.BadRequest(
-				fmt.Errorf("net.ParseMAC: %w", err),
-				fmt.Sprintf("invalid input: invalid mac address %s", mac),
-			)
-		}
-
-		hashedMac, err := bcrypt.GenerateFromPassword(mac, bcrypt.DefaultCost)
-		if err != nil {
-			return errFactory.InternalServerError(
-				fmt.Errorf("bcrypt.GenerateFromPassword: %w", err),
-				internalServerErrorResponse,
-			)
-		}
-
-		updated := devices.Update(*device, &devices.Changes{
-			MAC: hashedMac,
-			Tag: input.Tag,
-		})
-
-		err = db.Update(r.Context(), updated)
-		if err != nil {
-			return errFactory.InternalServerError(
-				fmt.Errorf("db.Update: %w", err),
-				internalServerErrorResponse,
-			)
-		}
-
-		return happier.OK(w, r, &updated.DevicePublicData)
 	}
 }

@@ -18,7 +18,7 @@ type State struct {
 	ID string
 
 	// UserID is user ID of session's owner.
-	UserID int
+	UserID string
 
 	// Nickname is user name of session's owner.
 	Nickname string
@@ -53,7 +53,7 @@ type Killer interface {
 // Builder contains arguments and dependencies
 // for building new session for user with given ID.
 type Builder struct {
-	UserID int
+	UserID string
 
 	Nickname string
 
