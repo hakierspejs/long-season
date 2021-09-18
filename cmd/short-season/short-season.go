@@ -264,7 +264,7 @@ func app() *cli.App {
 						Name:  "users",
 						Usage: "show users stored in given database",
 						Flags: []cli.Flag{
-							&cli.IntFlag{
+							&cli.StringFlag{
 								Name:       "user-id",
 								Aliases:    []string{"id", "i"},
 								HasBeenSet: false,
@@ -285,7 +285,7 @@ func app() *cli.App {
 
 							var user *models.User = nil
 							if ctx.IsSet("user-id") {
-								target := ctx.Int("user-id")
+								target := ctx.String("user-id")
 								for _, u := range users {
 									if u.ID == target {
 										user = new(models.User)
@@ -320,7 +320,7 @@ func app() *cli.App {
 										return err
 									}
 
-									return storage.Remove(ctx.Context, ctx.Int("user-id"))
+									return storage.Remove(ctx.Context, ctx.String("user-id"))
 								},
 							},
 							{
@@ -401,7 +401,7 @@ func app() *cli.App {
 										return err
 									}
 
-									user, err := storage.Read(ctx.Context, ctx.Int("user-id"))
+									user, err := storage.Read(ctx.Context, ctx.String("user-id"))
 									if err != nil {
 										return err
 									}

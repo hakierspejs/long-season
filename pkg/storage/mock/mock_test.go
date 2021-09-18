@@ -42,13 +42,13 @@ func TestNewUsers(t *testing.T) {
 		if err != nil {
 			t.Fatalf("can not add new user: %v", u)
 		}
-		is.Equal(i, id)
+		usersData[i].ID = id
 	}
 
-	for i, u := range usersData {
-		readUser, err := s.Read(ctx, i)
+	for _, u := range usersData {
+		readUser, err := s.Read(ctx, u.ID)
 		if err != nil {
-			t.Fatalf("can not read user with 0 ID from mock. error: %s", err)
+			t.Fatalf("can not read user with %s ID from mock. error: %s", u.ID, err)
 		}
 		is.True(users.Equals(u, *readUser))
 	}

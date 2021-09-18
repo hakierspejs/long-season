@@ -38,8 +38,12 @@ func UserID(r *http.Request) (string, error) {
 	return res, nil
 }
 
-func DeviceID(r *http.Request) (int, error) {
-	return id("device-id", r)
+func DeviceID(r *http.Request) (string, error) {
+	res := chi.URLParam(r, "device-id")
+	if res == "" {
+		return "", ErrEmptyParam
+	}
+	return res, nil
 }
 
 func Debug(r *http.Request) (bool, error) {

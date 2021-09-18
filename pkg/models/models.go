@@ -48,7 +48,7 @@ type Device struct {
 }
 
 type DevicePublicData struct {
-	ID    int    `json:"id"`
+	ID    string `json:"id"`
 	Tag   string `json:"tag"`
 	Owner string `json:"owner"`
 }

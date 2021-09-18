@@ -26,11 +26,11 @@ type Users interface {
 }
 
 type Devices interface {
-	New(ctx context.Context, userID string, d models.Device) (int, error)
+	New(ctx context.Context, userID string, d models.Device) (string, error)
 	OfUser(ctx context.Context, userID string) ([]models.Device, error)
-	Read(ctx context.Context, id int) (*models.Device, error)
+	Read(ctx context.Context, id string) (*models.Device, error)
 	All(ctx context.Context) ([]models.Device, error)
-	Remove(ctx context.Context, id int) error
+	Remove(ctx context.Context, id string) error
 }
 
 // Status interface provides methods for reading and

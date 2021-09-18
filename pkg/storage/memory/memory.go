@@ -226,7 +226,7 @@ func readUser(tx *bolt.Tx, userID string) (*models.User, error) {
 
 	userBucket := b.Bucket([]byte(userBucketKey(userID)))
 	if userBucket == nil {
-		return nil, fmt.Errorf("there is no user with id=%d, err=%w", userID, serrors.ErrNoID)
+		return nil, fmt.Errorf("there is no user with id=%s, err=%w", userID, serrors.ErrNoID)
 	}
 
 	return userFromBucket(userBucket)
@@ -276,7 +276,7 @@ func (s *UsersStorage) Read(ctx context.Context, id string) (*models.User, error
 		return err
 	})
 	if err != nil {
-		return nil, fmt.Errorf("reading user with id=%d failed: %w", id, err)
+		return nil, fmt.Errorf("reading user with id=%s failed: %w", id, err)
 	}
 
 	return user, nil
@@ -372,8 +372,8 @@ const (
 	deviceMACKey     = "ls::device::mac"
 )
 
-func deviceBucketKey(id int) []byte {
-	return []byte(fmt.Sprintf("ls::device::%d", id))
+func deviceBucketKey(id string) []byte {
+	return []byte(fmt.Sprintf("ls::device::%s", id))
 }
 
 func deviceFromBucket(b *bolt.Bucket) (*models.Device, error) {
@@ -387,12 +387,7 @@ func deviceFromBucket(b *bolt.Bucket) (*models.Device, error) {
 	if deviceIDBytes == nil {
 		return fail()
 	}
-
-	deviceID, err := strconv.Atoi(string(deviceIDBytes))
-	if err != nil {
-		return nil, err
-	}
-	result.ID = deviceID
+	result.ID = string(deviceIDBytes)
 
 	ownerIDBytes := b.Get([]byte(deviceOwnerIDKey))
 	if ownerIDBytes == nil {
@@ -428,7 +423,7 @@ func storeDeviceInBucket(device models.Device, b *bolt.Bucket) error {
 		return err
 	}
 
-	deviceID := []byte(strconv.Itoa(device.ID))
+	deviceID := []byte(device.ID)
 	ownerID := []byte(device.OwnerID)
 
 	// keys and values for device data model
@@ -482,8 +477,8 @@ func userExists(tx *bolt.Tx, userID string) (bool, error) {
 
 // New stores given devices data in database and returns
 // assigned id.
-func (d *DevicesStorage) New(ctx context.Context, userID string, newDevice models.Device) (int, error) {
-	var id int
+func (d *DevicesStorage) New(ctx context.Context, userID string, newDevice models.Device) (string, error) {
+	var id string
 
 	err := d.db.Update(func(tx *bolt.Tx) error {
 		// Check if there is user with given id.
@@ -492,7 +487,7 @@ func (d *DevicesStorage) New(ctx context.Context, userID string, newDevice model
 			return err
 		}
 		if !exists {
-			return fmt.Errorf("there is no user with id=%d, err=%w", userID, serrors.ErrNoID)
+			return fmt.Errorf("there is no user with id=%s, err=%w", userID, serrors.ErrNoID)
 		}
 
 		// Check if there is the device with same owner and tag.
@@ -506,17 +501,14 @@ func (d *DevicesStorage) New(ctx context.Context, userID string, newDevice model
 			return err
 		}
 
-		id, err = incr(tx, []byte(devicesBucketCounter))
-		if err != nil {
-			return err
-		}
+		id = uuid.New().String()
 		newDevice.ID = id
 
 		b := tx.Bucket([]byte(devicesBucket))
 		return storeDeviceInBucket(newDevice, b)
 	})
 	if err != nil {
-		return 0, err
+		return "", err
 	}
 
 	return id, nil
@@ -524,8 +516,8 @@ func (d *DevicesStorage) New(ctx context.Context, userID string, newDevice model
 
 // NewByOwner stores given devices (owned by user with given nickname) data
 // in database and returns assigned id.
-func (d *DevicesStorage) NewByOwner(ctx context.Context, deviceOwner string, newDevice models.Device) (int, error) {
-	var id int
+func (d *DevicesStorage) NewByOwner(ctx context.Context, deviceOwner string, newDevice models.Device) (string, error) {
+	var id string
 
 	err := d.db.Update(func(tx *bolt.Tx) error {
 		// FIXME(thinkofher) If there is no user with given nickname
@@ -550,10 +542,7 @@ func (d *DevicesStorage) NewByOwner(ctx context.Context, deviceOwner string, new
 			return err
 		}
 
-		id, err = incr(tx, []byte(devicesBucketCounter))
-		if err != nil {
-			return err
-		}
+		id = uuid.New().String()
 		newDevice.ID = id
 		newDevice.OwnerID = targetUser.ID
 		newDevice.Owner = targetUser.Nickname
@@ -561,7 +550,7 @@ func (d *DevicesStorage) NewByOwner(ctx context.Context, deviceOwner string, new
 		return storeDeviceInBucket(newDevice, b)
 	})
 	if err != nil {
-		return 0, err
+		return "", err
 	}
 
 	return id, nil
@@ -596,7 +585,7 @@ func (d *DevicesStorage) OfUser(ctx context.Context, userID string) ([]models.De
 }
 
 // Read returns single device data with given ID.
-func (s *DevicesStorage) Read(ctx context.Context, id int) (*models.Device, error) {
+func (s *DevicesStorage) Read(ctx context.Context, id string) (*models.Device, error) {
 	device := new(models.Device)
 
 	err := s.db.View(func(tx *bolt.Tx) error {
@@ -612,7 +601,7 @@ func (s *DevicesStorage) Read(ctx context.Context, id int) (*models.Device, erro
 		return err
 	})
 	if err != nil {
-		return nil, fmt.Errorf("reading device with id=%d failed: %w", id, err)
+		return nil, fmt.Errorf("reading device with id=%s failed: %w", id, err)
 	}
 
 	return device, nil
@@ -650,7 +639,7 @@ func (s *DevicesStorage) Update(ctx context.Context, d models.Device) error {
 }
 
 // Remove deletes device with given id from storage.
-func (s *DevicesStorage) Remove(ctx context.Context, id int) error {
+func (s *DevicesStorage) Remove(ctx context.Context, id string) error {
 	return s.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(devicesBucket))
 
