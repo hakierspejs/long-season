@@ -337,26 +337,18 @@ func updateOneUser(b *bolt.Bucket, u models.User) error {
 }
 
 // Update overwrites existing user data.
-func (s *UsersStorage) Update(ctx context.Context, u models.User) error {
+func (s *UsersStorage) Update(ctx context.Context, id int, f func(*models.User) error) error {
 	return s.db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(usersBucket))
-		return updateOneUser(b, u)
-	})
-}
-
-// UpdateMany overwrites data of all users in given slice.
-func (s *UsersStorage) UpdateMany(ctx context.Context, u []models.User) error {
-	return s.db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(usersBucket))
-
-		for _, user := range u {
-			err := updateOneUser(b, user)
-			if err != nil {
-				return err
-			}
-
+		u, err := readUser(tx, id)
+		if err != nil {
+			return fmt.Errorf("readUser: %w", err)
 		}
-		return nil
+
+		if err := f(u); err != nil {
+			return err
+		}
+
+		return updateOneUser(tx.Bucket([]byte(usersBucket)), *u)
 	})
 }
 
