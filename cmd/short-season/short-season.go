@@ -422,7 +422,11 @@ func app() *cli.App {
 										Online:   nil,
 									})
 
-									return storage.Update(ctx.Context, newUser)
+									return storage.Update(ctx.Context, newUser.ID, func(u *models.User) error {
+										u.Nickname = newUser.Nickname
+										u.Password = newUser.Password
+										return nil
+									})
 								},
 							},
 						},
