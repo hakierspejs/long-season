@@ -13,7 +13,7 @@ import (
 // used for authentication.
 func Who(renewer session.Renewer) http.HandlerFunc {
 	type response struct {
-		ID       int    `json:"id"`
+		ID       string `json:"id"`
 		Nickname string `json:"nickname"`
 		Private  bool   `json:"priv"`
 	}

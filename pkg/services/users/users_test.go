@@ -53,20 +53,20 @@ func TestStrictEquals(t *testing.T) {
 		{
 			desc:        "Positive test case; when equal",
 			expectedOut: true,
-			aUser:       &models.User{UserPublicData: models.UserPublicData{Nickname: "nickname1", Online: true, ID: 123}, Password: []byte{001}},
-			bUser:       &models.User{UserPublicData: models.UserPublicData{Nickname: "nickname1", Online: true, ID: 123}, Password: []byte{001}},
+			aUser:       &models.User{UserPublicData: models.UserPublicData{Nickname: "nickname1", Online: true, ID: "123"}, Password: []byte{001}},
+			bUser:       &models.User{UserPublicData: models.UserPublicData{Nickname: "nickname1", Online: true, ID: "123"}, Password: []byte{001}},
 		},
 		{
 			desc:        "Negative test case; when unequal - different online status",
 			expectedOut: false,
-			aUser:       &models.User{UserPublicData: models.UserPublicData{Nickname: "nickname1", Online: true, ID: 123}, Password: []byte{001}},
-			bUser:       &models.User{UserPublicData: models.UserPublicData{Nickname: "nickname1", Online: false, ID: 123}, Password: []byte{001}},
+			aUser:       &models.User{UserPublicData: models.UserPublicData{Nickname: "nickname1", Online: true, ID: "123"}, Password: []byte{001}},
+			bUser:       &models.User{UserPublicData: models.UserPublicData{Nickname: "nickname1", Online: false, ID: "123"}, Password: []byte{001}},
 		},
 		{
 			desc:        "Negative test case; when unequal - different ID",
 			expectedOut: false,
-			aUser:       &models.User{UserPublicData: models.UserPublicData{Nickname: "nickname1", Online: true, ID: 121}, Password: []byte{001}},
-			bUser:       &models.User{UserPublicData: models.UserPublicData{Nickname: "nickname1", Online: true, ID: 123}, Password: []byte{001}},
+			aUser:       &models.User{UserPublicData: models.UserPublicData{Nickname: "nickname1", Online: true, ID: "121"}, Password: []byte{001}},
+			bUser:       &models.User{UserPublicData: models.UserPublicData{Nickname: "nickname1", Online: true, ID: "123"}, Password: []byte{001}},
 		},
 	}
 	is := is.New(t)
@@ -88,7 +88,7 @@ func TestUpdate(t *testing.T) {
 	}{
 		{
 			desc:    "Positive test case; updating nickname and password",
-			aUser:   &models.User{UserPublicData: models.UserPublicData{Nickname: "nickname1", Online: true, ID: 123}, Password: []byte{001}},
+			aUser:   &models.User{UserPublicData: models.UserPublicData{Nickname: "nickname1", Online: true, ID: "123"}, Password: []byte{001}},
 			changes: &Changes{Nickname: "nickname2", Password: []byte{002}},
 		},
 	}
@@ -111,7 +111,7 @@ func TestPublicSlice(t *testing.T) {
 		{
 			desc:        "Positive test case",
 			expectedOut: true,
-			users:       &[]models.User{{Password: []byte{01}, UserPublicData: models.UserPublicData{ID: 123}}, {Password: []byte{02}, UserPublicData: models.UserPublicData{Nickname: "nickname"}}},
+			users:       &[]models.User{{Password: []byte{01}, UserPublicData: models.UserPublicData{ID: "123"}}, {Password: []byte{02}, UserPublicData: models.UserPublicData{Nickname: "nickname"}}},
 		},
 	}
 	for i, tc := range tests {
@@ -155,7 +155,7 @@ func TestFilter(t *testing.T) {
 			Password: []byte("lol2lol3password"),
 			Private:  false,
 			UserPublicData: models.UserPublicData{
-				ID:       1,
+				ID:       "1",
 				Nickname: "lolmen",
 				Online:   true,
 			},
@@ -164,7 +164,7 @@ func TestFilter(t *testing.T) {
 			Password: []byte("lol2lol3wordpass"),
 			Private:  true,
 			UserPublicData: models.UserPublicData{
-				ID:       2,
+				ID:       "2",
 				Nickname: "mariusz",
 				Online:   false,
 			},
@@ -173,7 +173,7 @@ func TestFilter(t *testing.T) {
 			Password: []byte("212102121"),
 			Private:  false,
 			UserPublicData: models.UserPublicData{
-				ID:       3,
+				ID:       "3",
 				Nickname: "patryk",
 				Online:   true,
 			},
@@ -182,7 +182,7 @@ func TestFilter(t *testing.T) {
 			Password: []byte("2137&2137"),
 			Private:  false,
 			UserPublicData: models.UserPublicData{
-				ID:       4,
+				ID:       "4",
 				Nickname: "patryka",
 				Online:   false,
 			},
@@ -212,7 +212,7 @@ func TestFilter(t *testing.T) {
 					Password: []byte("lol2lol3password"),
 					Private:  false,
 					UserPublicData: models.UserPublicData{
-						ID:       1,
+						ID:       "1",
 						Nickname: "lolmen",
 						Online:   true,
 					},
@@ -221,7 +221,7 @@ func TestFilter(t *testing.T) {
 					Password: []byte("212102121"),
 					Private:  false,
 					UserPublicData: models.UserPublicData{
-						ID:       3,
+						ID:       "3",
 						Nickname: "patryk",
 						Online:   true,
 					},
@@ -236,7 +236,7 @@ func TestFilter(t *testing.T) {
 					Password: []byte("lol2lol3password"),
 					Private:  false,
 					UserPublicData: models.UserPublicData{
-						ID:       1,
+						ID:       "1",
 						Nickname: "lolmen",
 						Online:   true,
 					},
@@ -245,7 +245,7 @@ func TestFilter(t *testing.T) {
 					Password: []byte("212102121"),
 					Private:  false,
 					UserPublicData: models.UserPublicData{
-						ID:       3,
+						ID:       "3",
 						Nickname: "patryk",
 						Online:   true,
 					},
@@ -254,7 +254,7 @@ func TestFilter(t *testing.T) {
 					Password: []byte("2137&2137"),
 					Private:  false,
 					UserPublicData: models.UserPublicData{
-						ID:       4,
+						ID:       "4",
 						Nickname: "patryka",
 						Online:   false,
 					},
@@ -269,7 +269,7 @@ func TestFilter(t *testing.T) {
 					Password: []byte("lol2lol3wordpass"),
 					Private:  true,
 					UserPublicData: models.UserPublicData{
-						ID:       2,
+						ID:       "2",
 						Nickname: "mariusz",
 						Online:   false,
 					},
@@ -284,7 +284,7 @@ func TestFilter(t *testing.T) {
 					Password: []byte("lol2lol3wordpass"),
 					Private:  true,
 					UserPublicData: models.UserPublicData{
-						ID:       2,
+						ID:       "2",
 						Nickname: "mariusz",
 						Online:   false,
 					},
@@ -293,7 +293,7 @@ func TestFilter(t *testing.T) {
 					Password: []byte("2137&2137"),
 					Private:  false,
 					UserPublicData: models.UserPublicData{
-						ID:       4,
+						ID:       "4",
 						Nickname: "patryka",
 						Online:   false,
 					},
@@ -308,7 +308,7 @@ func TestFilter(t *testing.T) {
 					Password: []byte("lol2lol3password"),
 					Private:  false,
 					UserPublicData: models.UserPublicData{
-						ID:       1,
+						ID:       "1",
 						Nickname: "lolmen",
 						Online:   true,
 					},
@@ -317,7 +317,7 @@ func TestFilter(t *testing.T) {
 					Password: []byte("212102121"),
 					Private:  false,
 					UserPublicData: models.UserPublicData{
-						ID:       3,
+						ID:       "3",
 						Nickname: "patryk",
 						Online:   true,
 					},

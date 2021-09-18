@@ -136,7 +136,7 @@ func UserRead(renewer session.Renewer, db storage.Users) horror.HandlerFunc {
 		if errors.Is(err, serrors.ErrNoID) {
 			return errFactory.NotFound(
 				fmt.Errorf("db.Read: %w", err),
-				fmt.Sprintf("there is no user with id: %d", id),
+				fmt.Sprintf("there is no user with id: %s", id),
 			)
 		}
 		if err != nil {
@@ -175,7 +175,7 @@ func UserRemove(db storage.Users) horror.HandlerFunc {
 		if errors.Is(err, serrors.ErrNoID) {
 			return errFactory.NotFound(
 				fmt.Errorf("db.Remove: %w", err),
-				fmt.Sprintf("there is no user with id: %d", id),
+				fmt.Sprintf("there is no user with id: %s", id),
 			)
 		}
 		if err != nil {
@@ -234,7 +234,7 @@ func UserUpdate(db storage.Users) horror.HandlerFunc {
 		case errors.Is(err, serrors.ErrNoID):
 			return errFactory.NotFound(
 				fmt.Errorf("db.Read: %w", err),
-				fmt.Sprintf("there is no user with id: %d", userID),
+				fmt.Sprintf("there is no user with id: %s", userID),
 			)
 		case err != nil:
 			return errFactory.InternalServerError(
@@ -422,7 +422,7 @@ func badRequest(msg string, w http.ResponseWriter) {
 }
 
 type singleDevice struct {
-	ID  int    `json:"id"`
+	ID  string `json:"id"`
 	Tag string `json:"tag"`
 }
 
@@ -529,7 +529,7 @@ func UserDevices(db storage.Devices) horror.HandlerFunc {
 		if err != nil {
 			return errFactory.NotFound(
 				fmt.Errorf("db.OfUser: %w", err),
-				fmt.Sprintf("there is no user with id: %d", userID),
+				fmt.Sprintf("there is no user with id: %s", userID),
 			)
 		}
 
@@ -542,7 +542,7 @@ func UserDevices(db storage.Devices) horror.HandlerFunc {
 	}
 }
 
-func sameOwner(userID, deviceOwnerID, stateUserID int) bool {
+func sameOwner(userID, deviceOwnerID, stateUserID string) bool {
 	return (userID == deviceOwnerID) && (deviceOwnerID == stateUserID)
 }
 
@@ -583,7 +583,7 @@ func DeviceRead(renewer session.Renewer, db storage.Devices) horror.HandlerFunc 
 		if errors.Is(err, serrors.ErrNoID) {
 			return errFactory.NotFound(
 				fmt.Errorf("db.Read: %w", err),
-				fmt.Sprintf("there is no device with given id: %d", deviceID),
+				fmt.Sprintf("there is no device with given id: %s", deviceID),
 			)
 		}
 		if err != nil {
@@ -596,9 +596,9 @@ func DeviceRead(renewer session.Renewer, db storage.Devices) horror.HandlerFunc 
 		// Check if requesting user owns resources.
 		if !sameOwner(userID, device.OwnerID, state.UserID) {
 			return errFactory.NotFound(
-				fmt.Errorf("sameOwner error: userID=%d, deviceOwnerID=%d, stateUserID=%d",
+				fmt.Errorf("sameOwner error: userID=%s, deviceOwnerID=%s, stateUserID=%s",
 					userID, device.OwnerID, state.UserID),
-				fmt.Sprintf("you don't have device with id=%d", deviceID),
+				fmt.Sprintf("you don't have device with id=%s", deviceID),
 			)
 		}
 
@@ -646,7 +646,7 @@ func DeviceRemove(renewer session.Renewer, db storage.Devices) horror.HandlerFun
 		if errors.Is(err, serrors.ErrNoID) {
 			return errFactory.NotFound(
 				fmt.Errorf("db.Read: %w", err),
-				fmt.Sprintf("there is no device with given id: %d", deviceID),
+				fmt.Sprintf("there is no device with given id: %s", deviceID),
 			)
 		}
 		if err != nil {
@@ -659,9 +659,9 @@ func DeviceRemove(renewer session.Renewer, db storage.Devices) horror.HandlerFun
 		// Check if requesting user owns resources.
 		if !sameOwner(userID, device.OwnerID, state.UserID) {
 			return errFactory.NotFound(
-				fmt.Errorf("sameOwner error: userID=%d, deviceOwnerID=%d, stateUserID=%d",
+				fmt.Errorf("sameOwner error: userID=%s, deviceOwnerID=%s, stateUserID=%s",
 					userID, device.OwnerID, state.UserID),
-				fmt.Sprintf("you don't have device with id=%d", deviceID),
+				fmt.Sprintf("you don't have device with id=%s", deviceID),
 			)
 		}
 
@@ -670,7 +670,7 @@ func DeviceRemove(renewer session.Renewer, db storage.Devices) horror.HandlerFun
 			notFound(w)
 			return errFactory.NotFound(
 				fmt.Errorf("db.Remove: %w", err),
-				fmt.Sprintf("there is no device with given id: %d", deviceID),
+				fmt.Sprintf("there is no device with given id: %s", deviceID),
 			)
 		}
 		if err != nil {
