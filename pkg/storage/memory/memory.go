@@ -90,31 +90,6 @@ type UsersStorage struct {
 	db *bolt.DB
 }
 
-func incr(tx *bolt.Tx, key []byte) (int, error) {
-	counterBucket, err := tx.CreateBucketIfNotExists([]byte(countersBucket))
-	if err != nil {
-		return 0, fmt.Errorf("cannot create new bucket when incrementing %s: %w", key, err)
-	}
-
-	val := counterBucket.Get([]byte(key))
-
-	counter := 0
-
-	if val != nil {
-		counter, err = strconv.Atoi(string(val))
-		if err != nil {
-			return counter, fmt.Errorf("conversion %s to int failed: %w", val, err)
-		}
-	}
-
-	err = counterBucket.Put([]byte(key), []byte(strconv.Itoa(counter+1)))
-	if err != nil {
-		return counter, fmt.Errorf("cannot put counter into bucket: %w", err)
-	}
-
-	return counter, nil
-}
-
 const (
 	userIDKey          = "ls::user::id"
 	userNicknameKey    = "ls::user::nickname"
@@ -529,6 +504,9 @@ func (d *DevicesStorage) NewByOwner(ctx context.Context, deviceOwner string, new
 			}
 			return nil
 		})
+		if err != nil {
+			return err
+		}
 
 		// Check if there is the device with same owner and tag.
 		b := tx.Bucket([]byte(devicesBucket))
