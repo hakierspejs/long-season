@@ -30,7 +30,7 @@ type User struct {
 // everybody that will interact with API or website.
 type UserPublicData struct {
 	// ID unique to every user.
-	ID int `json:"id"`
+	ID string `json:"id"`
 	// Nickname represents name that will be exposed to public,
 	// to inform people who is in the hackerspace.
 	Nickname string `json:"nickname"`
@@ -42,7 +42,7 @@ type Device struct {
 	DevicePublicData
 
 	// OwnerID is id of user that owns this device.
-	OwnerID int
+	OwnerID string
 	// MAC contains hashed MAC address of the device.
 	MAC []byte
 }
@@ -84,7 +84,7 @@ func (c Config) Address() string {
 // Claims represents custom claims for jwt authentication.
 type Claims struct {
 	jwt.StandardClaims
-	UserID   int                    `json:"id"`
+	UserID   string                 `json:"id"`
 	Nickname string                 `json:"nck"`
 	Values   map[string]interface{} `json:"vls,omitempty"`
 }

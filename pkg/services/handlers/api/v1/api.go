@@ -542,7 +542,7 @@ func UserDevices(db storage.Devices) horror.HandlerFunc {
 	}
 }
 
-func sameOwner(userID, deviceOwnerID, stateUserID int) bool {
+func sameOwner(userID, deviceOwnerID, stateUserID string) bool {
 	return (userID == deviceOwnerID) && (deviceOwnerID == stateUserID)
 }
 

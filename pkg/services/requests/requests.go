@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/go-chi/chi"
 	"github.com/hakierspejs/long-season/pkg/services/ctxkey"
 )
 
@@ -26,9 +27,15 @@ func id(key string, r *http.Request) (int, error) {
 	return res, nil
 }
 
+var ErrEmptyParam = errors.New("requested URL parameter is empty")
+
 // UserID returns user id from url.
-func UserID(r *http.Request) (int, error) {
-	return id("user-id", r)
+func UserID(r *http.Request) (string, error) {
+	res := chi.URLParam(r, "user-id")
+	if res == "" {
+		return "", ErrEmptyParam
+	}
+	return res, nil
 }
 
 func DeviceID(r *http.Request) (int, error) {

@@ -18,16 +18,16 @@ type Factory interface {
 type Users interface {
 	// New stores given user data in database and returns
 	// assigned id.
-	New(ctx context.Context, u models.User) (int, error)
-	Read(ctx context.Context, id int) (*models.User, error)
+	New(ctx context.Context, u models.User) (string, error)
+	Read(ctx context.Context, id string) (*models.User, error)
 	All(ctx context.Context) ([]models.User, error)
-	Remove(ctx context.Context, id int) error
-	Update(ctx context.Context, id int, f func(*models.User) error) error
+	Remove(ctx context.Context, id string) error
+	Update(ctx context.Context, id string, f func(*models.User) error) error
 }
 
 type Devices interface {
-	New(ctx context.Context, userID int, d models.Device) (int, error)
-	OfUser(ctx context.Context, userID int) ([]models.Device, error)
+	New(ctx context.Context, userID string, d models.Device) (int, error)
+	OfUser(ctx context.Context, userID string) ([]models.Device, error)
 	Read(ctx context.Context, id int) (*models.Device, error)
 	All(ctx context.Context) ([]models.Device, error)
 	Remove(ctx context.Context, id int) error
