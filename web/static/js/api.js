@@ -48,4 +48,40 @@ async function updatePassword(userID, { oldPass, newPass }) {
   return [res, null];
 }
 
-export { updatePassword, who };
+async function optionsOTP() {
+  let [res, errOptions] = await withErr(fetch("/api/v1/twofactor/otp/options", {
+    method: "GET",
+    redirect: "follow",
+    credentials: "include",
+  }));
+  if (err) {
+    return [null, err];
+  }
+  let [jsonRes, errJson] = await withErr(res.json());
+  if (err) {
+    return [null, errJson];
+  }
+  return jsonRes;
+}
+
+async function newOTP(body) {
+  let [res, errPost] = await withErr(fetch("/api/v1/twofactor/otp", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    redirect: "follow",
+    credentials: "include",
+    body: JSON.stringify(body),
+  }));
+  if (errPost) {
+    return [null, errPost];
+  }
+  let [jsonRes, errJson] = await withErr(res.json());
+  if (errJson) {
+    return [null, errJson];
+  }
+  return jsonRes;
+}
+
+export { newOTP, optionsOTP, updatePassword, who };
