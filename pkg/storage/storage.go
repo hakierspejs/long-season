@@ -64,3 +64,22 @@ type StatusTx interface {
 	// unknown devices and online users in single safe transaction.
 	DevicesStatus(context.Context, func(context.Context, Status) error) error
 }
+
+// TwoFactor implements methods for managing given user two factor
+// methods. By default every user has two factor entry with empty
+// values at the moment of account creation, so there is no need
+// for "New" method. If you want to add new two factor method for
+// given user you can immediately start with using "Update" method.
+type TwoFactor interface {
+	// Get returns two factor methods for user with given user ID.
+	Get(ctx context.Context, userID string) (*models.TwoFactor, error)
+
+	// Updates apply given function to two factor methods of user
+	// with given user ID.
+	Update(ctx context.Context, userID string, f func(*models.TwoFactor) error) error
+
+	// Remove deletes all two factor methods of user with given
+	// user ID. You can still use Update method after all to start
+	// adding more methods.
+	Remove(ctx context.Context, userID string) error
+}
