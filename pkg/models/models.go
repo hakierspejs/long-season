@@ -23,10 +23,6 @@ type User struct {
 	// Private is flag for enabling private-mode that hides
 	// user activity from others.
 	Private bool
-
-	// TwoFactor is not empty if the user has any
-	// two factor method activated.
-	TwoFactor []TwoFactorMethod
 }
 
 // UserPublicData is subset of User containing
@@ -87,9 +83,6 @@ type OneTimeCode struct {
 
 	// Secret is used to verify one time code.
 	Secret string `json:"secret,omitempty"`
-}
-
-type TwoFactorMethods struct {
 }
 
 type Device struct {

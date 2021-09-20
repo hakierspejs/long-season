@@ -123,6 +123,10 @@ func NewRouter(config models.Config, args Args) http.Handler {
 			args.Adapter.WithError(api.UpdateStatus(args.MacsChan)),
 		)
 		r.Get("/status", args.Adapter.WithError(api.Status(args.StatusTx)))
+
+		r.With(guard).Route("/twofactor", func(r chi.Router) {
+			r.Get("/otp/options", args.Adapter.WithError(api.OptionsOTP(config, args.SessionRenewer)))
+		})
 	})
 
 	handlers.FileServer(r, "/static", args.Opener)
