@@ -4,6 +4,7 @@ package memory
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
@@ -20,6 +21,7 @@ const (
 	countersBucket       = "ls::counters"
 	usersBucket          = "ls::users"
 	devicesBucket        = "ls::devices"
+	twoFactorBucket      = "ls::twofactor"
 	devicesBucketCounter = "ls::devices::counter"
 )
 
@@ -30,6 +32,7 @@ type Factory struct {
 	devices         *DevicesStorage
 	statusIter      *StatusIterator
 	statusStorageTx *StatusStorageTx
+	twoFactor       *TwoFactorStorage
 }
 
 // Users returns storage interface for manipulating
@@ -40,6 +43,10 @@ func (f Factory) Users() *UsersStorage {
 
 func (f Factory) Devices() *DevicesStorage {
 	return f.devices
+}
+
+func (f Factory) TwoFactor() *TwoFactorStorage {
+	return f.twoFactor
 }
 
 // StatusIterator returns storage interface for
@@ -61,6 +68,7 @@ func New(db *bolt.DB) (*Factory, error) {
 	buckets := []string{
 		usersBucket,
 		devicesBucket,
+		twoFactorBucket,
 	}
 	err := db.Update(func(tx *bolt.Tx) error {
 		for _, b := range buckets {
@@ -81,6 +89,7 @@ func New(db *bolt.DB) (*Factory, error) {
 		devices:         &DevicesStorage{db},
 		statusIter:      &StatusIterator{db},
 		statusStorageTx: &StatusStorageTx{db},
+		twoFactor:       &TwoFactorStorage{db},
 	}, nil
 }
 
@@ -759,5 +768,89 @@ func (s *StatusStorageTx) DevicesStatus(
 	return s.db.Update(func(tx *bolt.Tx) error {
 		statusStorage := &status{tx}
 		return f(ctx, statusStorage)
+	})
+}
+
+// TwoFactorStorage implements TwoFactor storage interface
+// for bolt database.
+type TwoFactorStorage struct {
+	db *bolt.DB
+}
+
+func twoFactorKey(userID string) []byte {
+	return []byte(fmt.Sprintf("%s::%s", twoFactorBucket, userID))
+}
+
+func getTwoFactorBucket(tx *bolt.Tx) *bolt.Bucket {
+	return tx.Bucket([]byte(twoFactorBucket))
+}
+
+func getTwoFactorMethods(tx *bolt.Tx, userID string) *models.TwoFactor {
+	bucket := getTwoFactorBucket(tx)
+	dat := bucket.Get(twoFactorKey(userID))
+	res := new(models.TwoFactor)
+	if dat == nil {
+		// User has nos two factor methods so we can
+		// return empty entry of TwoFactor.
+		return res
+	}
+	if err := json.Unmarshal(dat, res); err != nil {
+		return new(models.TwoFactor)
+	}
+
+	return res
+}
+
+func setTwoFactorMethods(tx *bolt.Tx, userID string, tf models.TwoFactor) error {
+	bucket := getTwoFactorBucket(tx)
+	dat, err := json.Marshal(tf)
+	if err != nil {
+		return fmt.Errorf("json.Marshal: %w", err)
+	}
+	return bucket.Put(twoFactorKey(userID), dat)
+}
+
+// Get returns two factor methods for user with given user ID.
+func (t *TwoFactorStorage) Get(ctx context.Context, userID string) (*models.TwoFactor, error) {
+	res := new(models.TwoFactor)
+	err := t.db.View(func(tx *bolt.Tx) error {
+		_, err := readUser(tx, userID)
+		if err != nil {
+			return serrors.ErrNoID
+		}
+		res = getTwoFactorMethods(tx, userID)
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
+}
+
+// Updates apply given function to two factor methods of user
+// with given user ID.
+func (t *TwoFactorStorage) Update(ctx context.Context, userID string, f func(*models.TwoFactor) error) error {
+	return t.db.Update(func(tx *bolt.Tx) error {
+		_, err := readUser(tx, userID)
+		if err != nil {
+			return serrors.ErrNoID
+		}
+		res := getTwoFactorMethods(tx, userID)
+		f(res)
+		return setTwoFactorMethods(tx, userID, *res)
+	})
+}
+
+// Remove deletes all two factor methods of user with given
+// user ID. You can still use Update method after all to start
+// adding more methods.
+func (t *TwoFactorStorage) Remove(ctx context.Context, userID string) error {
+	return t.db.Update(func(tx *bolt.Tx) error {
+		_, err := readUser(tx, userID)
+		if err != nil {
+			return serrors.ErrNoID
+		}
+		bucket := getTwoFactorBucket(tx)
+		return bucket.Delete(twoFactorKey(userID))
 	})
 }
