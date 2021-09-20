@@ -33,6 +33,7 @@ type Args struct {
 	Users          storage.Users
 	Devices        storage.Devices
 	StatusTx       storage.StatusTx
+	TwoFactor      storage.TwoFactor
 	MacsChan       chan<- []net.HardwareAddr
 	PublicCors     Cors
 	Adapter        *happier.Adapter
@@ -125,6 +126,7 @@ func NewRouter(config models.Config, args Args) http.Handler {
 		r.Get("/status", args.Adapter.WithError(api.Status(args.StatusTx)))
 
 		r.With(guard).Route("/twofactor", func(r chi.Router) {
+			r.Post("/otp", args.Adapter.WithError(api.AddOTP(args.SessionRenewer, args.TwoFactor)))
 			r.Get("/otp/options", args.Adapter.WithError(api.OptionsOTP(config, args.SessionRenewer)))
 		})
 	})

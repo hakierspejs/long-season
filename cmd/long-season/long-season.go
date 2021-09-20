@@ -80,6 +80,7 @@ func main() {
 		Users:      factoryStorage.Users(),
 		Devices:    factoryStorage.Devices(),
 		StatusTx:   factoryStorage.StatusTx(),
+		TwoFactor:  factoryStorage.TwoFactor(),
 		MacsChan:   macChannel,
 		PublicCors: publicCors,
 		Adapter:    happier.NewAdapter(),
