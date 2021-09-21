@@ -18,12 +18,26 @@ const ImageOTP = (src) => el("img", { src: src, style: "width:200px;" }, null);
 const FormButton = (desc, props) => el("button", props, desc);
 
 const OTP = (options) => {
+  let state = {
+    name: "",
+    code: "",
+  };
+
+  const errContainer = el("strong", null, "");
+  const clearErr = () => {
+    errContainer.innerText = "";
+  };
+
   const name = FormInput({
     label: "Enter name of device with OTP codes.",
     forTag: "otp-names",
     props: {
       type: "text",
       name: "otp-names",
+      onInput: (e) => {
+        state.name = e.currentTarget.value;
+        clearErr();
+      },
     },
   });
 
@@ -36,6 +50,8 @@ const OTP = (options) => {
         if (e.currentTarget.value.length > 6) {
           e.currentTarget.value = e.currentTarget.value.slice(0, 6);
         }
+        state.code = e.currentTarget.value;
+        clearErr();
       },
       name: "otp-validate",
     },
@@ -43,6 +59,7 @@ const OTP = (options) => {
 
   return [
     el("h4", null, "One Time Codes"),
+    el("p", null, errContainer),
     name,
     el(
       "p",
@@ -56,9 +73,32 @@ const OTP = (options) => {
       "p",
       null,
       FormButton("Submit", {
-        onClick: (event) => {
+        onClick: async (event) => {
           event.preventDefault();
-          console.log("Hello OTP!");
+          clearErr();
+
+          let err = await api.newOTP({
+            "name": state.name,
+            "secret": options.secret,
+            "code": state.code,
+          });
+          if (err) {
+            errContainer.innerText = "Failed to add OTP to account.";
+            return;
+          }
+          addOTPButton.disabled = false;
+          render(
+            twoFactorForm,
+            el(
+              "p",
+              null,
+              el(
+                "strong",
+                null,
+                "Successfully added OTP authenticator method to account.",
+              ),
+            ),
+          );
         },
       }),
       FormButton("Cancel", {

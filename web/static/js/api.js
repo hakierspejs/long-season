@@ -7,6 +7,13 @@ class AuthorizationRequiredError extends Error {
   }
 }
 
+class HTTPError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "HTTPError";
+  }
+}
+
 async function who() {
   let [res, err] = await withErr(fetch("/who", {
     method: "GET",
@@ -19,8 +26,8 @@ async function who() {
     return [null, err];
   }
   if (!res.ok) {
-    err = new AuthorizationRequiredError("User is not authorized.");
-    return [null, err];
+    let authErr = new AuthorizationRequiredError("User is not authorized.");
+    return [null, authErr];
   }
   let [parsed, jsonErr] = await withErr(res.json());
   if (jsonErr) {
@@ -65,23 +72,33 @@ async function optionsOTP() {
 }
 
 async function newOTP(body) {
-  let [res, errPost] = await withErr(fetch("/api/v1/twofactor/otp", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
+  let [user, errWho] = await who();
+  if (errWho) {
+    return errWho;
+  }
+
+  let [res, errPost] = await withErr(fetch(
+    `/api/v1/users/${user.id}/twofactor/otp`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      redirect: "follow",
+      credentials: "include",
+      body: JSON.stringify(body),
     },
-    redirect: "follow",
-    credentials: "include",
-    body: JSON.stringify(body),
-  }));
+  ));
   if (errPost) {
-    return [null, errPost];
+    return errPost
   }
-  let [jsonRes, errJson] = await withErr(res.json());
-  if (errJson) {
-    return [null, errJson];
+
+  if ([400, 404, 500].includes(res.status)) {
+    let httpErr = new HTTPError("Failed to add new OTP to account.");
+    return httpErr;
   }
-  return [jsonRes, null];
+
+  return null;
 }
 
 export { newOTP, optionsOTP, updatePassword, who };
