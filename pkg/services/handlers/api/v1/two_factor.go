@@ -11,6 +11,7 @@ import (
 
 	"github.com/hakierspejs/long-season/pkg/models"
 	"github.com/hakierspejs/long-season/pkg/services/happier"
+	"github.com/hakierspejs/long-season/pkg/services/requests"
 	"github.com/hakierspejs/long-season/pkg/services/session"
 	"github.com/hakierspejs/long-season/pkg/storage"
 
@@ -23,12 +24,12 @@ import (
 // TwoFactorMethods handler returns list of enabled two factor methods.
 func TwoFactorMethods(renewer session.Renewer, db storage.TwoFactor) horror.HandlerFunc {
 	type response struct {
-		active []models.TwoFactorMethod `json:"active"`
+		Active []models.TwoFactorMethod `json:"active"`
 	}
 	return func(w http.ResponseWriter, r *http.Request) error {
 		errFactory := happier.FromRequest(r)
 
-		sessionState, err := renewer.Renew(r)
+		userID, err := requests.UserID(r)
 		if err != nil {
 			errFactory.Unauthorized(
 				fmt.Errorf("renewer.Renew: %w", err),
@@ -36,7 +37,7 @@ func TwoFactorMethods(renewer session.Renewer, db storage.TwoFactor) horror.Hand
 			)
 		}
 
-		methods, err := db.Get(r.Context(), sessionState.UserID)
+		methods, err := db.Get(r.Context(), userID)
 		if err != nil {
 			return errFactory.InternalServerError(
 				fmt.Errorf("db.Get: %w", err),
@@ -46,11 +47,10 @@ func TwoFactorMethods(renewer session.Renewer, db storage.TwoFactor) horror.Hand
 
 		res := new(response)
 		for _, m := range methods.OneTimeCodes {
-			res.active = append(res.active, m.Method(sessionState.UserID))
+			res.Active = append(res.Active, m.Method(userID))
 		}
 
 		return happier.OK(w, r, res)
-
 	}
 }
 
@@ -76,7 +76,7 @@ func OptionsOTP(config models.Config, renewer session.Renewer) horror.HandlerFun
 			Issuer:      config.AppName,
 			Digits:      otp.DigitsSix,
 			Rand:        rand.Reader,
-			Algorithm:   otp.AlgorithmSHA512,
+			Algorithm:   otp.AlgorithmSHA1,
 			AccountName: sessionState.Nickname,
 		})
 		if err != nil {
