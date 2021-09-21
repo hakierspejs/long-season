@@ -53,15 +53,15 @@ const (
 type TwoFactorMethod struct {
 	// Name is human readable name given by user
 	// to its two factor method.
-	Name string
+	Name string `json:"name"`
 
 	// Type is two factor type.
-	Type TwoFactorType
+	Type TwoFactorType `json:"type"`
 
 	// Locations is URI where given two factor method
 	// is stored. It can be used to disable (delete)
 	// given two factor method.
-	Location string
+	Location string `json:"location"`
 }
 
 // TwoFactor holds two factor methods with
@@ -83,6 +83,15 @@ type OneTimeCode struct {
 
 	// Secret is used to verify one time code.
 	Secret string `json:"secret,omitempty"`
+}
+
+// Method is adapter of OneTimeCode for TwoFactorMethod type.
+func (o OneTimeCode) Method(userID string) TwoFactorMethod {
+	return TwoFactorMethod{
+		Name:     o.Name,
+		Type:     OneTimeCodes,
+		Location: fmt.Sprintf("/api/v1/users/%s/twofactor/%s", o.ID),
+	}
 }
 
 type Device struct {
