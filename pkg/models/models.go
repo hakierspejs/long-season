@@ -68,7 +68,9 @@ type TwoFactorMethod struct {
 // data required to verify with one of the
 // following methods.
 type TwoFactor struct {
-	OneTimeCodes []OneTimeCode `json:"oneTimeCodes,omitempty"`
+	// OneTimeCodes is map of one time codes entry with
+	// theirs IDs as maps keys.
+	OneTimeCodes map[string]OneTimeCode `json:"oneTimeCodes,omitempty"`
 }
 
 // OneTimeCode holds data stored in database for two factor

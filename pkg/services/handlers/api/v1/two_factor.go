@@ -143,12 +143,13 @@ func AddOTP(renewer session.Renewer, db storage.TwoFactor) horror.HandlerFunc {
 			)
 		}
 
+		id := uuid.New().String()
 		if err := db.Update(r.Context(), sessionState.UserID, func(tf *models.TwoFactor) error {
-			tf.OneTimeCodes = append(tf.OneTimeCodes, models.OneTimeCode{
-				ID:     uuid.New().String(),
+			tf.OneTimeCodes[id] = models.OneTimeCode{
+				ID:     id,
 				Name:   p.Name,
 				Secret: p.Secret,
-			})
+			}
 			return nil
 		}); err != nil {
 			return errFactory.InternalServerError(
