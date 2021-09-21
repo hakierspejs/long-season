@@ -85,4 +85,29 @@ async function withErr(promise) {
   }
 }
 
-export { el, id, valoo, withErr };
+/*
+ * empty removes all child nodes from given node.
+ */
+function empty(node) {
+  while (node.firstChild) {
+    node.removeChild(node.firstChild);
+  }
+}
+
+/*
+ * render replaces all children nodes of given parent
+ * with given target node or array of nodes.
+ */
+function render(parentNode, target) {
+  empty(parentNode);
+
+  if (Array.isArray(target)) {
+    target.forEach((node, _) => {
+      parentNode.append(node);
+    });
+  } else {
+    parentNode.append(target);
+  }
+};
+
+export { el, id, valoo, withErr, empty, render };
