@@ -107,6 +107,13 @@ func NewRouter(config models.Config, args Args) http.Handler {
 
 				r.With(
 					guard, lsmiddleware.Private(args.SessionRenewer),
+				).Route("/twofactor", func(r chi.Router) {
+					r.Get("/", args.Adapter.WithError(api.TwoFactorMethods(args.SessionRenewer, args.TwoFactor)))
+					r.Post("/otp", args.Adapter.WithError(api.AddOTP(args.SessionRenewer, args.TwoFactor)))
+				})
+
+				r.With(
+					guard, lsmiddleware.Private(args.SessionRenewer),
 				).Route("/devices", func(r chi.Router) {
 					r.Get("/", args.Adapter.WithError(api.UserDevices(args.Devices)))
 					r.Post("/", args.Adapter.WithError(api.DeviceAdd(args.SessionRenewer, args.Devices)))
@@ -126,7 +133,6 @@ func NewRouter(config models.Config, args Args) http.Handler {
 		r.Get("/status", args.Adapter.WithError(api.Status(args.StatusTx)))
 
 		r.With(guard).Route("/twofactor", func(r chi.Router) {
-			r.Post("/otp", args.Adapter.WithError(api.AddOTP(args.SessionRenewer, args.TwoFactor)))
 			r.Get("/otp/options", args.Adapter.WithError(api.OptionsOTP(config, args.SessionRenewer)))
 		})
 	})
