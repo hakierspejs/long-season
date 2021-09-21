@@ -54,14 +54,14 @@ async function optionsOTP() {
     redirect: "follow",
     credentials: "include",
   }));
-  if (err) {
+  if (errOptions) {
     return [null, err];
   }
   let [jsonRes, errJson] = await withErr(res.json());
-  if (err) {
+  if (errJson) {
     return [null, errJson];
   }
-  return jsonRes;
+  return [jsonRes, null];
 }
 
 async function newOTP(body) {
@@ -81,7 +81,7 @@ async function newOTP(body) {
   if (errJson) {
     return [null, errJson];
   }
-  return jsonRes;
+  return [jsonRes, null];
 }
 
 export { newOTP, optionsOTP, updatePassword, who };
