@@ -9,16 +9,50 @@ import (
 	"image/png"
 	"net/http"
 
-	"github.com/google/uuid"
 	"github.com/hakierspejs/long-season/pkg/models"
 	"github.com/hakierspejs/long-season/pkg/services/happier"
 	"github.com/hakierspejs/long-season/pkg/services/session"
 	"github.com/hakierspejs/long-season/pkg/storage"
 
+	"github.com/google/uuid"
 	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"
 	"github.com/thinkofher/horror"
 )
+
+// TwoFactorMethods handler returns list of enabled two factor methods.
+func TwoFactorMethods(renewer session.Renewer, db storage.TwoFactor) horror.HandlerFunc {
+	type response struct {
+		active []models.TwoFactorMethod `json:"active"`
+	}
+	return func(w http.ResponseWriter, r *http.Request) error {
+		errFactory := happier.FromRequest(r)
+
+		sessionState, err := renewer.Renew(r)
+		if err != nil {
+			errFactory.Unauthorized(
+				fmt.Errorf("renewer.Renew: %w", err),
+				"You don't have access to given resources.",
+			)
+		}
+
+		methods, err := db.Get(r.Context(), sessionState.UserID)
+		if err != nil {
+			return errFactory.InternalServerError(
+				fmt.Errorf("db.Get: %w", err),
+				internalServerErrorResponse,
+			)
+		}
+
+		res := new(response)
+		for _, m := range methods.OneTimeCodes {
+			res.active = append(res.active, m.Method(sessionState.UserID))
+		}
+
+		return happier.OK(w, r, res)
+
+	}
+}
 
 // OptionsOTP returns json payload with secret string for
 // OTP codes and data URI with image for authentication apps.
