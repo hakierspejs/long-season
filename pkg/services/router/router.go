@@ -108,7 +108,9 @@ func NewRouter(config models.Config, args Args) http.Handler {
 				r.With(
 					guard, lsmiddleware.Private(args.SessionRenewer),
 				).Route("/twofactor", func(r chi.Router) {
-					r.Get("/", args.Adapter.WithError(api.TwoFactorMethods(args.SessionRenewer, args.TwoFactor)))
+					r.Get("/", args.Adapter.WithError(api.TwoFactorMethods(args.TwoFactor)))
+					r.Get("/{twofactor-id}", args.Adapter.WithError(api.TwoFactorMethod(args.TwoFactor)))
+					r.Delete("/{twofactor-id}", args.Adapter.WithError(api.TwoFactorMethodRemove(args.TwoFactor)))
 					r.Post("/otp", args.Adapter.WithError(api.AddOTP(args.SessionRenewer, args.TwoFactor)))
 				})
 

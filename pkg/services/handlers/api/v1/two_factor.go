@@ -13,6 +13,7 @@ import (
 	"github.com/hakierspejs/long-season/pkg/services/happier"
 	"github.com/hakierspejs/long-season/pkg/services/requests"
 	"github.com/hakierspejs/long-season/pkg/services/session"
+	"github.com/hakierspejs/long-season/pkg/services/toussaint"
 	"github.com/hakierspejs/long-season/pkg/storage"
 
 	"github.com/google/uuid"
@@ -22,7 +23,9 @@ import (
 )
 
 // TwoFactorMethods handler returns list of enabled two factor methods.
-func TwoFactorMethods(renewer session.Renewer, db storage.TwoFactor) horror.HandlerFunc {
+// Make sure to make this resource private befour mounting to some mux or
+// router.
+func TwoFactorMethods(db storage.TwoFactor) horror.HandlerFunc {
 	type response struct {
 		Active []models.TwoFactorMethod `json:"active"`
 	}
@@ -32,7 +35,7 @@ func TwoFactorMethods(renewer session.Renewer, db storage.TwoFactor) horror.Hand
 		userID, err := requests.UserID(r)
 		if err != nil {
 			errFactory.Unauthorized(
-				fmt.Errorf("renewer.Renew: %w", err),
+				fmt.Errorf("requests.UserID: %w", err),
 				"You don't have access to given resources.",
 			)
 		}
@@ -51,6 +54,108 @@ func TwoFactorMethods(renewer session.Renewer, db storage.TwoFactor) horror.Hand
 		}
 
 		return happier.OK(w, r, res)
+	}
+}
+
+// userAndTwoFactorID returns respectively user ID, two factor ID and
+// error if there was a failure in the process of parsing.
+//
+// Returns output safe errors for horror Handlers.
+func userAndTwoFactorID(r *http.Request) (string, string, error) {
+	errFactory := happier.FromRequest(r)
+
+	userID, err := requests.UserID(r)
+	if err != nil {
+		return "", "", errFactory.BadRequest(
+			fmt.Errorf("requests.UserID: %w", err),
+			"Missing user ID.",
+		)
+	}
+
+	twoFactorID, err := requests.TwoFactorID(r)
+	if err != nil {
+		return "", "", errFactory.BadRequest(
+			fmt.Errorf("requests.TwoFactorID: %w", err),
+			"Missing TwoFactor method's ID",
+		)
+	}
+
+	return userID, twoFactorID, nil
+}
+
+// TwoFactorMethod return two factor method resource with given
+// two factor ID for user with given user ID.
+//
+// Make sure to make this resource private befour mounting to some mux or
+// router.
+func TwoFactorMethod(db storage.TwoFactor) horror.HandlerFunc {
+	type response struct {
+		ID       string `json:"id"`
+		Name     string `json:"name"`
+		Type     string `json:"type"`
+		Location string `json:"location"`
+	}
+	return func(w http.ResponseWriter, r *http.Request) error {
+		errFactory := happier.FromRequest(r)
+
+		userID, twoFactorID, err := userAndTwoFactorID(r)
+		if err != nil {
+			return fmt.Errorf("userAndTwoFactorID: %w", err)
+		}
+
+		twoFactor, err := db.Get(r.Context(), userID)
+		if err != nil {
+			return errFactory.NotFound(
+				fmt.Errorf("db.Get: %w", err),
+				"Failed to fetch two factor methods for user.",
+			)
+		}
+
+		methods := toussaint.CollectMethods(userID, *twoFactor)
+		res := toussaint.Find(methods, userID, func(tf models.TwoFactorMethod) bool {
+			return tf.ID == twoFactorID
+		})
+		if res == nil {
+			return errFactory.NotFound(
+				fmt.Errorf("There is no two factor method with the given ID."),
+				"There is no two factor method with the given ID.",
+			)
+		}
+
+		return happier.OK(w, r, &response{
+			ID:       res.ID,
+			Name:     res.Name,
+			Type:     string(res.Type),
+			Location: res.Location,
+		})
+	}
+}
+
+func TwoFactorMethodRemove(db storage.TwoFactor) horror.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		errFactory := happier.FromRequest(r)
+
+		userID, twoFactorID, err := userAndTwoFactorID(r)
+		if err != nil {
+			return fmt.Errorf("userAndTwoFactorID: %w", err)
+		}
+
+		err = db.Update(r.Context(), userID, func(tf *models.TwoFactor) error {
+			_, ok := tf.OneTimeCodes[twoFactorID]
+			if !ok {
+				return errFactory.NotFound(
+					fmt.Errorf("db.Update: ok is not true"),
+					"There is no two factor method with given ID",
+				)
+			}
+			delete(tf.OneTimeCodes, twoFactorID)
+			return nil
+		})
+		if err != nil {
+			return fmt.Errorf("db.Update: %w", err)
+		}
+
+		return happier.NoContent(w, r)
 	}
 }
 
@@ -160,4 +265,8 @@ func AddOTP(renewer session.Renewer, db storage.TwoFactor) horror.HandlerFunc {
 
 		return happier.NoContent(w, r)
 	}
+}
+
+func RemoveTwoFactorMethod(db storage.TwoFactor) {
+
 }

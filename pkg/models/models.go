@@ -51,6 +51,9 @@ const (
 // two factor methods for given user. It allows
 // users to discover their two factor methods.
 type TwoFactorMethod struct {
+	// ID is unique identifier of given two factor method.
+	ID string `json:"id"`
+
 	// Name is human readable name given by user
 	// to its two factor method.
 	Name string `json:"name"`
@@ -90,6 +93,7 @@ type OneTimeCode struct {
 // Method is adapter of OneTimeCode for TwoFactorMethod type.
 func (o OneTimeCode) Method(userID string) TwoFactorMethod {
 	return TwoFactorMethod{
+		ID:       o.ID,
 		Name:     o.Name,
 		Type:     OneTimeCodes,
 		Location: fmt.Sprintf("/api/v1/users/%s/twofactor/%s", userID, o.ID),
