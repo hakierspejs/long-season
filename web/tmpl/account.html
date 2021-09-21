@@ -2,10 +2,32 @@
 
 {{ define "scripts" }}
 <script type="module" src="/static/js/account.js"></script>
+<script type="module" src="/static/js/otp.js"></script>
 {{ end }}
 
 {{ define "content" }}
-<h2>Change password</h2>
-<form id="update-password">
-</form>
+<section>
+  <h2>Change password</h2>
+  <form id="update-password">
+  </form>
+</section>
+<section>
+  <h2>Two Factor</h2>
+  <p>
+    You can increase security of your account by enabling
+    second factor authentiation.
+  </p>
+
+  <section id="two-factor-methods">
+
+  </section>
+
+  <section>
+    <h3>Add new method</h3>
+    <button id="add-otp">OTP</button>
+    <form id="two-factor-form">
+    </form>
+  </section>
+
+</section>
 {{ end }}
