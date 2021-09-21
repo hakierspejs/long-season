@@ -90,7 +90,7 @@ func (o OneTimeCode) Method(userID string) TwoFactorMethod {
 	return TwoFactorMethod{
 		Name:     o.Name,
 		Type:     OneTimeCodes,
-		Location: fmt.Sprintf("/api/v1/users/%s/twofactor/%s", o.ID),
+		Location: fmt.Sprintf("/api/v1/users/%s/twofactor/%s", userID, o.ID),
 	}
 }
 
