@@ -12,6 +12,7 @@ import (
 	"github.com/hakierspejs/long-season/pkg/services/handlers"
 	"github.com/hakierspejs/long-season/pkg/services/happier"
 	"github.com/hakierspejs/long-season/pkg/services/session"
+	"github.com/hakierspejs/long-season/pkg/services/toussaint"
 	"github.com/hakierspejs/long-season/pkg/services/users"
 	"github.com/hakierspejs/long-season/pkg/storage"
 	"github.com/thinkofher/horror"
@@ -108,7 +109,7 @@ func Account(config models.Config, opener handlers.Opener) http.HandlerFunc {
 	}
 }
 
-func Auth(saver session.Saver, db storage.Users) horror.HandlerFunc {
+func Auth(saver session.Saver, db storage.Users, tf storage.TwoFactor) horror.HandlerFunc {
 	type payload struct {
 		Nickname string `json:"nickname"`
 		Password string `json:"password"`
@@ -143,8 +144,23 @@ func Auth(saver session.Saver, db storage.Users) horror.HandlerFunc {
 			Nickname: match.Nickname,
 		})
 
-		if err := saver.Save(ctx, w, *newSession); err != nil {
-			return fmt.Errorf("saver.Save: %w", err)
+		methods, err := tf.Get(ctx, match.ID)
+		if err != nil {
+			return errFactory.InternalServerError(
+				fmt.Errorf("tf.Get: %w", err),
+				"Failed to find two factor methods.",
+			)
+		}
+
+		if err := session.WithOptions(ctx, *newSession, session.WithOptionsArguments{
+			Saver:  saver,
+			Writer: w,
+			Options: []session.Option{
+				toussaint.TwoFactorRequired(toussaint.IsTwoFactorEnabled(*methods)),
+				toussaint.AuthenticationWithTOTP(len(methods.OneTimeCodes) > 0),
+			},
+		}); err != nil {
+			return fmt.Errorf("session.WithOption: %w", err)
 		}
 
 		w.WriteHeader(http.StatusOK)

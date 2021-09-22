@@ -36,6 +36,28 @@ type Saver interface {
 	Save(context.Context, http.ResponseWriter, State) error
 }
 
+type Option func(*State)
+
+// WithOptionsArguments holds arguments for
+// WithOptions function. All arguments are
+// required.
+type WithOptionsArguments struct {
+	Saver   Saver
+	Writer  http.ResponseWriter
+	Options []Option
+}
+
+// WithOptions applies options to given state and saves it.
+// It does nothing more thatn regular Saver if you won't provide
+// options.
+func WithOptions(ctx context.Context, state State, args WithOptionsArguments) error {
+	for _, op := range args.Options {
+		op(&state)
+	}
+
+	return args.Saver.Save(ctx, args.Writer, state)
+}
+
 // Renewer retrieves session data from http request.
 type Renewer interface {
 	// Renew is method for restoring session from

@@ -16,6 +16,7 @@ import (
 	"github.com/hakierspejs/long-season/pkg/services/happier"
 	lsmiddleware "github.com/hakierspejs/long-season/pkg/services/middleware"
 	"github.com/hakierspejs/long-season/pkg/services/session"
+	"github.com/hakierspejs/long-season/pkg/services/toussaint"
 	"github.com/hakierspejs/long-season/pkg/services/ui"
 	"github.com/hakierspejs/long-season/pkg/storage"
 )
@@ -54,26 +55,36 @@ func NewRouter(config models.Config, args Args) http.Handler {
 	r.Use(middleware.NoCache)
 	r.Use(lsmiddleware.Debug(config))
 
-	guard := session.Guard(args.SessionRenewer)
+	sessionGuard := session.Guard(args.SessionRenewer)
+	twoFactorGuard := toussaint.Guard(args.TwoFactor, args.SessionRenewer)
+
+	guard := func(next http.Handler) http.Handler {
+		res := next
+		res = sessionGuard(res)
+		res = twoFactorGuard(res)
+		return res
+	}
+
+	twoFactorCleaner := toussaint.Cleaner(args.SessionRenewer, args.SessionKiller, "/")
 
 	// UI routes.
-	r.Get("/", ui.Home(config, args.Opener))
+	r.With(twoFactorCleaner).Get("/", ui.Home(config, args.Opener))
 
 	r.With(
-		lsmiddleware.RedirectLoggedIn(args.SessionRenewer),
+		twoFactorCleaner, lsmiddleware.RedirectLoggedIn(args.SessionRenewer),
 	).Get("/login", ui.LoginPage(config, args.Opener))
-	r.Post("/login", args.Adapter.WithError(ui.Auth(args.SessionSaver, args.Users)))
+	r.Post("/login", args.Adapter.WithError(ui.Auth(args.SessionSaver, args.Users, args.TwoFactor)))
 
-	r.With(guard).Get("/who", handlers.Who(args.SessionRenewer))
+	r.With(guard, twoFactorCleaner).Get("/who", handlers.Who(args.SessionRenewer))
 
-	r.With(guard).Get("/devices", ui.Devices(config, args.Opener))
+	r.With(guard, twoFactorCleaner).Get("/devices", ui.Devices(config, args.Opener))
 
-	r.With(guard).Get("/account", ui.Account(config, args.Opener))
+	r.With(guard, twoFactorCleaner).Get("/account", ui.Account(config, args.Opener))
 
 	r.Get("/logout", ui.Logout(args.SessionKiller))
 
 	r.With(
-		lsmiddleware.RedirectLoggedIn(args.SessionRenewer),
+		twoFactorCleaner, lsmiddleware.RedirectLoggedIn(args.SessionRenewer),
 	).Get("/register", ui.Register(config, args.Opener))
 
 	// API routes.
