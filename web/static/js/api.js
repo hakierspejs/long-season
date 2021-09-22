@@ -90,7 +90,7 @@ async function newOTP(body) {
     },
   ));
   if (errPost) {
-    return errPost
+    return errPost;
   }
 
   if ([400, 404, 500].includes(res.status)) {
@@ -101,4 +101,50 @@ async function newOTP(body) {
   return null;
 }
 
-export { newOTP, optionsOTP, updatePassword, who };
+async function twoFactorMethods(userID) {
+  let uri = `/api/v1/users/${userID}/twofactor`;
+  let [res, errRes] = await withErr(fetch(uri, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    credentials: "include",
+  }));
+  if (errRes) {
+    return [null, errRes];
+  }
+
+  if ([400, 401, 404, 500].includes(res.status)) {
+    let httpErr = new HTTPError("Failed to remove two factor method.");
+    return httpErr;
+  }
+
+  let [jsonRes, errJson] = await withErr(res.json());
+  if (errJson) {
+    return [null, errJson];
+  }
+
+  return [jsonRes, null];
+}
+
+async function removeTwoFactorMethod(userID, twoFactorID) {
+  let uri = `/api/v1/users/${userID}/twofactor/${twoFactorID}`;
+  let [res, errDel] = await withErr(fetch(uri, {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    credentials: "include",
+  }));
+  if (errDel) {
+    return [null, errDel];
+  }
+  if ([400, 401, 404, 500].includes(res.status)) {
+    let httpErr = new HTTPError("Failed to remove two factor method.");
+    return httpErr;
+  }
+
+  return null;
+}
+
+export { newOTP, optionsOTP, updatePassword, who, twoFactorMethods, removeTwoFactorMethod };

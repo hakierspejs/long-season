@@ -108,6 +108,16 @@ function render(parentNode, target) {
   } else {
     parentNode.append(target);
   }
-};
+}
 
-export { el, id, valoo, withErr, empty, render };
+/*
+ * main is asynchronous wrapper for given function.
+ * It can be used in scripts for writing convenient main
+ * functions.
+ */
+async function main(wrapped) {
+  wrapped();
+}
+
+export { el, id, valoo, withErr, empty, render, main };
+

@@ -788,19 +788,19 @@ func getTwoFactorBucket(tx *bolt.Tx) *bolt.Bucket {
 func getTwoFactorMethods(tx *bolt.Tx, userID string) *models.TwoFactor {
 	bucket := getTwoFactorBucket(tx)
 	dat := bucket.Get(twoFactorKey(userID))
-	res := new(models.TwoFactor)
+	res := &models.TwoFactor{
+		OneTimeCodes: map[string]models.OneTimeCode{},
+	}
 	if dat == nil {
 		// User has not two factor methods so we can
 		// return empty entry of TwoFactor.
-
-		// Initialize empty map of one time codes.
-		res.OneTimeCodes = map[string]models.OneTimeCode{}
 		return res
 	}
 	if err := json.Unmarshal(dat, res); err != nil {
-		return new(models.TwoFactor)
+		return &models.TwoFactor{
+			OneTimeCodes: map[string]models.OneTimeCode{},
+		}
 	}
-
 	return res
 }
 

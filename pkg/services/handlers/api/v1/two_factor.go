@@ -266,7 +266,3 @@ func AddOTP(renewer session.Renewer, db storage.TwoFactor) horror.HandlerFunc {
 		return happier.NoContent(w, r)
 	}
 }
-
-func RemoveTwoFactorMethod(db storage.TwoFactor) {
-
-}

@@ -17,7 +17,7 @@ const ImageOTP = (src) => el("img", { src: src, style: "width:200px;" }, null);
 
 const FormButton = (desc, props) => el("button", props, desc);
 
-const OTP = (options) => {
+const OTP = ({ options, onAdd }) => {
   let state = {
     name: "",
     code: "",
@@ -99,6 +99,10 @@ const OTP = (options) => {
               ),
             ),
           );
+
+          // Run onAdd hook after successfully submitting
+          // new OTP code.
+          onAdd();
         },
       }),
       FormButton("Cancel", {
@@ -112,11 +116,21 @@ const OTP = (options) => {
   ];
 };
 
-addOTPButton.addEventListener("click", async () => {
-  let [options, err] = await api.optionsOTP();
-  if (err) {
-    render(twoFactorForm, el("strong", null, "Failed to add OTP to account."));
-  }
-  render(twoFactorForm, OTP(options));
-  addOTPButton.disabled = true;
-});
+function mount({ onAdd }) {
+  addOTPButton.addEventListener("click", async () => {
+    let [options, err] = await api.optionsOTP();
+    if (err) {
+      render(
+        twoFactorForm,
+        el("strong", null, "Failed to add OTP to account."),
+      );
+    }
+    render(twoFactorForm, OTP({
+      options: options,
+      onAdd: onAdd,
+    }));
+    addOTPButton.disabled = true;
+  });
+}
+
+export { mount };
