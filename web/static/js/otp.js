@@ -125,10 +125,13 @@ function mount({ onAdd }) {
         el("strong", null, "Failed to add OTP to account."),
       );
     }
-    render(twoFactorForm, OTP({
-      options: options,
-      onAdd: onAdd,
-    }));
+    render(
+      twoFactorForm,
+      OTP({
+        options: options,
+        onAdd: onAdd,
+      }),
+    );
     addOTPButton.disabled = true;
   });
 }

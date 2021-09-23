@@ -119,5 +119,4 @@ async function main(wrapped) {
   wrapped();
 }
 
-export { el, id, valoo, withErr, empty, render, main };
-
+export { el, empty, id, main, render, valoo, withErr };

@@ -172,11 +172,11 @@ async function authWithCodes(code) {
 }
 
 export {
+  authWithCodes,
   newOTP,
   optionsOTP,
   removeTwoFactorMethod,
   twoFactorMethods,
   updatePassword,
   who,
-  authWithCodes,
 };
