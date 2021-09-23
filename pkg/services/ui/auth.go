@@ -14,6 +14,7 @@ import (
 	"github.com/thinkofher/horror"
 )
 
+// AuthArguments holds dependencies for Auth handler.
 type AuthArguments struct {
 	Saver                session.Saver
 	Users                storage.Users
@@ -21,6 +22,8 @@ type AuthArguments struct {
 	TwoFactorRedirectURI string
 }
 
+// Auth authentiates user with given nickanem and password
+// as JSOn document in the payload.
 func Auth(args AuthArguments) horror.HandlerFunc {
 	type payload struct {
 		Nickname string `json:"nickname"`
@@ -87,6 +90,7 @@ func Auth(args AuthArguments) horror.HandlerFunc {
 	}
 }
 
+// AuthWithCodesArguments holds dependencies for AuthWichCodes handler.
 type AuthWithCodesArguments struct {
 	Renewer   session.Renewer
 	Saver     session.Saver

@@ -131,6 +131,10 @@ func TwoFactorMethod(db storage.TwoFactor) horror.HandlerFunc {
 	}
 }
 
+// TwoFactorMethodRemove deletes two factor method with given ID.
+//
+// Make sure to make this resource private befour mounting to some mux or
+// router.
 func TwoFactorMethodRemove(db storage.TwoFactor) horror.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		errFactory := happier.FromRequest(r)
