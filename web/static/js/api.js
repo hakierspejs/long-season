@@ -116,7 +116,7 @@ async function twoFactorMethods(userID) {
 
   if ([400, 401, 404, 500].includes(res.status)) {
     let httpErr = new HTTPError("Failed to remove two factor method.");
-    return httpErr;
+    return [null, httpErr];
   }
 
   let [jsonRes, errJson] = await withErr(res.json());
@@ -137,7 +137,7 @@ async function removeTwoFactorMethod(userID, twoFactorID) {
     credentials: "include",
   }));
   if (errDel) {
-    return [null, errDel];
+    return errDel;
   }
   if ([400, 401, 404, 500].includes(res.status)) {
     let httpErr = new HTTPError("Failed to remove two factor method.");
