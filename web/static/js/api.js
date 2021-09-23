@@ -147,4 +147,36 @@ async function removeTwoFactorMethod(userID, twoFactorID) {
   return null;
 }
 
-export { newOTP, optionsOTP, updatePassword, who, twoFactorMethods, removeTwoFactorMethod };
+async function authWithCodes(code) {
+  let [res, errPost] = await withErr(fetch("/twofactor/codes", {
+    method: "POST",
+    credentials: "include",
+    redirect: "follow",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      "code": code,
+    }),
+  }));
+  if (errPost) {
+    return errPost;
+  }
+
+  if ([400, 401, 404, 500].includes(res.status)) {
+    let errStatus = new HTTPError("Failed to authenticate with code.");
+    return errStatus;
+  }
+
+  return null;
+}
+
+export {
+  newOTP,
+  optionsOTP,
+  removeTwoFactorMethod,
+  twoFactorMethods,
+  updatePassword,
+  who,
+  authWithCodes,
+};

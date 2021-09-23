@@ -163,6 +163,13 @@ func NoContent(w http.ResponseWriter, r *http.Request) horror.Error {
 	return nil
 }
 
+// SeeOther redirects replies to the request with a redirect to url with
+// See Other http status.
+func SeeOther(w http.ResponseWriter, r *http.Request, url string) horror.Error {
+	http.Redirect(w, r, url, http.StatusSeeOther)
+	return nil
+}
+
 type errorResponse struct {
 	Data  interface{} `json:"error"`
 	Debug interface{} `json:"debug,omitempty"`

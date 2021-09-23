@@ -66,6 +66,7 @@ func NewRouter(config models.Config, args Args) http.Handler {
 	}
 
 	twoFactorCleaner := toussaint.Cleaner(args.SessionRenewer, args.SessionKiller, "/")
+	twoFactorOnly := toussaint.TwoFactorOnly(args.SessionRenewer, "/")
 
 	// UI routes.
 	r.With(twoFactorCleaner).Get("/", ui.Home(config, args.Opener))
@@ -73,7 +74,12 @@ func NewRouter(config models.Config, args Args) http.Handler {
 	r.With(
 		twoFactorCleaner, lsmiddleware.RedirectLoggedIn(args.SessionRenewer),
 	).Get("/login", ui.LoginPage(config, args.Opener))
-	r.Post("/login", args.Adapter.WithError(ui.Auth(args.SessionSaver, args.Users, args.TwoFactor)))
+	r.Post("/login", args.Adapter.WithError(ui.Auth(ui.AuthArguments{
+		Saver:                args.SessionSaver,
+		Users:                args.Users,
+		TwoFactor:            args.TwoFactor,
+		TwoFactorRedirectURI: "/twofactor",
+	})))
 
 	r.With(guard, twoFactorCleaner).Get("/who", handlers.Who(args.SessionRenewer))
 
@@ -86,6 +92,16 @@ func NewRouter(config models.Config, args Args) http.Handler {
 	r.With(
 		twoFactorCleaner, lsmiddleware.RedirectLoggedIn(args.SessionRenewer),
 	).Get("/register", ui.Register(config, args.Opener))
+
+	r.With(sessionGuard, twoFactorOnly).Get("/twofactor", ui.TwoFactor(config, args.Opener))
+	r.With(sessionGuard, twoFactorOnly).Post(
+		"/twofactor/codes",
+		args.Adapter.WithError(ui.AuthWithCodes(ui.AuthWithCodesArguments{
+			Renewer:   args.SessionRenewer,
+			Saver:     args.SessionSaver,
+			TwoFactor: args.TwoFactor,
+		})),
+	)
 
 	// API routes.
 	r.Route("/api/v1", func(r chi.Router) {

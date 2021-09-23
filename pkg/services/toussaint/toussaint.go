@@ -3,6 +3,7 @@
 package toussaint
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/hakierspejs/long-season/pkg/services/happier"
 	"github.com/hakierspejs/long-season/pkg/services/session"
 	"github.com/hakierspejs/long-season/pkg/storage"
+	"github.com/pquerna/otp/totp"
 )
 
 // Method implements method function which returns
@@ -55,8 +57,8 @@ func IsTwoFactorEnabled(tf models.TwoFactor) bool {
 }
 
 const (
-	twoFactorRequiredKey = "two-factor-required"
-	totpKey              = "totp-key"
+	twoFactorRequiredKey = "2fa"
+	totpKey              = "totp"
 )
 
 // TwoFactorRequired is session's Option. It forces
@@ -160,4 +162,58 @@ func Cleaner(renewer session.Renewer, killer session.Killer, redirectURI string)
 			next.ServeHTTP(w, r)
 		})
 	}
+}
+
+// TwoFactorOnly accepts request with required two factor only.
+// Otherwise redirects to given redirect URI.
+func TwoFactorOnly(renewer session.Renewer, redirectURI string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			s, err := renewer.Renew(r)
+			if err != nil {
+				happier.FromRequest(r).Unauthorized(
+					fmt.Errorf("renewer.Renew: %w", err),
+					"Invalid session. Please login in.",
+				)
+				return
+			}
+
+			if !IsTwoFactorRequired(*s) {
+				http.Redirect(w, r, redirectURI, http.StatusSeeOther)
+				return
+			}
+
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+// CodeValidator validates given code against implemented
+// two factor authentication.
+type CodeValidator interface {
+	// Validate given code against implemented authentication
+	// method.
+	Validate(ctx context.Context, code string) bool
+}
+
+type funcValidator func(ctx context.Context, code string) bool
+
+// Validate given code against implemented authentication
+// method.
+func (f funcValidator) Validate(ctx context.Context, code string) bool {
+	return f(ctx, code)
+}
+
+// ValidatorTOTP returns validator for one time codes stored
+// in two factor methods model.
+func ValidatorTOTP(tf models.TwoFactor) CodeValidator {
+	return funcValidator(func(ctx context.Context, code string) bool {
+		for _, method := range tf.OneTimeCodes {
+			if totp.Validate(code, method.Secret) {
+				return true
+			}
+		}
+
+		return false
+	})
 }
