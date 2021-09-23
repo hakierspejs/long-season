@@ -16,6 +16,7 @@ import (
 	"github.com/hakierspejs/long-season/pkg/services/happier"
 	lsmiddleware "github.com/hakierspejs/long-season/pkg/services/middleware"
 	"github.com/hakierspejs/long-season/pkg/services/session"
+	"github.com/hakierspejs/long-season/pkg/services/toussaint"
 	"github.com/hakierspejs/long-season/pkg/services/ui"
 	"github.com/hakierspejs/long-season/pkg/storage"
 )
@@ -33,10 +34,10 @@ type Args struct {
 	Users          storage.Users
 	Devices        storage.Devices
 	StatusTx       storage.StatusTx
+	TwoFactor      storage.TwoFactor
 	MacsChan       chan<- []net.HardwareAddr
 	PublicCors     Cors
 	Adapter        *happier.Adapter
-	Tokenizer      api.Tokenizer
 	SessionRenewer session.Renewer
 	SessionSaver   session.Saver
 	SessionKiller  session.Killer
@@ -53,27 +54,53 @@ func NewRouter(config models.Config, args Args) http.Handler {
 	r.Use(middleware.NoCache)
 	r.Use(lsmiddleware.Debug(config))
 
-	guard := session.Guard(args.SessionRenewer)
+	sessionGuard := session.Guard(args.SessionRenewer)
+	twoFactorGuard := toussaint.Guard(args.TwoFactor, args.SessionRenewer)
+
+	guard := func(next http.Handler) http.Handler {
+		res := next
+		res = sessionGuard(res)
+		res = twoFactorGuard(res)
+		return res
+	}
+
+	twoFactorCleaner := toussaint.Cleaner(args.SessionRenewer, args.SessionKiller, "/")
+	twoFactorOnly := toussaint.TwoFactorOnly(args.SessionRenewer, "/")
 
 	// UI routes.
-	r.Get("/", ui.Home(config, args.Opener))
+	r.With(twoFactorCleaner).Get("/", ui.Home(config, args.Opener))
 
 	r.With(
-		lsmiddleware.RedirectLoggedIn(args.SessionRenewer),
+		twoFactorCleaner, lsmiddleware.RedirectLoggedIn(args.SessionRenewer),
 	).Get("/login", ui.LoginPage(config, args.Opener))
-	r.Post("/login", args.Adapter.WithError(ui.Auth(args.SessionSaver, args.Users)))
+	r.Post("/login", args.Adapter.WithError(ui.Auth(ui.AuthArguments{
+		Saver:                args.SessionSaver,
+		Users:                args.Users,
+		TwoFactor:            args.TwoFactor,
+		TwoFactorRedirectURI: "/twofactor",
+	})))
 
-	r.With(guard).Get("/who", handlers.Who(args.SessionRenewer))
+	r.With(guard, twoFactorCleaner).Get("/who", handlers.Who(args.SessionRenewer))
 
-	r.With(guard).Get("/devices", ui.Devices(config, args.Opener))
+	r.With(guard, twoFactorCleaner).Get("/devices", ui.Devices(config, args.Opener))
 
-	r.With(guard).Get("/account", ui.Account(config, args.Opener))
+	r.With(guard, twoFactorCleaner).Get("/account", ui.Account(config, args.Opener))
 
 	r.Get("/logout", ui.Logout(args.SessionKiller))
 
 	r.With(
-		lsmiddleware.RedirectLoggedIn(args.SessionRenewer),
+		twoFactorCleaner, lsmiddleware.RedirectLoggedIn(args.SessionRenewer),
 	).Get("/register", ui.Register(config, args.Opener))
+
+	r.With(sessionGuard, twoFactorOnly).Get("/twofactor", ui.TwoFactor(config, args.Opener))
+	r.With(sessionGuard, twoFactorOnly).Post(
+		"/twofactor/codes",
+		args.Adapter.WithError(ui.AuthWithCodes(ui.AuthWithCodesArguments{
+			Renewer:   args.SessionRenewer,
+			Saver:     args.SessionSaver,
+			TwoFactor: args.TwoFactor,
+		})),
+	)
 
 	// API routes.
 	r.Route("/api/v1", func(r chi.Router) {
@@ -106,6 +133,15 @@ func NewRouter(config models.Config, args Args) http.Handler {
 
 				r.With(
 					guard, lsmiddleware.Private(args.SessionRenewer),
+				).Route("/twofactor", func(r chi.Router) {
+					r.Get("/", args.Adapter.WithError(api.TwoFactorMethods(args.TwoFactor)))
+					r.Get("/{twofactor-id}", args.Adapter.WithError(api.TwoFactorMethod(args.TwoFactor)))
+					r.Delete("/{twofactor-id}", args.Adapter.WithError(api.TwoFactorMethodRemove(args.TwoFactor)))
+					r.Post("/otp", args.Adapter.WithError(api.AddOTP(args.SessionRenewer, args.TwoFactor)))
+				})
+
+				r.With(
+					guard, lsmiddleware.Private(args.SessionRenewer),
 				).Route("/devices", func(r chi.Router) {
 					r.Get("/", args.Adapter.WithError(api.UserDevices(args.Devices)))
 					r.Post("/", args.Adapter.WithError(api.DeviceAdd(args.SessionRenewer, args.Devices)))
@@ -117,12 +153,15 @@ func NewRouter(config models.Config, args Args) http.Handler {
 				})
 			})
 		})
-		r.Post("/login", args.Adapter.WithError(api.Auth(args.Tokenizer, args.Users)))
 		r.With(lsmiddleware.UpdateAuth(&config)).Put(
 			"/update",
 			args.Adapter.WithError(api.UpdateStatus(args.MacsChan)),
 		)
 		r.Get("/status", args.Adapter.WithError(api.Status(args.StatusTx)))
+
+		r.With(guard).Route("/twofactor", func(r chi.Router) {
+			r.Get("/otp/options", args.Adapter.WithError(api.OptionsOTP(config, args.SessionRenewer)))
+		})
 	})
 
 	handlers.FileServer(r, "/static", args.Opener)

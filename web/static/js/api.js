@@ -7,6 +7,13 @@ class AuthorizationRequiredError extends Error {
   }
 }
 
+class HTTPError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "HTTPError";
+  }
+}
+
 async function who() {
   let [res, err] = await withErr(fetch("/who", {
     method: "GET",
@@ -19,8 +26,8 @@ async function who() {
     return [null, err];
   }
   if (!res.ok) {
-    err = new AuthorizationRequiredError("User is not authorized.");
-    return [null, err];
+    let authErr = new AuthorizationRequiredError("User is not authorized.");
+    return [null, authErr];
   }
   let [parsed, jsonErr] = await withErr(res.json());
   if (jsonErr) {
@@ -48,4 +55,128 @@ async function updatePassword(userID, { oldPass, newPass }) {
   return [res, null];
 }
 
-export { updatePassword, who };
+async function optionsOTP() {
+  let [res, errOptions] = await withErr(fetch("/api/v1/twofactor/otp/options", {
+    method: "GET",
+    redirect: "follow",
+    credentials: "include",
+  }));
+  if (errOptions) {
+    return [null, err];
+  }
+  let [jsonRes, errJson] = await withErr(res.json());
+  if (errJson) {
+    return [null, errJson];
+  }
+  return [jsonRes, null];
+}
+
+async function newOTP(body) {
+  let [user, errWho] = await who();
+  if (errWho) {
+    return errWho;
+  }
+
+  let [res, errPost] = await withErr(fetch(
+    `/api/v1/users/${user.id}/twofactor/otp`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      redirect: "follow",
+      credentials: "include",
+      body: JSON.stringify(body),
+    },
+  ));
+  if (errPost) {
+    return errPost;
+  }
+
+  if ([400, 404, 500].includes(res.status)) {
+    let httpErr = new HTTPError("Failed to add new OTP to account.");
+    return httpErr;
+  }
+
+  return null;
+}
+
+async function twoFactorMethods(userID) {
+  let uri = `/api/v1/users/${userID}/twofactor`;
+  let [res, errRes] = await withErr(fetch(uri, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    credentials: "include",
+  }));
+  if (errRes) {
+    return [null, errRes];
+  }
+
+  if ([400, 401, 404, 500].includes(res.status)) {
+    let httpErr = new HTTPError("Failed to remove two factor method.");
+    return [null, httpErr];
+  }
+
+  let [jsonRes, errJson] = await withErr(res.json());
+  if (errJson) {
+    return [null, errJson];
+  }
+
+  return [jsonRes, null];
+}
+
+async function removeTwoFactorMethod(userID, twoFactorID) {
+  let uri = `/api/v1/users/${userID}/twofactor/${twoFactorID}`;
+  let [res, errDel] = await withErr(fetch(uri, {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    credentials: "include",
+  }));
+  if (errDel) {
+    return errDel;
+  }
+  if ([400, 401, 404, 500].includes(res.status)) {
+    let httpErr = new HTTPError("Failed to remove two factor method.");
+    return httpErr;
+  }
+
+  return null;
+}
+
+async function authWithCodes(code) {
+  let [res, errPost] = await withErr(fetch("/twofactor/codes", {
+    method: "POST",
+    credentials: "include",
+    redirect: "follow",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      "code": code,
+    }),
+  }));
+  if (errPost) {
+    return errPost;
+  }
+
+  if ([400, 401, 404, 500].includes(res.status)) {
+    let errStatus = new HTTPError("Failed to authenticate with code.");
+    return errStatus;
+  }
+
+  return null;
+}
+
+export {
+  authWithCodes,
+  newOTP,
+  optionsOTP,
+  removeTwoFactorMethod,
+  twoFactorMethods,
+  updatePassword,
+  who,
+};

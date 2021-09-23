@@ -1,5 +1,6 @@
-import { el, withErr } from "/static/js/utils.js";
+import { el, main, render, withErr } from "/static/js/utils.js";
 import * as api from "/static/js/api.js";
+import * as otp from "/static/js/otp.js";
 
 const PasswordInput = (label, props) => {
   props.type = "password";
@@ -115,18 +116,79 @@ const ChangePassword = () => {
   ];
 };
 
-const render = (parentNode, target) => {
-  while (parentNode.firstChild) {
-    parentNode.removeChild(parentNode.firstChild);
+// Returns single device component.
+const TwoFactorMethod = ({ name, type, onRemove }) =>
+  el(
+    "li",
+    {},
+    el("span", {}, el("b", {}, `${name} (${type})`)),
+    el(
+      "span",
+      {},
+      el("a", {
+        onClick: onRemove,
+        "class": "rm",
+      }, "remove"),
+    ),
+  );
+
+const TwoFactorMethods = (userID, methods) => {
+  // There are no methods, so there is no need
+  // to render anything.
+  if (methods && methods.length === 0) {
+    return "";
   }
 
-  if (Array.isArray(target)) {
-    target.forEach((node, _) => {
-      parentNode.append(node);
-    });
-  } else {
-    parentNode.append(target);
-  }
+  const errContainer = el("strong", null, "");
+
+  return [
+    methods ? el("h3", null, "Current methods") : "",
+    ...(methods
+      ? methods.map((method) =>
+        TwoFactorMethod({
+          name: method.name,
+          type: method.type,
+          onRemove: async (e) => {
+            let err = await api.removeTwoFactorMethod(userID, method.id);
+            if (err) {
+              errContainer = "Failed to remove second authentication method.";
+              return;
+            }
+            renderTwoFactorMethods();
+          },
+        })
+      )
+      : []),
+  ];
 };
 
-render(document.getElementById("update-password"), ChangePassword());
+const twoFactorMethods = document.getElementById("two-factor-methods");
+
+async function renderTwoFactorMethods() {
+  let [user, errWho] = await api.who();
+  if (errWho) {
+    return;
+  }
+
+  let [methods, errMethods] = await api.twoFactorMethods(user.id);
+  if (errMethods) {
+    return;
+  }
+
+  render(twoFactorMethods, TwoFactorMethods(user.id, methods.active));
+}
+
+main(() => {
+  // Render form for changing password.
+  render(document.getElementById("update-password"), ChangePassword());
+
+  // Initial rendering of two factor methods.
+  renderTwoFactorMethods();
+
+  // Mount OTP codes.
+  otp.mount({
+    // Render two factor methods every time user
+    // submits successfully new OTP code.
+    onAdd: renderTwoFactorMethods,
+  });
+});

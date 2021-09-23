@@ -1,0 +1,17 @@
+{{ template "layout" }}
+
+{{ define "scripts" }}
+<script type="module" src="/static/js/twofactor.js"></script>
+{{ end }}
+
+{{ define "content" }}
+<section>
+  <h2>Two Factor</h2>
+  <p>Choose one from available two factor methods and follow steps.</p>
+  <p>
+    <button id="two-factor-codes">Codes</button>
+  </p>
+  <section id="two-factor-method">
+  </section>
+</section>
+{{ end }}

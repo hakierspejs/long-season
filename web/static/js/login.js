@@ -35,11 +35,16 @@ const submitData = ({ login, password }) => {
     headers: {
       "Content-Type": "application/json",
     },
-    redirect: "follow",
     credentials: "include",
+    redirect: "manual",
     body: JSON.stringify(data),
   })
     .then((response) => {
+      if (response.type === "opaqueredirect") {
+        window.location.href = "/twofactor";
+        return;
+      }
+
       switch (response.status) {
         case 401:
           err(ERROR_MSGS[response.status]);
@@ -47,7 +52,7 @@ const submitData = ({ login, password }) => {
         case 404:
           err(ERROR_MSGS[response.status]);
           break;
-        case 200:
+        case 204:
           window.location.href = "/";
           break;
         default:

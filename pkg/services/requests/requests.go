@@ -30,6 +30,15 @@ func DeviceID(r *http.Request) (string, error) {
 	return res, nil
 }
 
+// TwoFactorID returns two factor method's id from url.
+func TwoFactorID(r *http.Request) (string, error) {
+	res := chi.URLParam(r, "twofactor-id")
+	if res == "" {
+		return "", ErrEmptyParam
+	}
+	return res, nil
+}
+
 func Debug(r *http.Request) (bool, error) {
 	mode, ok := r.Context().Value(ctxkey.DebugKey).(bool)
 	if !ok {

@@ -38,6 +38,68 @@ type UserPublicData struct {
 	Online bool `json:"online"`
 }
 
+// TwoFactorType describes type of two factor for
+// inspecting user's two factor enabled methods.
+type TwoFactorType string
+
+const (
+	// OneTimeCodes are time-based one time passwords.
+	OneTimeCodes TwoFactorType = "totp"
+)
+
+// TwoFactorMethod holds private data of enabled
+// two factor methods for given user. It allows
+// users to discover their two factor methods.
+type TwoFactorMethod struct {
+	// ID is unique identifier of given two factor method.
+	ID string `json:"id"`
+
+	// Name is human readable name given by user
+	// to its two factor method.
+	Name string `json:"name"`
+
+	// Type is two factor type.
+	Type TwoFactorType `json:"type"`
+
+	// Locations is URI where given two factor method
+	// is stored. It can be used to disable (delete)
+	// given two factor method.
+	Location string `json:"location"`
+}
+
+// TwoFactor holds two factor methods with
+// data required to verify with one of the
+// following methods.
+type TwoFactor struct {
+	// OneTimeCodes is map of one time codes entry with
+	// theirs IDs as maps keys.
+	OneTimeCodes map[string]OneTimeCode `json:"oneTimeCodes,omitempty"`
+}
+
+// OneTimeCode holds data stored in database for two factor
+// verification with one time codes.
+type OneTimeCode struct {
+	// ID is unique id of one time code.
+	ID string `json:"id,omitempty"`
+
+	// Name is human readable name of one time code
+	// provided by user.
+	Name string `json:"name,omitempty"`
+
+	// Secret is used to verify one time code.
+	Secret string `json:"secret,omitempty"`
+}
+
+// Method is adapter of OneTimeCode for TwoFactorMethod type.
+func (o OneTimeCode) Method(userID string) TwoFactorMethod {
+	return TwoFactorMethod{
+		ID:       o.ID,
+		Name:     o.Name,
+		Type:     OneTimeCodes,
+		Location: fmt.Sprintf("/api/v1/users/%s/twofactor/%s", userID, o.ID),
+	}
+}
+
 type Device struct {
 	DevicePublicData
 
