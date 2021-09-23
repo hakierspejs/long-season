@@ -38,7 +38,6 @@ type Args struct {
 	MacsChan       chan<- []net.HardwareAddr
 	PublicCors     Cors
 	Adapter        *happier.Adapter
-	Tokenizer      api.Tokenizer
 	SessionRenewer session.Renewer
 	SessionSaver   session.Saver
 	SessionKiller  session.Killer
@@ -154,7 +153,6 @@ func NewRouter(config models.Config, args Args) http.Handler {
 				})
 			})
 		})
-		r.Post("/login", args.Adapter.WithError(api.Auth(args.Tokenizer, args.Users)))
 		r.With(lsmiddleware.UpdateAuth(&config)).Put(
 			"/update",
 			args.Adapter.WithError(api.UpdateStatus(args.MacsChan)),

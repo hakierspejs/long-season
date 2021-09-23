@@ -84,7 +84,6 @@ func main() {
 		MacsChan:   macChannel,
 		PublicCors: publicCors,
 		Adapter:    happier.NewAdapter(),
-		Tokenizer:  jwtSession,
 		SessionRenewer: session.RenewerComposite(
 			jwtSession.RenewFromHeaderToken("Authorization", "Bearer"),
 			jwtSession.RenewFromCookies(),
