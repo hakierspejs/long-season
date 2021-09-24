@@ -138,6 +138,7 @@ func NewRouter(config models.Config, args Args) http.Handler {
 					r.Get("/{twofactor-id}", args.Adapter.WithError(api.TwoFactorMethod(args.TwoFactor)))
 					r.Delete("/{twofactor-id}", args.Adapter.WithError(api.TwoFactorMethodRemove(args.TwoFactor)))
 					r.Post("/otp", args.Adapter.WithError(api.AddOTP(args.SessionRenewer, args.TwoFactor)))
+					r.Post("/recovery", args.Adapter.WithError(api.AddRecovery(args.SessionRenewer, args.TwoFactor)))
 				})
 
 				r.With(

@@ -10,6 +10,7 @@ import (
 	"net/http"
 
 	"github.com/hakierspejs/long-season/pkg/models"
+	"github.com/hakierspejs/long-season/pkg/models/set"
 	"github.com/hakierspejs/long-season/pkg/services/happier"
 	"github.com/hakierspejs/long-season/pkg/services/requests"
 	"github.com/hakierspejs/long-season/pkg/services/session"
@@ -268,6 +269,79 @@ func AddOTP(renewer session.Renewer, db storage.TwoFactor) horror.HandlerFunc {
 		}); err != nil {
 			return errFactory.InternalServerError(
 				fmt.Errorf("json.NewDecoder.Decode: %w", err),
+				internalServerErrorResponse,
+			)
+		}
+
+		return happier.NoContent(w, r)
+	}
+}
+
+func AddRecovery(renewer session.Renewer, db storage.TwoFactor) horror.HandlerFunc {
+	type payload struct {
+		Name  string   `json:"name"`
+		Codes []string `json:"codes"`
+	}
+
+	const (
+		maxCodesLength int = 10
+		maxCodeLength  int = 20
+	)
+
+	verifyPayload := func(p *payload) (string, bool) {
+		if p.Name == "" {
+			return "Missing Name.", false
+		}
+		if len(p.Codes) > maxCodesLength {
+			return "Too many codes has been sent.", false
+		}
+		for _, c := range p.Codes {
+			if len(c) > maxCodeLength {
+				return fmt.Sprintf("Maximum length of single code is %d.", maxCodeLength), false
+			}
+		}
+		return "", true
+	}
+	return func(w http.ResponseWriter, r *http.Request) error {
+		errFactory := happier.FromRequest(r)
+		p := new(payload)
+
+		state, err := renewer.Renew(r)
+		if err != nil {
+			return errFactory.Unauthorized(
+				fmt.Errorf("renewer.Renew: %w", err),
+				"You don't have access to given resources.",
+			)
+		}
+
+		err = json.NewDecoder(r.Body).Decode(p)
+		if err != nil {
+			return errFactory.BadRequest(
+				fmt.Errorf("json.NewDecoder.Decode: %w", err),
+				"Failed to parse payload.",
+			)
+		}
+
+		msg, ok := verifyPayload(p)
+		if !ok {
+			return errFactory.BadRequest(
+				fmt.Errorf("verifyPayload is not ok: %s", msg),
+				msg,
+			)
+		}
+
+		id := uuid.New().String()
+		err = db.Update(r.Context(), state.UserID, func(tf *models.TwoFactor) error {
+			tf.RecoveryCodes[id] = models.Recovery{
+				ID:    id,
+				Name:  p.Name,
+				Codes: set.StringFromSlice(p.Codes),
+			}
+			return nil
+		})
+		if err != nil {
+			return errFactory.InternalServerError(
+				fmt.Errorf("db.Update: %w", err),
 				internalServerErrorResponse,
 			)
 		}
