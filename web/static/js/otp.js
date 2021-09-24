@@ -86,7 +86,6 @@ const OTP = ({ options, onAdd }) => {
             errContainer.innerText = "Failed to add OTP to account.";
             return;
           }
-          addOTPButton.disabled = false;
           render(
             twoFactorForm,
             el(
@@ -109,7 +108,6 @@ const OTP = ({ options, onAdd }) => {
         onClick: () => {
           event.preventDefault();
           empty(twoFactorForm);
-          addOTPButton.disabled = false;
         },
       }),
     ),
@@ -132,7 +130,6 @@ function mount({ onAdd }) {
         onAdd: onAdd,
       }),
     );
-    addOTPButton.disabled = true;
   });
 }
 
