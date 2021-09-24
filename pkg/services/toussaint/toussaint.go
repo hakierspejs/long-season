@@ -30,6 +30,10 @@ func CollectMethods(userID string, tf models.TwoFactor) []Method {
 		res = append(res, v)
 	}
 
+	for _, v := range tf.RecoveryCodes {
+		res = append(res, v)
+	}
+
 	return res
 }
 
@@ -53,13 +57,14 @@ func Find(s []Method, userID string, f func(m models.TwoFactorMethod) bool) *mod
 // IsTwoFactorEnabled checks whether some user
 // has enabled any two factor method.
 func IsTwoFactorEnabled(tf models.TwoFactor) bool {
-	sum := len(tf.OneTimeCodes)
+	sum := len(tf.OneTimeCodes) + len(tf.RecoveryCodes)
 	return sum > 0
 }
 
 const (
 	twoFactorRequiredKey = "2fa"
 	totpKey              = "totp"
+	recoveryKey          = "rc"
 )
 
 // TwoFactorRequired is session's Option. It forces
@@ -75,6 +80,14 @@ func TwoFactorRequired(required bool) session.Option {
 func AuthenticationWithTOTP(totpEnabled bool) session.Option {
 	return func(state *session.State) {
 		state.Values[totpKey] = totpEnabled
+	}
+}
+
+// AuthenticationWithRecovery is session's Option. It enables or disables
+// two factor authentication with recovery codes.
+func AuthenticationWithRecovery(recoveryEnabled bool) session.Option {
+	return func(state *session.State) {
+		state.Values[recoveryKey] = recoveryEnabled
 	}
 }
 
@@ -96,6 +109,12 @@ func IsTwoFactorRequired(state session.State) bool {
 // for given session.
 func IsTOTPEnabled(state session.State) bool {
 	return readBoolFromInterfaceMap(state.Values, totpKey)
+}
+
+// IsRecoveryEnabled returns true if given session's owner
+// has recovery codes enabled.
+func IsRecoveryEnabled(state session.State) bool {
+	return readBoolFromInterfaceMap(state.Values, recoveryKey)
 }
 
 // Guard returns http middleware which guards from
@@ -215,6 +234,35 @@ func ValidatorTOTP(tf models.TwoFactor) CodeValidator {
 			}
 		}
 
+		return false
+	})
+}
+
+// ValidatorRecovery returns validator for recovery codes stored
+// in given two factor storage.
+func ValidatorRecovery(tf storage.TwoFactor, userID string) CodeValidator {
+	return funcValidator(func(ctx context.Context, code string) bool {
+		err := tf.Update(ctx, userID, func(tf *models.TwoFactor) error {
+			for _, method := range tf.RecoveryCodes {
+				if method.Codes.Contains(code) {
+					method.Codes.Remove(code)
+					return nil
+				}
+			}
+			return fmt.Errorf("failed to validate with given code")
+		})
+		return err == nil
+	})
+}
+
+// ValidatorComposite turns multiple code validators into single one.
+func ValidatorComposite(validators ...CodeValidator) CodeValidator {
+	return funcValidator(func(ctx context.Context, code string) bool {
+		for _, validator := range validators {
+			if validator.Validate(ctx, code) {
+				return true
+			}
+		}
 		return false
 	})
 }

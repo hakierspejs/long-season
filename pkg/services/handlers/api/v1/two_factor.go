@@ -145,14 +145,19 @@ func TwoFactorMethodRemove(db storage.TwoFactor) horror.HandlerFunc {
 		}
 
 		err = db.Update(r.Context(), userID, func(tf *models.TwoFactor) error {
-			_, ok := tf.OneTimeCodes[twoFactorID]
-			if !ok {
+			methods := toussaint.CollectMethods(userID, *tf)
+			res := toussaint.Find(methods, userID, func(tf models.TwoFactorMethod) bool {
+				return tf.ID == twoFactorID
+			})
+			if res == nil {
 				return errFactory.NotFound(
-					fmt.Errorf("db.Update: ok is not true"),
-					"There is no two factor method with given ID",
+					fmt.Errorf("There is no two factor method with the given ID."),
+					"There is no two factor method with the given ID.",
 				)
 			}
+
 			delete(tf.OneTimeCodes, twoFactorID)
+			delete(tf.RecoveryCodes, twoFactorID)
 			return nil
 		})
 		if err != nil {
