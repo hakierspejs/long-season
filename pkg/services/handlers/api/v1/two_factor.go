@@ -10,7 +10,6 @@ import (
 	"net/http"
 
 	"github.com/hakierspejs/long-season/pkg/models"
-	"github.com/hakierspejs/long-season/pkg/models/set"
 	"github.com/hakierspejs/long-season/pkg/services/happier"
 	"github.com/hakierspejs/long-season/pkg/services/requests"
 	"github.com/hakierspejs/long-season/pkg/services/session"
@@ -50,7 +49,7 @@ func TwoFactorMethods(db storage.TwoFactor) horror.HandlerFunc {
 		}
 
 		res := new(response)
-		for _, m := range methods.OneTimeCodes {
+		for _, m := range toussaint.CollectMethods(*methods) {
 			res.Active = append(res.Active, m.Method(userID))
 		}
 
@@ -112,7 +111,7 @@ func TwoFactorMethod(db storage.TwoFactor) horror.HandlerFunc {
 			)
 		}
 
-		methods := toussaint.CollectMethods(userID, *twoFactor)
+		methods := toussaint.CollectMethods(*twoFactor)
 		res := toussaint.Find(methods, userID, func(tf models.TwoFactorMethod) bool {
 			return tf.ID == twoFactorID
 		})
@@ -146,7 +145,7 @@ func TwoFactorMethodRemove(db storage.TwoFactor) horror.HandlerFunc {
 		}
 
 		err = db.Update(r.Context(), userID, func(tf *models.TwoFactor) error {
-			methods := toussaint.CollectMethods(userID, *tf)
+			methods := toussaint.CollectMethods(*tf)
 			res := toussaint.Find(methods, userID, func(tf models.TwoFactorMethod) bool {
 				return tf.ID == twoFactorID
 			})
@@ -330,13 +329,16 @@ func AddRecovery(renewer session.Renewer, db storage.TwoFactor) horror.HandlerFu
 			)
 		}
 
-		id := uuid.New().String()
+		newMethod, err := toussaint.NewRecovery(p.Name, p.Codes)
+		if err != nil {
+			return errFactory.InternalServerError(
+				fmt.Errorf("toussaint.NewRecovery: %w", err),
+				internalServerErrorResponse,
+			)
+		}
+
 		err = db.Update(r.Context(), state.UserID, func(tf *models.TwoFactor) error {
-			tf.RecoveryCodes[id] = models.Recovery{
-				ID:    id,
-				Name:  p.Name,
-				Codes: set.StringFromSlice(p.Codes),
-			}
+			tf.RecoveryCodes[newMethod.ID] = *newMethod
 			return nil
 		})
 		if err != nil {

@@ -7,10 +7,13 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/google/uuid"
 	"github.com/hakierspejs/long-season/pkg/models"
+	"github.com/hakierspejs/long-season/pkg/models/set"
 	"github.com/hakierspejs/long-season/pkg/services/happier"
 	"github.com/hakierspejs/long-season/pkg/services/session"
 	"github.com/hakierspejs/long-season/pkg/storage"
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/pquerna/otp/totp"
 )
@@ -23,7 +26,7 @@ type Method interface {
 
 // CollectMethods build slice of valeus that implements
 // Method interface from multiple slices of Methods.
-func CollectMethods(userID string, tf models.TwoFactor) []Method {
+func CollectMethods(tf models.TwoFactor) []Method {
 	res := []Method{}
 
 	for _, v := range tf.OneTimeCodes {
@@ -31,7 +34,9 @@ func CollectMethods(userID string, tf models.TwoFactor) []Method {
 	}
 
 	for _, v := range tf.RecoveryCodes {
-		res = append(res, v)
+		if len(v.Codes.Items()) > 0 {
+			res = append(res, v)
+		}
 	}
 
 	return res
@@ -54,10 +59,38 @@ func Find(s []Method, userID string, f func(m models.TwoFactorMethod) bool) *mod
 	return nil
 }
 
+// NewRecovery returns new recovery codes for two factor authentication.
+func NewRecovery(name string, codes []string) (*models.Recovery, error) {
+	hashedCodes := make([]string, len(codes), cap(codes))
+	for i, v := range codes {
+		hash, err := bcrypt.GenerateFromPassword([]byte(v), bcrypt.DefaultCost)
+		if err != nil {
+			return nil, fmt.Errorf("bcrypt.GenerateFromPassword: %w", err)
+		}
+		hashedCodes[i] = string(hash)
+	}
+
+	return &models.Recovery{
+		ID:    uuid.New().String(),
+		Name:  name,
+		Codes: set.StringFromSlice(hashedCodes),
+	}, nil
+}
+
+func countNotEmptyRecoveyCodes(tf models.TwoFactor) int {
+	res := 0
+	for _, c := range tf.RecoveryCodes {
+		if len(c.Codes.Items()) > 0 {
+			res += 1
+		}
+	}
+	return res
+}
+
 // IsTwoFactorEnabled checks whether some user
 // has enabled any two factor method.
 func IsTwoFactorEnabled(tf models.TwoFactor) bool {
-	sum := len(tf.OneTimeCodes) + len(tf.RecoveryCodes)
+	sum := len(tf.OneTimeCodes) + countNotEmptyRecoveyCodes(tf)
 	return sum > 0
 }
 
@@ -244,9 +277,11 @@ func ValidatorRecovery(tf storage.TwoFactor, userID string) CodeValidator {
 	return funcValidator(func(ctx context.Context, code string) bool {
 		err := tf.Update(ctx, userID, func(tf *models.TwoFactor) error {
 			for _, method := range tf.RecoveryCodes {
-				if method.Codes.Contains(code) {
-					method.Codes.Remove(code)
-					return nil
+				for _, hashedCode := range method.Codes.Items() {
+					if err := bcrypt.CompareHashAndPassword([]byte(hashedCode), []byte(code)); err == nil {
+						method.Codes.Remove(hashedCode)
+						return nil
+					}
 				}
 			}
 			return fmt.Errorf("failed to validate with given code")

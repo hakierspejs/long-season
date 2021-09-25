@@ -69,7 +69,6 @@ func Auth(args AuthArguments) horror.HandlerFunc {
 		}
 
 		twoFactorEnabled := toussaint.IsTwoFactorEnabled(*methods)
-		fmt.Println(match.Nickname, "two factor enable: ", twoFactorEnabled)
 		if err := session.WithOptions(ctx, *newSession, session.WithOptionsArguments{
 			Saver:  args.Saver,
 			Writer: w,
