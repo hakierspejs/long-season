@@ -1,4 +1,4 @@
-import { el, main, render, empty, withErr } from "/static/js/utils.js";
+import { el, empty, main, render, withErr } from "/static/js/utils.js";
 import * as api from "/static/js/api.js";
 
 function genCode(length) {
