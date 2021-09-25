@@ -7,15 +7,15 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/google/uuid"
 	"github.com/hakierspejs/long-season/pkg/models"
 	"github.com/hakierspejs/long-season/pkg/models/set"
 	"github.com/hakierspejs/long-season/pkg/services/happier"
 	"github.com/hakierspejs/long-season/pkg/services/session"
 	"github.com/hakierspejs/long-season/pkg/storage"
-	"golang.org/x/crypto/bcrypt"
 
+	"github.com/google/uuid"
 	"github.com/pquerna/otp/totp"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // Method implements method function which returns
