@@ -65,6 +65,17 @@ const Recovery = ({ targetForm, targetButton, onAdd }) => {
       null,
       FormButton("Submit", {
         onClick: async (event) => {
+          event.preventDefault();
+
+          let err = await api.newRecovery({
+            "name": name,
+            "codes": generatedCodes,
+          });
+          if (err) {
+            errContainer.innerText = "Failed to add recovery codes to account.";
+            return;
+          }
+
           render(
             targetForm,
             el(
@@ -80,7 +91,6 @@ const Recovery = ({ targetForm, targetButton, onAdd }) => {
 
           // Run onAdd hook after successfully submitting
           // new recovery codes.
-          onAdd();
           onAdd();
         },
       }),
