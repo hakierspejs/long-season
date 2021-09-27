@@ -789,7 +789,8 @@ func getTwoFactorMethods(tx *bolt.Tx, userID string) *models.TwoFactor {
 	bucket := getTwoFactorBucket(tx)
 	dat := bucket.Get(twoFactorKey(userID))
 	res := &models.TwoFactor{
-		OneTimeCodes: map[string]models.OneTimeCode{},
+		OneTimeCodes:  map[string]models.OneTimeCode{},
+		RecoveryCodes: map[string]models.Recovery{},
 	}
 	if dat == nil {
 		// User has not two factor methods so we can
@@ -798,7 +799,8 @@ func getTwoFactorMethods(tx *bolt.Tx, userID string) *models.TwoFactor {
 	}
 	if err := json.Unmarshal(dat, res); err != nil {
 		return &models.TwoFactor{
-			OneTimeCodes: map[string]models.OneTimeCode{},
+			OneTimeCodes:  map[string]models.OneTimeCode{},
+			RecoveryCodes: map[string]models.Recovery{},
 		}
 	}
 	return res
@@ -839,7 +841,9 @@ func (t *TwoFactorStorage) Update(ctx context.Context, userID string, f func(*mo
 			return serrors.ErrNoID
 		}
 		res := getTwoFactorMethods(tx, userID)
-		f(res)
+		if err = f(res); err != nil {
+			return err
+		}
 		return setTwoFactorMethods(tx, userID, *res)
 	})
 }

@@ -8,11 +8,14 @@ import (
 	"net/http"
 
 	"github.com/hakierspejs/long-season/pkg/models"
+	"github.com/hakierspejs/long-season/pkg/models/set"
 	"github.com/hakierspejs/long-season/pkg/services/happier"
 	"github.com/hakierspejs/long-season/pkg/services/session"
 	"github.com/hakierspejs/long-season/pkg/storage"
 
+	"github.com/google/uuid"
 	"github.com/pquerna/otp/totp"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // Method implements method function which returns
@@ -23,11 +26,17 @@ type Method interface {
 
 // CollectMethods build slice of valeus that implements
 // Method interface from multiple slices of Methods.
-func CollectMethods(userID string, tf models.TwoFactor) []Method {
+func CollectMethods(tf models.TwoFactor) []Method {
 	res := []Method{}
 
 	for _, v := range tf.OneTimeCodes {
 		res = append(res, v)
+	}
+
+	for _, v := range tf.RecoveryCodes {
+		if len(v.Codes.Items()) > 0 {
+			res = append(res, v)
+		}
 	}
 
 	return res
@@ -50,16 +59,45 @@ func Find(s []Method, userID string, f func(m models.TwoFactorMethod) bool) *mod
 	return nil
 }
 
+// NewRecovery returns new recovery codes for two factor authentication.
+func NewRecovery(name string, codes []string) (*models.Recovery, error) {
+	hashedCodes := make([]string, len(codes), cap(codes))
+	for i, v := range codes {
+		hash, err := bcrypt.GenerateFromPassword([]byte(v), bcrypt.DefaultCost)
+		if err != nil {
+			return nil, fmt.Errorf("bcrypt.GenerateFromPassword: %w", err)
+		}
+		hashedCodes[i] = string(hash)
+	}
+
+	return &models.Recovery{
+		ID:    uuid.New().String(),
+		Name:  name,
+		Codes: set.StringFromSlice(hashedCodes),
+	}, nil
+}
+
+func countNotEmptyRecoveyCodes(tf models.TwoFactor) int {
+	res := 0
+	for _, c := range tf.RecoveryCodes {
+		if len(c.Codes.Items()) > 0 {
+			res += 1
+		}
+	}
+	return res
+}
+
 // IsTwoFactorEnabled checks whether some user
 // has enabled any two factor method.
 func IsTwoFactorEnabled(tf models.TwoFactor) bool {
-	sum := len(tf.OneTimeCodes)
+	sum := len(tf.OneTimeCodes) + countNotEmptyRecoveyCodes(tf)
 	return sum > 0
 }
 
 const (
 	twoFactorRequiredKey = "2fa"
 	totpKey              = "totp"
+	recoveryKey          = "rc"
 )
 
 // TwoFactorRequired is session's Option. It forces
@@ -75,6 +113,14 @@ func TwoFactorRequired(required bool) session.Option {
 func AuthenticationWithTOTP(totpEnabled bool) session.Option {
 	return func(state *session.State) {
 		state.Values[totpKey] = totpEnabled
+	}
+}
+
+// AuthenticationWithRecovery is session's Option. It enables or disables
+// two factor authentication with recovery codes.
+func AuthenticationWithRecovery(recoveryEnabled bool) session.Option {
+	return func(state *session.State) {
+		state.Values[recoveryKey] = recoveryEnabled
 	}
 }
 
@@ -96,6 +142,12 @@ func IsTwoFactorRequired(state session.State) bool {
 // for given session.
 func IsTOTPEnabled(state session.State) bool {
 	return readBoolFromInterfaceMap(state.Values, totpKey)
+}
+
+// IsRecoveryEnabled returns true if given session's owner
+// has recovery codes enabled.
+func IsRecoveryEnabled(state session.State) bool {
+	return readBoolFromInterfaceMap(state.Values, recoveryKey)
 }
 
 // Guard returns http middleware which guards from
@@ -215,6 +267,40 @@ func ValidatorTOTP(tf models.TwoFactor) CodeValidator {
 			}
 		}
 
+		return false
+	})
+}
+
+// ValidatorRecovery returns validator for recovery codes stored
+// in given two factor storage.
+func ValidatorRecovery(tf storage.TwoFactor, userID string) CodeValidator {
+	return funcValidator(func(ctx context.Context, code string) bool {
+		updateFunc := func(tf *models.TwoFactor) error {
+			for _, method := range tf.RecoveryCodes {
+				for _, hashedCode := range method.Codes.Items() {
+					err := bcrypt.CompareHashAndPassword([]byte(hashedCode), []byte(code))
+					if err == nil {
+						method.Codes.Remove(hashedCode)
+						return nil
+					}
+				}
+			}
+			return fmt.Errorf("failed to validate with given code")
+		}
+
+		err := tf.Update(ctx, userID, updateFunc)
+		return err == nil
+	})
+}
+
+// ValidatorComposite turns multiple code validators into single one.
+func ValidatorComposite(validators ...CodeValidator) CodeValidator {
+	return funcValidator(func(ctx context.Context, code string) bool {
+		for _, validator := range validators {
+			if validator.Validate(ctx, code) {
+				return true
+			}
+		}
 		return false
 	})
 }

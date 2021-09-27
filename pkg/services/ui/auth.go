@@ -69,13 +69,13 @@ func Auth(args AuthArguments) horror.HandlerFunc {
 		}
 
 		twoFactorEnabled := toussaint.IsTwoFactorEnabled(*methods)
-		fmt.Println(match.Nickname, "two factor enable: ", twoFactorEnabled)
 		if err := session.WithOptions(ctx, *newSession, session.WithOptionsArguments{
 			Saver:  args.Saver,
 			Writer: w,
 			Options: []session.Option{
 				toussaint.TwoFactorRequired(twoFactorEnabled),
 				toussaint.AuthenticationWithTOTP(len(methods.OneTimeCodes) > 0),
+				toussaint.AuthenticationWithRecovery(len(methods.RecoveryCodes) > 0),
 			},
 		}); err != nil {
 			return fmt.Errorf("session.WithOption: %w", err)
@@ -130,7 +130,12 @@ func AuthWithCodes(args AuthWithCodesArguments) horror.HandlerFunc {
 			)
 		}
 
-		validated := toussaint.ValidatorTOTP(*methods).Validate(ctx, p.Code)
+		validator := toussaint.ValidatorComposite(
+			toussaint.ValidatorTOTP(*methods),
+			toussaint.ValidatorRecovery(args.TwoFactor, s.UserID),
+		)
+
+		validated := validator.Validate(ctx, p.Code)
 		if !validated {
 			return errFactory.Unauthorized(
 				fmt.Errorf("validated is false"),
@@ -142,6 +147,7 @@ func AuthWithCodes(args AuthWithCodesArguments) horror.HandlerFunc {
 			Saver:  args.Saver,
 			Writer: w,
 			Options: []session.Option{
+				toussaint.AuthenticationWithRecovery(len(methods.RecoveryCodes) > 0),
 				toussaint.AuthenticationWithTOTP(len(methods.OneTimeCodes) > 0),
 				// User is fully authenticated now, so we can
 				// set required two factor authentication to false.

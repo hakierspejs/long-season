@@ -1,6 +1,7 @@
 import { el, main, render, withErr } from "/static/js/utils.js";
 import * as api from "/static/js/api.js";
 import * as otp from "/static/js/otp.js";
+import * as recovery from "/static/js/recovery.js";
 
 const PasswordInput = (label, props) => {
   props.type = "password";
@@ -178,6 +179,10 @@ async function renderTwoFactorMethods() {
   render(twoFactorMethods, TwoFactorMethods(user.id, methods.active));
 }
 
+const addRecoveryButton = document.getElementById("add-recovery");
+const addOTPButton = document.getElementById("add-otp");
+const twoFactorForm = document.getElementById("two-factor-form");
+
 main(() => {
   // Render form for changing password.
   render(document.getElementById("update-password"), ChangePassword());
@@ -190,5 +195,14 @@ main(() => {
     // Render two factor methods every time user
     // submits successfully new OTP code.
     onAdd: renderTwoFactorMethods,
+  });
+
+  // Mount Recovery Codes.
+  recovery.mount({
+    // Render two factor methods every time user
+    // submits successfully new recovery codes.
+    onAdd: renderTwoFactorMethods,
+    targetForm: twoFactorForm,
+    targetButton: addRecoveryButton,
   });
 });

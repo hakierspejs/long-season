@@ -49,7 +49,7 @@ func TwoFactorMethods(db storage.TwoFactor) horror.HandlerFunc {
 		}
 
 		res := new(response)
-		for _, m := range methods.OneTimeCodes {
+		for _, m := range toussaint.CollectMethods(*methods) {
 			res.Active = append(res.Active, m.Method(userID))
 		}
 
@@ -111,7 +111,7 @@ func TwoFactorMethod(db storage.TwoFactor) horror.HandlerFunc {
 			)
 		}
 
-		methods := toussaint.CollectMethods(userID, *twoFactor)
+		methods := toussaint.CollectMethods(*twoFactor)
 		res := toussaint.Find(methods, userID, func(tf models.TwoFactorMethod) bool {
 			return tf.ID == twoFactorID
 		})
@@ -145,14 +145,19 @@ func TwoFactorMethodRemove(db storage.TwoFactor) horror.HandlerFunc {
 		}
 
 		err = db.Update(r.Context(), userID, func(tf *models.TwoFactor) error {
-			_, ok := tf.OneTimeCodes[twoFactorID]
-			if !ok {
+			methods := toussaint.CollectMethods(*tf)
+			res := toussaint.Find(methods, userID, func(tf models.TwoFactorMethod) bool {
+				return tf.ID == twoFactorID
+			})
+			if res == nil {
 				return errFactory.NotFound(
-					fmt.Errorf("db.Update: ok is not true"),
-					"There is no two factor method with given ID",
+					fmt.Errorf("There is no two factor method with the given ID."),
+					"There is no two factor method with the given ID.",
 				)
 			}
+
 			delete(tf.OneTimeCodes, twoFactorID)
+			delete(tf.RecoveryCodes, twoFactorID)
 			return nil
 		})
 		if err != nil {
@@ -263,6 +268,84 @@ func AddOTP(renewer session.Renewer, db storage.TwoFactor) horror.HandlerFunc {
 		}); err != nil {
 			return errFactory.InternalServerError(
 				fmt.Errorf("json.NewDecoder.Decode: %w", err),
+				internalServerErrorResponse,
+			)
+		}
+
+		return happier.NoContent(w, r)
+	}
+}
+
+// AddRecovery enables recovery codes based two factor authentication with provided array of
+// codes and name.
+func AddRecovery(renewer session.Renewer, db storage.TwoFactor) horror.HandlerFunc {
+	type payload struct {
+		Name  string   `json:"name"`
+		Codes []string `json:"codes"`
+	}
+
+	const (
+		maxCodesLength int = 10
+		maxCodeLength  int = 20
+	)
+
+	verifyPayload := func(p *payload) (string, bool) {
+		if p.Name == "" {
+			return "Missing Name.", false
+		}
+		if len(p.Codes) > maxCodesLength {
+			return "Too many codes has been sent.", false
+		}
+		for _, c := range p.Codes {
+			if len(c) > maxCodeLength {
+				return fmt.Sprintf("Maximum length of single code is %d.", maxCodeLength), false
+			}
+		}
+		return "", true
+	}
+	return func(w http.ResponseWriter, r *http.Request) error {
+		errFactory := happier.FromRequest(r)
+		p := new(payload)
+
+		state, err := renewer.Renew(r)
+		if err != nil {
+			return errFactory.Unauthorized(
+				fmt.Errorf("renewer.Renew: %w", err),
+				"You don't have access to given resources.",
+			)
+		}
+
+		err = json.NewDecoder(r.Body).Decode(p)
+		if err != nil {
+			return errFactory.BadRequest(
+				fmt.Errorf("json.NewDecoder.Decode: %w", err),
+				"Failed to parse payload.",
+			)
+		}
+
+		msg, ok := verifyPayload(p)
+		if !ok {
+			return errFactory.BadRequest(
+				fmt.Errorf("verifyPayload is not ok: %s", msg),
+				msg,
+			)
+		}
+
+		newMethod, err := toussaint.NewRecovery(p.Name, p.Codes)
+		if err != nil {
+			return errFactory.InternalServerError(
+				fmt.Errorf("toussaint.NewRecovery: %w", err),
+				internalServerErrorResponse,
+			)
+		}
+
+		err = db.Update(r.Context(), state.UserID, func(tf *models.TwoFactor) error {
+			tf.RecoveryCodes[newMethod.ID] = *newMethod
+			return nil
+		})
+		if err != nil {
+			return errFactory.InternalServerError(
+				fmt.Errorf("db.Update: %w", err),
 				internalServerErrorResponse,
 			)
 		}

@@ -101,6 +101,36 @@ async function newOTP(body) {
   return null;
 }
 
+async function newRecovery(body) {
+  let [user, errWho] = await who();
+  if (errWho) {
+    return errWho;
+  }
+
+  let [res, errPost] = await withErr(fetch(
+    `/api/v1/users/${user.id}/twofactor/recovery`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      redirect: "follow",
+      credentials: "include",
+      body: JSON.stringify(body),
+    },
+  ));
+  if (errPost) {
+    return errPost;
+  }
+
+  if ([400, 401, 404, 500].includes(res.status)) {
+    let httpErr = new HTTPError("Failed to add new OTP to account.");
+    return httpErr;
+  }
+
+  return null;
+}
+
 async function twoFactorMethods(userID) {
   let uri = `/api/v1/users/${userID}/twofactor`;
   let [res, errRes] = await withErr(fetch(uri, {
@@ -174,6 +204,7 @@ async function authWithCodes(code) {
 export {
   authWithCodes,
   newOTP,
+  newRecovery,
   optionsOTP,
   removeTwoFactorMethod,
   twoFactorMethods,

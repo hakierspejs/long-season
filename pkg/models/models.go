@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/cristalhq/jwt/v3"
+	"github.com/hakierspejs/long-season/pkg/models/set"
 )
 
 func init() {
@@ -45,6 +46,10 @@ type TwoFactorType string
 const (
 	// OneTimeCodes are time-based one time passwords.
 	OneTimeCodes TwoFactorType = "totp"
+
+	// RecoveryCodes are codes for one time use as additional
+	// two factor method.
+	RecoveryCodes TwoFactorType = "recovery codes"
 )
 
 // TwoFactorMethod holds private data of enabled
@@ -74,6 +79,10 @@ type TwoFactor struct {
 	// OneTimeCodes is map of one time codes entry with
 	// theirs IDs as maps keys.
 	OneTimeCodes map[string]OneTimeCode `json:"oneTimeCodes,omitempty"`
+
+	// RecoveryCodes is map of recovery codes entries with
+	// theirs IDs as maps keys.
+	RecoveryCodes map[string]Recovery `json"recoveryCodes,omitempty"`
 }
 
 // OneTimeCode holds data stored in database for two factor
@@ -97,6 +106,30 @@ func (o OneTimeCode) Method(userID string) TwoFactorMethod {
 		Name:     o.Name,
 		Type:     OneTimeCodes,
 		Location: fmt.Sprintf("/api/v1/users/%s/twofactor/%s", userID, o.ID),
+	}
+}
+
+// Recovery holds data stored in database for two
+// factor verification with recovery codes.
+type Recovery struct {
+	// ID is unique id of one time code.
+	ID string `json:"id,omitempty"`
+
+	// Name is human readable name of one time code
+	// provided by user.
+	Name string `json:"name,omitempty"`
+
+	// Codes holds set with recovery codes.
+	Codes *set.String `json:"codes,omitempty"`
+}
+
+// Method is adapter of RecoveryCodes for TwoFactorMethod type.
+func (r Recovery) Method(userID string) TwoFactorMethod {
+	return TwoFactorMethod{
+		ID:       r.ID,
+		Name:     r.Name,
+		Type:     RecoveryCodes,
+		Location: fmt.Sprintf("/api/v1/users/%s/twofactor/%s", userID, r.ID),
 	}
 }
 
