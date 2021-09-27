@@ -275,17 +275,20 @@ func ValidatorTOTP(tf models.TwoFactor) CodeValidator {
 // in given two factor storage.
 func ValidatorRecovery(tf storage.TwoFactor, userID string) CodeValidator {
 	return funcValidator(func(ctx context.Context, code string) bool {
-		err := tf.Update(ctx, userID, func(tf *models.TwoFactor) error {
+		updateFunc := func(tf *models.TwoFactor) error {
 			for _, method := range tf.RecoveryCodes {
 				for _, hashedCode := range method.Codes.Items() {
-					if err := bcrypt.CompareHashAndPassword([]byte(hashedCode), []byte(code)); err == nil {
+					err := bcrypt.CompareHashAndPassword([]byte(hashedCode), []byte(code))
+					if err == nil {
 						method.Codes.Remove(hashedCode)
 						return nil
 					}
 				}
 			}
 			return fmt.Errorf("failed to validate with given code")
-		})
+		}
+
+		err := tf.Update(ctx, userID, updateFunc)
 		return err == nil
 	})
 }
