@@ -276,6 +276,8 @@ func AddOTP(renewer session.Renewer, db storage.TwoFactor) horror.HandlerFunc {
 	}
 }
 
+// AddRecovery enables recovery codes based two factor authentication with provided array of
+// codes and name.
 func AddRecovery(renewer session.Renewer, db storage.TwoFactor) horror.HandlerFunc {
 	type payload struct {
 		Name  string   `json:"name"`
