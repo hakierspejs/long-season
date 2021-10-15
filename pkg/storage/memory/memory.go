@@ -30,7 +30,6 @@ const (
 type Factory struct {
 	users           *UsersStorage
 	devices         *DevicesStorage
-	statusIter      *StatusIterator
 	statusStorageTx *StatusStorageTx
 	twoFactor       *TwoFactorStorage
 }
@@ -47,12 +46,6 @@ func (f Factory) Devices() *DevicesStorage {
 
 func (f Factory) TwoFactor() *TwoFactorStorage {
 	return f.twoFactor
-}
-
-// StatusIterator returns storage interface for
-// iterating over users and their devices.
-func (f Factory) StatusIterator() *StatusIterator {
-	return f.statusIter
 }
 
 // StatusTx returns storage interface for
@@ -87,7 +80,6 @@ func New(db *bolt.DB) (*Factory, error) {
 	return &Factory{
 		users:           &UsersStorage{db},
 		devices:         &DevicesStorage{db},
-		statusIter:      &StatusIterator{db},
 		statusStorageTx: &StatusStorageTx{db},
 		twoFactor:       &TwoFactorStorage{db},
 	}, nil
@@ -637,40 +629,6 @@ func (s *DevicesStorage) Remove(ctx context.Context, id string) error {
 		}
 
 		return b.DeleteBucket(key)
-	})
-}
-
-// StatusIterator implements storage.StatusIterator interface.
-type StatusIterator struct {
-	db *bolt.DB
-}
-
-// ForEachUpdate iterates over every user from database and their
-// devices. Overwrites current user data with returned one.
-func (s *StatusIterator) ForEachUpdate(
-	ctx context.Context,
-	iterFunc func(models.User, []models.Device) (*models.User, error),
-) error {
-	return s.db.Update(func(tx *bolt.Tx) error {
-		return forEachUser(tx, func(u models.User) error {
-			userDevices := []models.Device{}
-
-			err := forDevicesOfUser(tx, u.ID, func(d models.Device) error {
-				userDevices = append(userDevices, d)
-				return nil
-			})
-			if err != nil {
-				return err
-			}
-
-			newUser, err := iterFunc(u, userDevices)
-			if err != nil {
-				return err
-			}
-
-			b := tx.Bucket([]byte(usersBucket))
-			return updateOneUser(b, *newUser)
-		})
 	})
 }
 
