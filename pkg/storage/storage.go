@@ -83,3 +83,17 @@ type TwoFactor interface {
 	// adding more methods.
 	Remove(ctx context.Context, userID string) error
 }
+
+// OnlineUsers storage keeps IDs of users
+// that are currently online.
+type OnlineUsers interface {
+	// All returns slice of online users identifiers.
+	All(ctx context.Context) ([]string, error)
+
+	// Update pushes new list with IDs of online users.
+	// Old identifiers will be replaced.
+	Update(ctx context.Context, ids []string) error
+
+	// IsOnline return true if user with given ID is currently online.
+	IsOnline(ctx context.Context, id string) (bool, error)
+}
