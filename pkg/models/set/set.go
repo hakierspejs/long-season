@@ -12,14 +12,14 @@ import (
 // String is implementation of set for strings.
 type String struct {
 	core map[string]struct{}
-	mtx  sync.RWMutex
+	mtx  *sync.RWMutex
 }
 
 // NewString returns allocated string set.
 func NewString() *String {
 	return &String{
 		core: map[string]struct{}{},
-		mtx:  sync.RWMutex{},
+		mtx:  &sync.RWMutex{},
 	}
 }
 
