@@ -38,10 +38,10 @@ func TestOnlineUsers(t *testing.T) {
 		is.NoErr(err)
 
 		want := map[string]struct{}{
-			"4": struct{}{},
-			"5": struct{}{},
-			"6": struct{}{},
-			"8": struct{}{},
+			"4": {},
+			"5": {},
+			"6": {},
+			"8": {},
 		}
 		got := ou.set
 		is.Equal(got, want)

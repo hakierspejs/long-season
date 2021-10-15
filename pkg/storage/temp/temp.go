@@ -30,7 +30,7 @@ func (o *OnlineUsers) All(ctx context.Context) ([]string, error) {
 	resChan := make(chan []string)
 	go func() {
 		res := []string{}
-		for id, _ := range o.set {
+		for id := range o.set {
 			res = append(res, id)
 		}
 		resChan <- res
