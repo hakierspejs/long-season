@@ -15,7 +15,9 @@ type Daemon func()
 
 // DaemonArgs contains list of arguments for NewDeamon constructor.
 type DaemonArgs struct {
-	Iter storage.StatusIterator
+	OnlineUsers storage.OnlineUsers
+
+	Devices storage.Devices
 
 	Counters storage.StatusTx
 
@@ -53,9 +55,10 @@ func NewDaemon(ctx context.Context, args DaemonArgs) (chan<- []net.HardwareAddr,
 			case <-ticker.C:
 				// Update online status for every user in db
 				err := storage.UpdateStatuses(ctx, storage.UpdateStatusesArgs{
-					Addresses: macs.Slice(),
-					Iter:      args.Iter,
-					Counters:  args.Counters,
+					Addresses:          macs.Slice(),
+					DevicesStorage:     args.Devices,
+					Counters:           args.Counters,
+					OnlineUsersStorage: args.OnlineUsers,
 				})
 				if err != nil {
 					log.Println("Failed to update statuses, reason:  ", err.Error())

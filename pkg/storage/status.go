@@ -5,25 +5,15 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/hakierspejs/long-season/pkg/models"
 	"golang.org/x/crypto/bcrypt"
 )
 
-// StatusIterator modifies users data based on their devices.
-type StatusIterator interface {
-	// ForEachUpdate iterates over every user from database and their
-	// devices. Overwrites current user data with returned one.
-	ForEachUpdate(
-		context.Context,
-		func(models.User, []models.Device) (*models.User, error),
-	) error
-}
-
 // UpdateStatusesArgs contains arguments for UpdateStatuses function.
 type UpdateStatusesArgs struct {
-	Addresses []net.HardwareAddr
-	Iter      StatusIterator
-	Counters  StatusTx
+	Addresses          []net.HardwareAddr
+	DevicesStorage     Devices
+	OnlineUsersStorage OnlineUsers
+	Counters           StatusTx
 }
 
 // UpdateStatuses set online user fields, with any device's MAC equal to one
@@ -31,25 +21,24 @@ type UpdateStatusesArgs struct {
 func UpdateStatuses(ctx context.Context, args UpdateStatusesArgs) error {
 
 	known, unknown := 0, 0
-	err := args.Iter.ForEachUpdate(ctx,
-		func(u models.User, devices []models.Device) (*models.User, error) {
-			result := u
-			result.Online = false
+	onlineIDs := []string{}
 
-			for _, address := range args.Addresses {
-				for _, device := range devices {
-					if err := bcrypt.CompareHashAndPassword(device.MAC, address); err == nil {
-						known += 1
-						result.Online = true
-						return &result, nil
-					}
-				}
-			}
-
-			return &result, nil
-		})
+	devices, err := args.DevicesStorage.All(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to update statuses: %w", err)
+		return fmt.Errorf("args.DevicesStorage.All: %w", err)
+	}
+
+	for _, address := range args.Addresses {
+		for _, device := range devices {
+			if err := bcrypt.CompareHashAndPassword(device.MAC, address); err == nil {
+				known += 1
+				onlineIDs = append(onlineIDs, device.OwnerID)
+			}
+		}
+	}
+
+	if err := args.OnlineUsersStorage.Update(ctx, onlineIDs); err != nil {
+		return fmt.Errorf("args.OnlineUsersStorage.Update: %w", err)
 	}
 
 	unknown = len(args.Addresses) - known

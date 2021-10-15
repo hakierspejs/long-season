@@ -35,6 +35,8 @@ type Args struct {
 	Devices        storage.Devices
 	StatusTx       storage.StatusTx
 	TwoFactor      storage.TwoFactor
+	OnlineUsers    storage.OnlineUsers
+	UserAdapter    storage.UserAdapter
 	MacsChan       chan<- []net.HardwareAddr
 	PublicCors     Cors
 	Adapter        *happier.Adapter
@@ -112,11 +114,11 @@ func NewRouter(config models.Config, args Args) http.Handler {
 			// how go-chi/cors is supposed to be applied globally to the entire
 			// application, and not to particular endpoints.
 			r.With(args.PublicCors.Handler).Options("/", nil)
-			r.With(args.PublicCors.Handler).Get("/", args.Adapter.WithError(api.UsersAll(args.Users)))
+			r.With(args.PublicCors.Handler).Get("/", args.Adapter.WithError(api.UsersAll(args.Users, args.UserAdapter)))
 			r.Post("/", args.Adapter.WithError(api.UserCreate(args.Users)))
 
 			r.With(lsmiddleware.UserID).Route("/{user-id}", func(r chi.Router) {
-				r.Get("/", args.Adapter.WithError(api.UserRead(args.SessionRenewer, args.Users)))
+				r.Get("/", args.Adapter.WithError(api.UserRead(args.SessionRenewer, args.Users, args.UserAdapter)))
 
 				// Users can only delete themselves.
 				r.With(
@@ -125,7 +127,7 @@ func NewRouter(config models.Config, args Args) http.Handler {
 
 				r.With(
 					guard, lsmiddleware.Private(args.SessionRenewer),
-				).Patch("/", args.Adapter.WithError(api.UserUpdate(args.Users)))
+				).Patch("/", args.Adapter.WithError(api.UserUpdate(args.Users, args.OnlineUsers)))
 
 				r.With(
 					guard, lsmiddleware.Private(args.SessionRenewer),

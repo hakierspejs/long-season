@@ -14,6 +14,7 @@ import (
 
 	"github.com/hakierspejs/long-season/pkg/models"
 	"github.com/hakierspejs/long-season/pkg/services/users"
+	"github.com/hakierspejs/long-season/pkg/storage"
 	"github.com/hakierspejs/long-season/pkg/storage/memory"
 	"golang.org/x/crypto/bcrypt"
 
@@ -229,7 +230,12 @@ func app() *cli.App {
 
 					localCtx := context.Background()
 					for _, user := range users {
-						_, err = usersStorage.New(localCtx, user)
+						_, err = usersStorage.New(localCtx, storage.UserEntry{
+							ID:             user.ID,
+							Nickname:       user.Nickname,
+							HashedPassword: user.Password,
+							Private:        user.Private,
+						})
 						if err != nil {
 							return err
 						}
@@ -288,8 +294,14 @@ func app() *cli.App {
 								target := ctx.String("user-id")
 								for _, u := range users {
 									if u.ID == target {
-										user = new(models.User)
-										*user = u
+										user = &models.User{
+											UserPublicData: models.UserPublicData{
+												ID:       u.ID,
+												Nickname: u.Nickname,
+											},
+											Password: u.HashedPassword,
+											Private:  u.Private,
+										}
 									}
 								}
 
@@ -349,7 +361,7 @@ func app() *cli.App {
 									newNickname := ctx.String("nickname")
 									newPassword := ctx.String("password")
 
-									storage, closer, err := usersStorage(ctx)
+									s, closer, err := usersStorage(ctx)
 									if err != nil {
 										return err
 									}
@@ -362,12 +374,10 @@ func app() *cli.App {
 										return err
 									}
 
-									_, err = storage.New(ctx.Context, models.User{
-										UserPublicData: models.UserPublicData{
-											Nickname: newNickname,
-											Online:   false,
-										},
-										Password: hashedPassword,
+									_, err = s.New(ctx.Context, storage.UserEntry{
+										Nickname:       newNickname,
+										HashedPassword: hashedPassword,
+										Private:        false,
 									})
 									return err
 								},
@@ -395,13 +405,13 @@ func app() *cli.App {
 										return fmt.Errorf("set user-id flag with users subcommand")
 									}
 
-									storage, closer, err := usersStorage(ctx)
+									s, closer, err := usersStorage(ctx)
 									defer closer()
 									if err != nil {
 										return err
 									}
 
-									user, err := storage.Read(ctx.Context, ctx.String("user-id"))
+									user, err := s.Read(ctx.Context, ctx.String("user-id"))
 									if err != nil {
 										return err
 									}
@@ -416,15 +426,23 @@ func app() *cli.App {
 										}
 									}
 
-									newUser := users.Update(*user, &users.Changes{
+									newUser := users.Update(models.User{
+										UserPublicData: models.UserPublicData{
+											ID:       user.ID,
+											Nickname: user.Nickname,
+											Online:   false,
+										},
+										Password: user.HashedPassword,
+										Private:  user.Private,
+									}, &users.Changes{
 										Nickname: ctx.String("nickname"),
 										Password: newHashedPassword,
 										Online:   nil,
 									})
 
-									return storage.Update(ctx.Context, newUser.ID, func(u *models.User) error {
+									return s.Update(ctx.Context, newUser.ID, func(u *storage.UserEntry) error {
 										u.Nickname = newUser.Nickname
-										u.Password = newUser.Password
+										u.HashedPassword = newUser.Password
 										return nil
 									})
 								},

@@ -64,12 +64,10 @@ func UserCreate(db storage.Users) horror.HandlerFunc {
 			)
 		}
 
-		id, err := db.New(r.Context(), models.User{
-			UserPublicData: models.UserPublicData{
-				Nickname: p.Nickname,
-				Online:   false,
-			},
-			Password: pass,
+		id, err := db.New(r.Context(), storage.UserEntry{
+			Nickname:       p.Nickname,
+			HashedPassword: pass,
+			Private:        false,
 		})
 		if errors.Is(err, serrors.ErrNicknameTaken) {
 			return errFactory.Conflict(
@@ -91,13 +89,22 @@ func UserCreate(db storage.Users) horror.HandlerFunc {
 	}
 }
 
-func UsersAll(db storage.Users) horror.HandlerFunc {
+func UsersAll(db storage.Users, adapter storage.UserAdapter) horror.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
-		data, err := db.All(r.Context())
+		ctx := r.Context()
 
+		data, err := db.All(ctx)
 		if err != nil {
 			return happier.FromRequest(r).InternalServerError(
 				fmt.Errorf("db.All: %w", err),
+				internalServerErrorResponse,
+			)
+		}
+
+		adaptedData, err := adapter.Users(ctx, data)
+		if err != nil {
+			return happier.FromRequest(r).InternalServerError(
+				fmt.Errorf("adapter.Users: %w", err),
 				internalServerErrorResponse,
 			)
 		}
@@ -111,17 +118,18 @@ func UsersAll(db storage.Users) horror.HandlerFunc {
 			filters = append(filters, users.Not(users.Online))
 		}
 
-		filtered := users.Filter(data, filters...)
+		filtered := users.Filter(adaptedData, filters...)
 		return happier.OK(w, r, users.PublicSlice(filtered))
 	}
 }
 
-func UserRead(renewer session.Renewer, db storage.Users) horror.HandlerFunc {
+func UserRead(renewer session.Renewer, db storage.Users, adapter storage.UserAdapter) horror.HandlerFunc {
 	type response struct {
 		models.UserPublicData
 		Private *bool `json:"priv,omitempty"`
 	}
 	return func(w http.ResponseWriter, r *http.Request) error {
+		ctx := r.Context()
 		errFactory := happier.FromRequest(r)
 
 		id, err := requests.UserID(r)
@@ -132,7 +140,7 @@ func UserRead(renewer session.Renewer, db storage.Users) horror.HandlerFunc {
 			)
 		}
 
-		user, err := db.Read(r.Context(), id)
+		user, err := db.Read(ctx, id)
 		if errors.Is(err, serrors.ErrNoID) {
 			return errFactory.NotFound(
 				fmt.Errorf("db.Read: %w", err),
@@ -152,8 +160,16 @@ func UserRead(renewer session.Renewer, db storage.Users) horror.HandlerFunc {
 			privateMode = &user.Private
 		}
 
+		adapted, err := adapter.User(ctx, *user)
+		if err != nil {
+			return errFactory.InternalServerError(
+				fmt.Errorf("adapter.User: %w", err),
+				internalServerErrorResponse,
+			)
+		}
+
 		return happier.OK(w, r, &response{
-			UserPublicData: user.UserPublicData,
+			UserPublicData: adapted.UserPublicData,
 			Private:        privateMode,
 		})
 	}
@@ -190,7 +206,7 @@ func UserRemove(db storage.Users) horror.HandlerFunc {
 	}
 }
 
-func UserUpdate(db storage.Users) horror.HandlerFunc {
+func UserUpdate(db storage.Users, onlineUsers storage.OnlineUsers) horror.HandlerFunc {
 	type payload struct {
 		Private *bool `json:"priv,omitempty"`
 	}
@@ -200,6 +216,7 @@ func UserUpdate(db storage.Users) horror.HandlerFunc {
 		models.UserPublicData
 	}
 	return func(w http.ResponseWriter, r *http.Request) error {
+		ctx := r.Context()
 		errFactory := happier.FromRequest(r)
 
 		userID, err := requests.UserID(r)
@@ -225,9 +242,12 @@ func UserUpdate(db storage.Users) horror.HandlerFunc {
 		res := new(response)
 		res.payload = *p
 
-		err = db.Update(r.Context(), userID, func(u *models.User) error {
+		err = db.Update(ctx, userID, func(u *storage.UserEntry) error {
 			u.Private = *p.Private
-			res.UserPublicData = u.UserPublicData
+			res.UserPublicData = models.UserPublicData{
+				ID:       u.ID,
+				Nickname: u.Nickname,
+			}
 			return nil
 		})
 		switch {
@@ -242,6 +262,15 @@ func UserUpdate(db storage.Users) horror.HandlerFunc {
 				internalServerErrorResponse,
 			)
 		}
+
+		isOnline, err := onlineUsers.IsOnline(ctx, userID)
+		if err != nil {
+			return errFactory.InternalServerError(
+				fmt.Errorf("onlineUsers.IsOnline: %w", err),
+				internalServerErrorResponse,
+			)
+		}
+		res.Online = isOnline
 
 		return happier.OK(w, r, res)
 	}
@@ -305,8 +334,8 @@ func UpdateUserPassword(db storage.Users) horror.HandlerFunc {
 			)
 		}
 
-		err = db.Update(ctx, userID, func(u *models.User) error {
-			u.Password = newPass
+		err = db.Update(ctx, userID, func(u *storage.UserEntry) error {
+			u.HashedPassword = newPass
 			return nil
 		})
 		if err != nil {

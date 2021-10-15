@@ -13,16 +13,33 @@ type Factory interface {
 	Devices() Devices
 }
 
+// UserEntry represents user data stored in data storage.
+type UserEntry struct {
+	// ID unique to every user.
+	ID string
+
+	// Nickname represents name that will be exposed to public,
+	// to inform people who is in the hackerspace.
+	Nickname string
+
+	// HashedPassword with bcrypt algorithm.
+	HashedPassword []byte
+
+	// Private is flag for enabling private-mode that hides
+	// user activity from others.
+	Private bool
+}
+
 // Users interface handles generic create, read,
 // update and delete operations on users data.
 type Users interface {
 	// New stores given user data in database and returns
 	// assigned id.
-	New(ctx context.Context, u models.User) (string, error)
-	Read(ctx context.Context, id string) (*models.User, error)
-	All(ctx context.Context) ([]models.User, error)
+	New(ctx context.Context, u UserEntry) (string, error)
+	Read(ctx context.Context, id string) (*UserEntry, error)
+	All(ctx context.Context) ([]UserEntry, error)
 	Remove(ctx context.Context, id string) error
-	Update(ctx context.Context, id string, f func(*models.User) error) error
+	Update(ctx context.Context, id string, f func(*UserEntry) error) error
 }
 
 type Devices interface {
@@ -82,4 +99,18 @@ type TwoFactor interface {
 	// user ID. You can still use Update method after all to start
 	// adding more methods.
 	Remove(ctx context.Context, userID string) error
+}
+
+// OnlineUsers storage keeps IDs of users
+// that are currently online.
+type OnlineUsers interface {
+	// All returns slice of online users identifiers.
+	All(ctx context.Context) ([]string, error)
+
+	// Update pushes new list with IDs of online users.
+	// Old identifiers will be replaced.
+	Update(ctx context.Context, ids []string) error
+
+	// IsOnline return true if user with given ID is currently online.
+	IsOnline(ctx context.Context, id string) (bool, error)
 }

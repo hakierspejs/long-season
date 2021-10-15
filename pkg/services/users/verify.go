@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"regexp"
 
-	"github.com/hakierspejs/long-season/pkg/models"
 	"github.com/hakierspejs/long-season/pkg/services/happier"
 	"github.com/hakierspejs/long-season/pkg/storage"
 	"golang.org/x/crypto/bcrypt"
@@ -93,18 +92,28 @@ type AuthenticationDependencies struct {
 	ErrorFactory *happier.Factory
 }
 
+// AuthenticationResponse holds data of authenticated user.
+type AuthenticationResponse struct {
+	// UserID is used to find user.
+	UserID string
+
+	// Nickname can be also used to find user as
+	// alternative to UserID.
+	Nickname string
+}
+
 // AuthenticateWithPassword takes aut dependencies with authenticate request
 // and process user data to verify whether given passwords matches or not.
 // It returns user data for convince if authentication passes and nil pointer with error
 // if it doesn't.
-func AuthenticateWithPassword(ctx context.Context, deps AuthenticationDependencies) (*models.User, error) {
+func AuthenticateWithPassword(ctx context.Context, deps AuthenticationDependencies) (*AuthenticationResponse, error) {
 	if deps.ErrorFactory == nil {
 		// ErrorFactory is optional parameter, so if it is nil
 		// we replace it with default happier error factory.
 		deps.ErrorFactory = happier.Default()
 	}
 
-	var match *models.User
+	var match *storage.UserEntry
 	var err error
 	if deps.Request.UserID != "" {
 		// UserID is not empty, try to find matching user.
@@ -147,7 +156,7 @@ func AuthenticateWithPassword(ctx context.Context, deps AuthenticationDependenci
 
 	// Check if passwords do match.
 	if err := bcrypt.CompareHashAndPassword(
-		match.Password,
+		match.HashedPassword,
 		deps.Request.Password,
 	); err != nil {
 		return nil, deps.ErrorFactory.Unauthorized(
@@ -156,5 +165,8 @@ func AuthenticateWithPassword(ctx context.Context, deps AuthenticationDependenci
 		)
 	}
 
-	return match, nil
+	return &AuthenticationResponse{
+		UserID:   match.ID,
+		Nickname: match.Nickname,
+	}, nil
 }
