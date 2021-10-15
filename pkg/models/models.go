@@ -82,7 +82,7 @@ type TwoFactor struct {
 
 	// RecoveryCodes is map of recovery codes entries with
 	// theirs IDs as maps keys.
-	RecoveryCodes map[string]Recovery `json"recoveryCodes,omitempty"`
+	RecoveryCodes map[string]Recovery `json:"recoveryCodes,omitempty"`
 }
 
 // OneTimeCode holds data stored in database for two factor
