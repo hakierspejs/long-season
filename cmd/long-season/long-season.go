@@ -19,6 +19,7 @@ import (
 	"github.com/hakierspejs/long-season/pkg/services/session"
 	"github.com/hakierspejs/long-season/pkg/services/status"
 	"github.com/hakierspejs/long-season/pkg/storage/memory"
+	"github.com/hakierspejs/long-season/pkg/storage/temp"
 	"github.com/hakierspejs/long-season/web"
 )
 
@@ -36,9 +37,12 @@ func main() {
 		log.Fatal(err.Error())
 	}
 
+	onlineUsersStorage := temp.NewOnlineUsers()
+
 	ctx := context.Background()
 	macChannel, macDeamon := status.NewDaemon(ctx, status.DaemonArgs{
-		Iter:          factoryStorage.StatusIterator(),
+		OnlineUsers:   onlineUsersStorage,
+		Devices:       factoryStorage.Devices(),
 		Counters:      factoryStorage.StatusTx(),
 		RefreshTime:   config.RefreshTime,
 		SingleAddrTTL: config.SingleAddrTTL,
