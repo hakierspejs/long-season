@@ -56,11 +56,11 @@ func Auth(args AuthArguments) horror.HandlerFunc {
 		}
 
 		newSession := session.New(ctx, session.Builder{
-			UserID:   match.ID,
+			UserID:   match.UserID,
 			Nickname: match.Nickname,
 		})
 
-		methods, err := args.TwoFactor.Get(ctx, match.ID)
+		methods, err := args.TwoFactor.Get(ctx, match.UserID)
 		if err != nil {
 			return errFactory.InternalServerError(
 				fmt.Errorf("tf.Get: %w", err),

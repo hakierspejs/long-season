@@ -95,7 +95,6 @@ const (
 	userIDKey          = "ls::user::id"
 	userNicknameKey    = "ls::user::nickname"
 	userPasswordKey    = "ls::user::password"
-	userOnlineKey      = "ls::user::online"
 	userPrivateModeKey = "ls::user::private_mode"
 )
 
@@ -111,10 +110,10 @@ func bytesToBool(b []byte) bool {
 	return b[0] > 0
 }
 
-func userFromBucket(b *bolt.Bucket) (*models.User, error) {
-	result := new(models.User)
+func userFromBucket(b *bolt.Bucket) (*storage.UserEntry, error) {
+	result := new(storage.UserEntry)
 
-	fail := func() (*models.User, error) {
+	fail := func() (*storage.UserEntry, error) {
 		return nil, serrors.ErrNoID
 	}
 
@@ -134,13 +133,7 @@ func userFromBucket(b *bolt.Bucket) (*models.User, error) {
 	if password == nil {
 		return fail()
 	}
-	result.Password = password
-
-	online := b.Get([]byte(userOnlineKey))
-	if online == nil {
-		return fail()
-	}
-	result.Online = bytesToBool(online)
+	result.HashedPassword = password
 
 	priv := b.Get([]byte(userPrivateModeKey))
 	if priv == nil {
@@ -167,7 +160,7 @@ type bucketMapping struct {
 // storeUserInBucket stores given user model in given bucket, by
 // creating sub-bucket with appropriate user bucket key according to
 // given user's id.
-func storeUserInBucket(user models.User, b *bolt.Bucket) error {
+func storeUserInBucket(user storage.UserEntry, b *bolt.Bucket) error {
 	// TODO(thinkofher) Wrap errors with fmt.Errorf and "%w".
 	userBucket, err := b.CreateBucketIfNotExists(userBucketKey(user.ID))
 	if err != nil {
@@ -180,8 +173,7 @@ func storeUserInBucket(user models.User, b *bolt.Bucket) error {
 	kvs := []bucketMapping{
 		{[]byte(userIDKey), id},
 		{[]byte(userNicknameKey), []byte(user.Nickname)},
-		{[]byte(userPasswordKey), user.Password},
-		{[]byte(userOnlineKey), boolToBytes(user.Online)},
+		{[]byte(userPasswordKey), user.HashedPassword},
 		{[]byte(userPrivateModeKey), boolToBytes(user.Private)},
 	}
 
@@ -194,7 +186,7 @@ func storeUserInBucket(user models.User, b *bolt.Bucket) error {
 	return nil
 }
 
-func readUser(tx *bolt.Tx, userID string) (*models.User, error) {
+func readUser(tx *bolt.Tx, userID string) (*storage.UserEntry, error) {
 	b := tx.Bucket([]byte(usersBucket))
 	if b == nil {
 		return nil, fmt.Errorf("bucket empty")
@@ -210,7 +202,7 @@ func readUser(tx *bolt.Tx, userID string) (*models.User, error) {
 
 // New stores given user data in database and returns
 // assigned id.
-func (s *UsersStorage) New(ctx context.Context, newUser models.User) (string, error) {
+func (s *UsersStorage) New(ctx context.Context, newUser storage.UserEntry) (string, error) {
 	var id string
 
 	err := s.db.Update(func(tx *bolt.Tx) error {
@@ -221,7 +213,7 @@ func (s *UsersStorage) New(ctx context.Context, newUser models.User) (string, er
 		// TODO(thinkofher) Store nicknames in another bucket
 		// and change O(n) time of checking if nickname is occupied
 		// to O(1).
-		err := forEachUser(tx, func(user models.User) error {
+		err := forEachUser(tx, func(user storage.UserEntry) error {
 			if user.Nickname == newUser.Nickname {
 				return serrors.ErrNicknameTaken
 			}
@@ -243,8 +235,8 @@ func (s *UsersStorage) New(ctx context.Context, newUser models.User) (string, er
 }
 
 // Read returns single user data with given ID.
-func (s *UsersStorage) Read(ctx context.Context, id string) (*models.User, error) {
-	user := new(models.User)
+func (s *UsersStorage) Read(ctx context.Context, id string) (*storage.UserEntry, error) {
+	user := new(storage.UserEntry)
 
 	err := s.db.View(func(tx *bolt.Tx) error {
 		var err error
@@ -258,7 +250,7 @@ func (s *UsersStorage) Read(ctx context.Context, id string) (*models.User, error
 	return user, nil
 }
 
-func forEachUser(tx *bolt.Tx, f func(models.User) error) error {
+func forEachUser(tx *bolt.Tx, f func(storage.UserEntry) error) error {
 	b := tx.Bucket([]byte(usersBucket))
 	return b.ForEach(func(k, v []byte) error {
 		userBucket := b.Bucket(k)
@@ -277,11 +269,11 @@ func forEachUser(tx *bolt.Tx, f func(models.User) error) error {
 }
 
 // All returns slice with all users from storage.
-func (s *UsersStorage) All(ctx context.Context) ([]models.User, error) {
-	res := []models.User{}
+func (s *UsersStorage) All(ctx context.Context) ([]storage.UserEntry, error) {
+	res := []storage.UserEntry{}
 
 	err := s.db.View(func(tx *bolt.Tx) error {
-		return forEachUser(tx, func(u models.User) error {
+		return forEachUser(tx, func(u storage.UserEntry) error {
 			res = append(res, u)
 			return nil
 		})
@@ -294,7 +286,7 @@ func (s *UsersStorage) All(ctx context.Context) ([]models.User, error) {
 }
 
 // updateOne updates one user in bucket.
-func updateOneUser(b *bolt.Bucket, u models.User) error {
+func updateOneUser(b *bolt.Bucket, u storage.UserEntry) error {
 	// Check if there is user with given id in database.
 	if b.Bucket(userBucketKey(u.ID)) == nil {
 		return serrors.ErrNoID
@@ -304,7 +296,7 @@ func updateOneUser(b *bolt.Bucket, u models.User) error {
 }
 
 // Update overwrites existing user data.
-func (s *UsersStorage) Update(ctx context.Context, id string, f func(*models.User) error) error {
+func (s *UsersStorage) Update(ctx context.Context, id string, f func(*storage.UserEntry) error) error {
 	return s.db.Update(func(tx *bolt.Tx) error {
 		u, err := readUser(tx, id)
 		if err != nil {
@@ -498,8 +490,8 @@ func (d *DevicesStorage) NewByOwner(ctx context.Context, deviceOwner string, new
 	err := d.db.Update(func(tx *bolt.Tx) error {
 		// FIXME(thinkofher) If there is no user with given nickname
 		// zero-valued user will be used.
-		var targetUser models.User
-		err := forEachUser(tx, func(u models.User) error {
+		var targetUser storage.UserEntry
+		err := forEachUser(tx, func(u storage.UserEntry) error {
 			if u.Nickname == deviceOwner {
 				targetUser = u
 			}
