@@ -24,6 +24,10 @@ ls_build() {
     ls_cmd go build -o $CLI_NAME cmd/short-season/*.go
 }
 
+ls_lint() {
+    ls_cmd go vet ./...
+}
+
 ls_clean() {
     ls_cmd rm -rf $SERVER_NAME $CLI_NAME
 }
@@ -34,11 +38,11 @@ ls_run() {
 }
 
 ls_watch() {
-    git ls-files | entr -r $FILENAME run
+    git ls-files | entr -r ./$FILENAME run
 }
 
 print_help() {
-    echo "Usage: $FILENAME [help|build|clean|test|run|watch]"
+    echo "Usage: $FILENAME [help|build|clean|lint|test|run|watch]"
 }
 
 case $1 in
@@ -47,6 +51,9 @@ case $1 in
         ;;
     "clean")
         ls_clean
+        ;;
+    "lint")
+        ls_lint
         ;;
     "test")
         ls_test
