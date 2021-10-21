@@ -17,15 +17,15 @@ Basically: users are adding MAC addresses of their devices to their profile and 
 
 ## Installing
 
-Right now you have to build `long-season` manually. But you can facilitate your work by using a [task](https://taskfile.dev).
+Right now you have to build `long-season` manually. But you can facilitate your work by using a [make.bash](./make.bash) script.
 
 Clone this repository and enter below command in your shell (or whatever you are using):
 
-    $ task
+    $ ./make.bash build
 
-Now you have `long-season` and `short-season` in your root directory. You can use `task` for running project and rebuilding it whenever some changes occurs.
+Now you have `long-season` and `short-season` in your root directory. You can use [make.bash](./make.bash) for running project and rebuilding it whenever some changes occurs.
 
-    $ task --watch run
+    $ ./make.bash watch
 
 You can also build docker image or just use `docker-compose`, which is the simplest way to start development or use `long-season`.
 
