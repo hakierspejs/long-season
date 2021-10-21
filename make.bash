@@ -1,4 +1,9 @@
 #!/bin/bash
+#
+# make.bash is a simple and portable utility script
+# for running development tasks.
+#
+# Run "./make.bash help" for list of commands.
 
 SERVER_NAME="long-season"
 CLI_NAME="short-season"
