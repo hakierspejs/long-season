@@ -56,18 +56,10 @@ func UserCreate(db storage.Users) horror.HandlerFunc {
 			)
 		}
 
-		pass, err := bcrypt.GenerateFromPassword([]byte(p.Password), bcrypt.DefaultCost)
-		if err != nil {
-			return errFactory.InternalServerError(
-				fmt.Errorf("api.UserCreate: hashing password failed: %w", err),
-				internalServerErrorResponse,
-			)
-		}
-
-		id, err := db.New(r.Context(), storage.UserEntry{
-			Nickname:       p.Nickname,
-			HashedPassword: pass,
-			Private:        false,
+		id, err := users.Add(r.Context(), users.AddUserRequest{
+			Nickname: p.Nickname,
+			Password: []byte(p.Password),
+			Storage:  db,
 		})
 		if errors.Is(err, serrors.ErrNicknameTaken) {
 			return errFactory.Conflict(

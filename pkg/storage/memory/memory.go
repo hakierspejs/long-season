@@ -201,10 +201,8 @@ func readUser(tx *bolt.Tx, userID string) (*storage.UserEntry, error) {
 }
 
 // New stores given user data in database and returns
-// assigned id.
+// assigned (given) id.
 func (s *UsersStorage) New(ctx context.Context, newUser storage.UserEntry) (string, error) {
-	var id string
-
 	err := s.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(usersBucket))
 
@@ -223,15 +221,13 @@ func (s *UsersStorage) New(ctx context.Context, newUser storage.UserEntry) (stri
 			return err
 		}
 
-		id = uuid.New().String()
-		newUser.ID = id
 		return storeUserInBucket(newUser, b)
 	})
 	if err != nil {
 		return "", err
 	}
 
-	return id, nil
+	return newUser.ID, nil
 }
 
 // Read returns single user data with given ID.
