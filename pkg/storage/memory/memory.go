@@ -11,7 +11,6 @@ import (
 
 	bolt "go.etcd.io/bbolt"
 
-	"github.com/google/uuid"
 	"github.com/hakierspejs/long-season/pkg/models"
 	"github.com/hakierspejs/long-season/pkg/storage"
 	serrors "github.com/hakierspejs/long-season/pkg/storage/errors"
@@ -474,10 +473,8 @@ func (d *DevicesStorage) New(ctx context.Context, userID string, newDevice model
 }
 
 // NewByOwner stores given devices (owned by user with given nickname) data
-// in database and returns assigned id.
+// in database and returns its id.
 func (d *DevicesStorage) NewByOwner(ctx context.Context, deviceOwner string, newDevice models.Device) (string, error) {
-	var id string
-
 	err := d.db.Update(func(tx *bolt.Tx) error {
 		// FIXME(thinkofher) If there is no user with given nickname
 		// zero-valued user will be used.
@@ -504,8 +501,6 @@ func (d *DevicesStorage) NewByOwner(ctx context.Context, deviceOwner string, new
 			return err
 		}
 
-		id = uuid.New().String()
-		newDevice.ID = id
 		newDevice.OwnerID = targetUser.ID
 		newDevice.Owner = targetUser.Nickname
 
@@ -515,7 +510,7 @@ func (d *DevicesStorage) NewByOwner(ctx context.Context, deviceOwner string, new
 		return "", err
 	}
 
-	return id, nil
+	return newDevice.ID, nil
 }
 
 func forDevicesOfUser(tx *bolt.Tx, userID string, f func(models.Device) error) error {
