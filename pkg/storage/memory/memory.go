@@ -440,10 +440,8 @@ func userExists(tx *bolt.Tx, userID string) (bool, error) {
 }
 
 // New stores given devices data in database and returns
-// assigned id.
+// new device (given in new model) id.
 func (d *DevicesStorage) New(ctx context.Context, userID string, newDevice models.Device) (string, error) {
-	var id string
-
 	err := d.db.Update(func(tx *bolt.Tx) error {
 		// Check if there is user with given id.
 		exists, err := userExists(tx, userID)
@@ -465,9 +463,6 @@ func (d *DevicesStorage) New(ctx context.Context, userID string, newDevice model
 			return err
 		}
 
-		id = uuid.New().String()
-		newDevice.ID = id
-
 		b := tx.Bucket([]byte(devicesBucket))
 		return storeDeviceInBucket(newDevice, b)
 	})
@@ -475,7 +470,7 @@ func (d *DevicesStorage) New(ctx context.Context, userID string, newDevice model
 		return "", err
 	}
 
-	return id, nil
+	return newDevice.ID, nil
 }
 
 // NewByOwner stores given devices (owned by user with given nickname) data
