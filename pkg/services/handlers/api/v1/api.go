@@ -62,17 +62,8 @@ func UserCreate(db storage.Users) horror.HandlerFunc {
 			Password: []byte(p.Password),
 			Storage:  db,
 		})
-		if errors.Is(err, serrors.ErrNicknameTaken) {
-			return errFactory.Conflict(
-				fmt.Errorf("api.UserCreate: %w", err),
-				fmt.Sprintf("Given username: %s is already taken.", p.Nickname),
-			)
-		}
 		if err != nil {
-			return errFactory.InternalServerError(
-				fmt.Errorf("api.UserCreate: creating new user failed, reason: %w", err),
-				internalServerErrorResponse,
-			)
+			return fmt.Errorf("users.Add: %w", err)
 		}
 
 		return happier.OK(w, r, &models.UserPublicData{
