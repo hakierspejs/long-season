@@ -12,6 +12,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/hakierspejs/long-season/pkg/models"
+	"github.com/hakierspejs/long-season/pkg/services/devices"
 	"github.com/hakierspejs/long-season/pkg/services/happier"
 	"github.com/hakierspejs/long-season/pkg/services/requests"
 	"github.com/hakierspejs/long-season/pkg/services/result"
@@ -56,30 +57,13 @@ func UserCreate(db storage.Users) horror.HandlerFunc {
 			)
 		}
 
-		pass, err := bcrypt.GenerateFromPassword([]byte(p.Password), bcrypt.DefaultCost)
-		if err != nil {
-			return errFactory.InternalServerError(
-				fmt.Errorf("api.UserCreate: hashing password failed: %w", err),
-				internalServerErrorResponse,
-			)
-		}
-
-		id, err := db.New(r.Context(), storage.UserEntry{
-			Nickname:       p.Nickname,
-			HashedPassword: pass,
-			Private:        false,
+		id, err := users.Add(r.Context(), users.AddUserRequest{
+			Nickname: p.Nickname,
+			Password: []byte(p.Password),
+			Storage:  db,
 		})
-		if errors.Is(err, serrors.ErrNicknameTaken) {
-			return errFactory.Conflict(
-				fmt.Errorf("api.UserCreate: %w", err),
-				fmt.Sprintf("Given username: %s is already taken.", p.Nickname),
-			)
-		}
 		if err != nil {
-			return errFactory.InternalServerError(
-				fmt.Errorf("api.UserCreate: creating new user failed, reason: %w", err),
-				internalServerErrorResponse,
-			)
+			return fmt.Errorf("users.Add: %w", err)
 		}
 
 		return happier.OK(w, r, &models.UserPublicData{
@@ -494,48 +478,20 @@ func DeviceAdd(renewer session.Renewer, db storage.Devices) horror.HandlerFunc {
 			)
 		}
 
-		mac, err := net.ParseMAC(p.MAC)
+		newID, err := devices.Add(r.Context(), devices.AddDeviceRequest{
+			OwnerID: userID,
+			Owner:   state.Nickname,
+			Tag:     p.Tag,
+			MAC:     p.MAC,
+			Storage: db,
+		})
 		if err != nil {
-			return errFactory.BadRequest(
-				fmt.Errorf("net.ParseMAC: %w", err),
-				fmt.Sprintf("invalid input: invalid mac address %s", mac),
-			)
-		}
-
-		hashedMac, err := bcrypt.GenerateFromPassword(mac, bcrypt.DefaultCost)
-		if err != nil {
-			return errFactory.InternalServerError(
-				fmt.Errorf("bcrypt.GenerateFromPassword: %w", err),
-				internalServerErrorResponse,
-			)
-		}
-
-		device := models.Device{
-			DevicePublicData: models.DevicePublicData{
-				Owner: state.Nickname,
-				Tag:   p.Tag,
-			},
-			MAC:     hashedMac,
-			OwnerID: state.UserID,
-		}
-
-		newID, err := db.New(r.Context(), userID, device)
-		if errors.Is(err, serrors.ErrDeviceDuplication) {
-			return errFactory.Conflict(
-				fmt.Errorf("db.New: %w", err),
-				fmt.Sprintf("tag already used"),
-			)
-		}
-		if err != nil {
-			return errFactory.InternalServerError(
-				fmt.Errorf("db.New: %w", err),
-				internalServerErrorResponse,
-			)
+			return fmt.Errorf("devices.Add: %w", err)
 		}
 
 		return happier.Created(w, r, &singleDevice{
 			ID:  newID,
-			Tag: device.Tag,
+			Tag: p.Tag,
 		})
 	}
 }

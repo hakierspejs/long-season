@@ -11,7 +11,6 @@ import (
 
 	bolt "go.etcd.io/bbolt"
 
-	"github.com/google/uuid"
 	"github.com/hakierspejs/long-season/pkg/models"
 	"github.com/hakierspejs/long-season/pkg/storage"
 	serrors "github.com/hakierspejs/long-season/pkg/storage/errors"
@@ -201,10 +200,8 @@ func readUser(tx *bolt.Tx, userID string) (*storage.UserEntry, error) {
 }
 
 // New stores given user data in database and returns
-// assigned id.
+// assigned (given) id.
 func (s *UsersStorage) New(ctx context.Context, newUser storage.UserEntry) (string, error) {
-	var id string
-
 	err := s.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(usersBucket))
 
@@ -223,15 +220,13 @@ func (s *UsersStorage) New(ctx context.Context, newUser storage.UserEntry) (stri
 			return err
 		}
 
-		id = uuid.New().String()
-		newUser.ID = id
 		return storeUserInBucket(newUser, b)
 	})
 	if err != nil {
 		return "", err
 	}
 
-	return id, nil
+	return newUser.ID, nil
 }
 
 // Read returns single user data with given ID.
@@ -444,10 +439,8 @@ func userExists(tx *bolt.Tx, userID string) (bool, error) {
 }
 
 // New stores given devices data in database and returns
-// assigned id.
+// new device (given in new model) id.
 func (d *DevicesStorage) New(ctx context.Context, userID string, newDevice models.Device) (string, error) {
-	var id string
-
 	err := d.db.Update(func(tx *bolt.Tx) error {
 		// Check if there is user with given id.
 		exists, err := userExists(tx, userID)
@@ -469,9 +462,6 @@ func (d *DevicesStorage) New(ctx context.Context, userID string, newDevice model
 			return err
 		}
 
-		id = uuid.New().String()
-		newDevice.ID = id
-
 		b := tx.Bucket([]byte(devicesBucket))
 		return storeDeviceInBucket(newDevice, b)
 	})
@@ -479,14 +469,12 @@ func (d *DevicesStorage) New(ctx context.Context, userID string, newDevice model
 		return "", err
 	}
 
-	return id, nil
+	return newDevice.ID, nil
 }
 
 // NewByOwner stores given devices (owned by user with given nickname) data
-// in database and returns assigned id.
+// in database and returns its id.
 func (d *DevicesStorage) NewByOwner(ctx context.Context, deviceOwner string, newDevice models.Device) (string, error) {
-	var id string
-
 	err := d.db.Update(func(tx *bolt.Tx) error {
 		// FIXME(thinkofher) If there is no user with given nickname
 		// zero-valued user will be used.
@@ -513,8 +501,6 @@ func (d *DevicesStorage) NewByOwner(ctx context.Context, deviceOwner string, new
 			return err
 		}
 
-		id = uuid.New().String()
-		newDevice.ID = id
 		newDevice.OwnerID = targetUser.ID
 		newDevice.Owner = targetUser.Nickname
 
@@ -524,7 +510,7 @@ func (d *DevicesStorage) NewByOwner(ctx context.Context, deviceOwner string, new
 		return "", err
 	}
 
-	return id, nil
+	return newDevice.ID, nil
 }
 
 func forDevicesOfUser(tx *bolt.Tx, userID string, f func(models.Device) error) error {
