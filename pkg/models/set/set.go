@@ -81,16 +81,34 @@ func (s *String) Equals(other String) bool {
 }
 
 func (s *String) MarshalJSON() ([]byte, error) {
-	res := s.Items()
+	if s != nil && s.mtx != nil {
+		s.mtx.Lock()
+		defer s.mtx.Unlock()
+	}
+
+	res := []string{}
+	for s := range s.core {
+		res = append(res, s)
+	}
+
 	sort.Slice(res, func(i, j int) bool {
 		return res[i] < res[j]
 	})
+
 	return json.Marshal(res)
 }
 
 func (s *String) UnmarshalJSON(data []byte) error {
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
+	if s != nil && s.mtx != nil {
+		// String set is allocated with its mutex.
+		s.mtx.Lock()
+		defer s.mtx.Unlock()
+	} else if s != nil {
+		// String set is allocated, but without a mutex, so
+		// it's safe to assume it's being Unmarshalled in
+		// single goroutine.
+		s.mtx = &sync.RWMutex{}
+	}
 
 	slice := []string{}
 

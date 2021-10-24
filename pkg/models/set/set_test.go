@@ -96,10 +96,7 @@ func TestStringItems(t *testing.T) {
 
 	newItems := s.Items()
 
-	sort.Slice(items, func(i, j int) bool {
-		return items[i] < items[j]
-	})
-
+	sort.Strings(newItems)
 	is.Equal(items, newItems)
 }
 

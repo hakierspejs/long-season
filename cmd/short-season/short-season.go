@@ -13,6 +13,7 @@ import (
 	"strconv"
 
 	"github.com/hakierspejs/long-season/pkg/models"
+	"github.com/hakierspejs/long-season/pkg/services/exim"
 	"github.com/hakierspejs/long-season/pkg/services/users"
 	"github.com/hakierspejs/long-season/pkg/storage"
 	"github.com/hakierspejs/long-season/pkg/storage/memory"
@@ -266,6 +267,79 @@ func app() *cli.App {
 					return cli.ShowCommandHelp(ctx, ctx.Command.Name)
 				},
 				Subcommands: []*cli.Command{
+					{
+						Name:  "export",
+						Usage: "export all data from database as single json object to stdout",
+						Action: func(ctx *cli.Context) error {
+							if ctx.String("database") == "" {
+								return fmt.Errorf("database flag is not set. see admin command.")
+							}
+
+							boltDB, err := bolt.Open(ctx.String("database"), 0666, nil)
+							if err != nil {
+								return fmt.Errorf("bolt.Open: %w", err)
+							}
+							defer boltDB.Close()
+
+							factoryStorage, err := memory.New(boltDB)
+							if err != nil {
+								return fmt.Errorf("memory.New: %w", err)
+							}
+
+							dump, err := exim.Export(ctx.Context, exim.ExportRequest{
+								UsersStorage:     factoryStorage.Users(),
+								DevicesStorage:   factoryStorage.Devices(),
+								TwoFactorStorage: factoryStorage.TwoFactor(),
+							})
+							if err != nil {
+								return fmt.Errorf("exim.Export: %w", err)
+							}
+
+							if err := json.NewEncoder(os.Stdout).Encode(dump); err != nil {
+								return fmt.Errorf("json.NewEncoder.Encode: %w", err)
+							}
+
+							return nil
+						},
+					},
+					{
+						Name:  "import",
+						Usage: "import data as json object from stdin into database",
+						Action: func(ctx *cli.Context) error {
+							if ctx.String("database") == "" {
+								return fmt.Errorf("database flag is not set. see admin command.")
+							}
+
+							boltDB, err := bolt.Open(ctx.String("database"), 0666, nil)
+							if err != nil {
+								return fmt.Errorf("bolt.Open: %w", err)
+							}
+							defer boltDB.Close()
+
+							factoryStorage, err := memory.New(boltDB)
+							if err != nil {
+								return fmt.Errorf("memory.New: %w", err)
+							}
+
+							dump := exim.Data{}
+
+							if err := json.NewDecoder(os.Stdin).Decode(&dump); err != nil {
+								return fmt.Errorf("json.NewDecoder.Decode: %w", err)
+							}
+
+							err = exim.Import(ctx.Context, exim.ImportRequest{
+								Dump:             dump,
+								UsersStorage:     factoryStorage.Users(),
+								DevicesStorage:   factoryStorage.Devices(),
+								TwoFactorStorage: factoryStorage.TwoFactor(),
+							})
+							if err != nil {
+								return fmt.Errorf("exim.Import: %w", err)
+							}
+
+							return nil
+						},
+					},
 					{
 						Name:  "users",
 						Usage: "show users stored in given database",
