@@ -16,6 +16,7 @@ type ImportRequest struct {
 	TwoFactorStorage storage.TwoFactor
 }
 
+// Import parsed database dump into database storage.
 func Import(ctx context.Context, req ImportRequest) error {
 	for _, user := range req.Dump.Users {
 		_, err := req.UsersStorage.New(ctx, storage.UserEntry{
