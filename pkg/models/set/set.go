@@ -100,8 +100,14 @@ func (s *String) MarshalJSON() ([]byte, error) {
 
 func (s *String) UnmarshalJSON(data []byte) error {
 	if s != nil && s.mtx != nil {
+		// String set is allocated with its mutex.
 		s.mtx.Lock()
 		defer s.mtx.Unlock()
+	} else if s != nil {
+		// String set is allocated, but without a mutex, so
+		// it's safe to assume it's being Unmarshalled in
+		// single goroutine.
+		s.mtx = &sync.RWMutex{}
 	}
 
 	slice := []string{}
