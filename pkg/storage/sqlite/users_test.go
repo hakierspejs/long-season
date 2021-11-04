@@ -14,8 +14,9 @@ func TestUsers(t *testing.T) {
 
 	ctx := context.Background()
 
-	f, err := NewFactory(":memory:")
+	f, closer, err := NewFactory(":memory:")
 	is.NoErr(err)
+	defer closer()
 
 	usersData := map[string]storage.UserEntry{
 		"1": {
