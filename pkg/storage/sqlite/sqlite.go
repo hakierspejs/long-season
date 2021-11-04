@@ -14,6 +14,7 @@ import (
 
 	_ "modernc.org/sqlite"
 
+	"github.com/hakierspejs/long-season/pkg/models"
 	"github.com/hakierspejs/long-season/pkg/storage"
 )
 
@@ -47,17 +48,18 @@ func migrateWithFS(db *sql.DB, fileSystem fs.FS) error {
 }
 
 type Factory struct {
-	UsersStorage *Users
+	UsersStorage   *Users
+	DevicesStorage *Devices
 }
 
-func NewFactory(filename string) (*Factory, error) {
+func NewFactory(filename string) (*Factory, func() error, error) {
 	db, err := sql.Open("sqlite", filename)
 	if err != nil {
-		return nil, fmt.Errorf("sql.Open: %w", err)
+		return nil, nil, fmt.Errorf("sql.Open: %w", err)
 	}
 
 	if err := migrateWithFS(db, migrations); err != nil {
-		return nil, fmt.Errorf("migrateWithFS: %w", err)
+		return nil, nil, fmt.Errorf("migrateWithFS: %w", err)
 	}
 
 	cs := &coreStorage{
@@ -65,15 +67,26 @@ func NewFactory(filename string) (*Factory, error) {
 		writeGuard: new(sync.Mutex),
 	}
 
+	closer := func() error {
+		return db.Close()
+	}
+
 	return &Factory{
 		UsersStorage: &Users{
 			cs: cs,
 		},
-	}, nil
+		DevicesStorage: &Devices{
+			cs: cs,
+		},
+	}, closer, nil
 }
 
 func (f *Factory) Users() storage.Users {
 	return f.UsersStorage
+}
+
+func (f *Factory) Devices() storage.Devices {
+	return f.DevicesStorage
 }
 
 func pragma(query string) string {
@@ -297,6 +310,198 @@ func (cs *coreStorage) updateUser(ctx context.Context, id string, f func(*storag
 
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("tx.Commit: %w", err)
+	}
+
+	return nil
+}
+
+func (cs *coreStorage) newDevice(ctx context.Context, userID string, d models.Device) (string, error) {
+	query := pragma(`
+	INSERT INTO devices
+		(deviceID, deviceOwnerID, deviceTag, deviceMAC)
+	VALUES
+		($1, $2, $3, $4)
+	`)
+
+	cs.writeGuard.Lock()
+	defer cs.writeGuard.Unlock()
+
+	_, err := cs.db.ExecContext(
+		ctx,
+		query,
+		d.ID,
+		userID,
+		d.Tag,
+		d.MAC,
+	)
+	if err != nil {
+		return "", fmt.Errorf("cs.db.ExecContext: %w", err)
+	}
+
+	return d.ID, nil
+}
+
+func (cs *coreStorage) deviceOfUser(ctx context.Context, userID string) ([]models.Device, error) {
+	query := `
+	SELECT
+		deviceID, deviceOwnerID, userNickname, deviceTag, deviceMAC
+	FROM
+		users INNER JOIN devices
+	ON
+		users.userID = devices.deviceOwnerID
+	WHERE
+		users.userID = $1;
+	`
+
+	var (
+		deviceID      string
+		deviceOwnerID string
+		userNickname  string
+		deviceTag     string
+		deviceMAC     []byte
+	)
+
+	rows, err := cs.db.QueryContext(ctx, query, userID)
+	if err != nil {
+		return nil, fmt.Errorf("cs.db.QueryContext: %w", err)
+	}
+	defer rows.Close()
+
+	res := []models.Device{}
+
+	for rows.Next() {
+		err = rows.Scan(
+			&deviceID,
+			&deviceOwnerID,
+			&userNickname,
+			&deviceTag,
+			&deviceMAC,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("rows.Scan: %w", err)
+		}
+
+		res = append(res, models.Device{
+			DevicePublicData: models.DevicePublicData{
+				ID:    deviceID,
+				Tag:   deviceTag,
+				Owner: userNickname,
+			},
+			OwnerID: deviceOwnerID,
+			MAC:     copyBytes(deviceMAC),
+		})
+	}
+
+	return res, nil
+}
+
+func (cs *coreStorage) allDevices(ctx context.Context) ([]models.Device, error) {
+	query := `
+	SELECT
+		deviceID, deviceOwnerID, userNickname, deviceTag, deviceMAC
+	FROM
+		users INNER JOIN devices
+	ON
+		users.userID = devices.deviceOwnerID;
+	`
+
+	var (
+		deviceID      string
+		deviceOwnerID string
+		userNickname  string
+		deviceTag     string
+		deviceMAC     []byte
+	)
+
+	rows, err := cs.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("cs.db.QueryContext: %w", err)
+	}
+	defer rows.Close()
+
+	res := []models.Device{}
+
+	for rows.Next() {
+		err = rows.Scan(
+			&deviceID,
+			&deviceOwnerID,
+			&userNickname,
+			&deviceTag,
+			&deviceMAC,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("rows.Scan: %w", err)
+		}
+
+		res = append(res, models.Device{
+			DevicePublicData: models.DevicePublicData{
+				ID:    deviceID,
+				Tag:   deviceTag,
+				Owner: userNickname,
+			},
+			OwnerID: deviceOwnerID,
+			MAC:     copyBytes(deviceMAC),
+		})
+	}
+
+	return res, nil
+}
+
+func (cs *coreStorage) readDevice(ctx context.Context, id string) (*models.Device, error) {
+	query := `
+	SELECT
+		deviceID, deviceOwnerID, userNickname, deviceTag, deviceMAC
+	FROM
+		users INNER JOIN devices
+	ON
+		users.userID = devices.deviceOwnerID
+	WHERE
+		devices.deviceID = $1;
+	`
+
+	var (
+		deviceID      string
+		deviceOwnerID string
+		userNickname  string
+		deviceTag     string
+		deviceMAC     []byte
+	)
+
+	err := cs.db.QueryRowContext(ctx, query, id).Scan(
+		&deviceID,
+		&deviceOwnerID,
+		&userNickname,
+		&deviceTag,
+		&deviceMAC,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("cs.db.QueryRowContext: %w", err)
+	}
+
+	return &models.Device{
+		DevicePublicData: models.DevicePublicData{
+			ID:    deviceID,
+			Tag:   deviceTag,
+			Owner: userNickname,
+		},
+		OwnerID: deviceOwnerID,
+		MAC:     deviceMAC,
+	}, nil
+}
+
+func (cs *coreStorage) removeDevice(ctx context.Context, id string) error {
+	query := `
+	DELETE FROM
+		devices
+	WHERE
+		deviceID = $1;
+	`
+	cs.writeGuard.Lock()
+	defer cs.writeGuard.Unlock()
+
+	_, err := cs.db.ExecContext(ctx, query, id)
+	if err != nil {
+		return fmt.Errorf("cs.db.ExecContext: %w", err)
 	}
 
 	return nil
