@@ -2,8 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -11,7 +9,6 @@ import (
 
 	"github.com/cristalhq/jwt/v3"
 	"github.com/go-chi/cors"
-	bolt "go.etcd.io/bbolt"
 
 	"github.com/hakierspejs/long-season/pkg/services/config"
 	"github.com/hakierspejs/long-season/pkg/services/handlers"
@@ -21,53 +18,15 @@ import (
 	"github.com/hakierspejs/long-season/pkg/services/session"
 	"github.com/hakierspejs/long-season/pkg/services/status"
 	"github.com/hakierspejs/long-season/pkg/storage"
-	"github.com/hakierspejs/long-season/pkg/storage/memory"
-	"github.com/hakierspejs/long-season/pkg/storage/sqlite"
+	"github.com/hakierspejs/long-season/pkg/storage/abstract"
 	"github.com/hakierspejs/long-season/pkg/storage/temp"
 	"github.com/hakierspejs/long-season/web"
 )
 
-var ErrInvalidDBType = errors.New("main: invalid database type")
-
-func abstractStorageFactory(dbPath string, dbType string) (storage.Factory, func(), error) {
-	switch dbType {
-	case "bolt":
-		boltDB, err := bolt.Open(dbPath, 0666, nil)
-		if err != nil {
-			return nil, nil, fmt.Errorf("bolt.Open: %w", err)
-		}
-		boltFactory, err := memory.New(boltDB)
-		if err != nil {
-			return nil, nil, fmt.Errorf("memory.New: %w", err)
-		}
-
-		boltCloser := func() {
-			boltDB.Close()
-		}
-
-		return boltFactory, boltCloser, nil
-	case "sqlite":
-		sqliteDB, closer, err := sqlite.NewFactory(dbPath)
-		if err != nil {
-			return nil, nil, fmt.Errorf("sqlite.NewFactory: %w", err)
-		}
-
-		sqliteCloser := func() {
-			closer()
-		}
-
-		return sqliteDB, sqliteCloser, nil
-	default:
-		return nil, nil, ErrInvalidDBType
-	}
-
-	return nil, nil, ErrInvalidDBType
-}
-
 func main() {
 	config := config.Env()
 
-	factoryStorage, closer, err := abstractStorageFactory(config.DatabasePath, config.DatabaseType)
+	factoryStorage, closer, err := abstract.Factory(config.DatabasePath, config.DatabaseType)
 	if err != nil {
 		log.Fatal(err.Error())
 	}
