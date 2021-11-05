@@ -34,3 +34,32 @@ CREATE TABLE recoveryCodes (
     recoveryCodesID TEXT NOT NULL,
     FOREIGN KEY(recoveryCodesID) REFERENCES recovery(recoveryID)
 );
+
+-- Remove all recovery codes when user attempt to
+-- remove recovery two factor method.
+CREATE TRIGGER cleanRecoveryCodes
+    AFTER DELETE ON recovery
+BEGIN
+    DELETE FROM
+        recoveryCodes
+    WHERE
+        recoveryCodes.recoveryCodesID = old.recoveryID;
+END;
+
+-- Remove recovery codes metadata after usage of last recovery
+-- code.
+CREATE TRIGGER cleanRecovery
+    AFTER DELETE ON recoveryCodes
+WHEN
+    (SELECT
+        count(*)
+    FROM
+        recoveryCodes
+    WHERE
+        recoveryCodes.recoveryCodesID = old.recoveryCodesID) = 0
+BEGIN
+    DELETE FROM
+        recovery
+    WHERE
+        recovery.recoveryID = old.recoveryCodesID;
+END;

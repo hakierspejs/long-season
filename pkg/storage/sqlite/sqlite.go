@@ -15,6 +15,7 @@ import (
 	_ "modernc.org/sqlite"
 
 	"github.com/hakierspejs/long-season/pkg/models"
+	"github.com/hakierspejs/long-season/pkg/models/set"
 	"github.com/hakierspejs/long-season/pkg/storage"
 )
 
@@ -48,8 +49,9 @@ func migrateWithFS(db *sql.DB, fileSystem fs.FS) error {
 }
 
 type Factory struct {
-	UsersStorage   *Users
-	DevicesStorage *Devices
+	UsersStorage     *Users
+	DevicesStorage   *Devices
+	TwoFactorStorage *TwoFactor
 }
 
 func NewFactory(filename string) (*Factory, func() error, error) {
@@ -78,6 +80,9 @@ func NewFactory(filename string) (*Factory, func() error, error) {
 		DevicesStorage: &Devices{
 			cs: cs,
 		},
+		TwoFactorStorage: &TwoFactor{
+			cs: cs,
+		},
 	}, closer, nil
 }
 
@@ -87,6 +92,10 @@ func (f *Factory) Users() storage.Users {
 
 func (f *Factory) Devices() storage.Devices {
 	return f.DevicesStorage
+}
+
+func (f *Factory) TwoFactor() storage.TwoFactor {
+	return f.TwoFactorStorage
 }
 
 func pragma(query string) string {
@@ -502,6 +511,282 @@ func (cs *coreStorage) removeDevice(ctx context.Context, id string) error {
 	_, err := cs.db.ExecContext(ctx, query, id)
 	if err != nil {
 		return fmt.Errorf("cs.db.ExecContext: %w", err)
+	}
+
+	return nil
+}
+
+func getTwoFactorFromTx(ctx context.Context, tx *sql.Tx, userID string) (*models.TwoFactor, error) {
+	res := models.TwoFactor{
+		OneTimeCodes:  map[string]models.OneTimeCode{},
+		RecoveryCodes: map[string]models.Recovery{},
+	}
+
+	query := `
+	SELECT
+		otpID, otpName, otpSecret
+	FROM
+		otp
+	WHERE
+		otpOwnerID = $1;
+	`
+	rows, err := tx.QueryContext(ctx, query, userID)
+	if err != nil {
+		return nil, fmt.Errorf("otp/tx.QueryContext: %w", err)
+	}
+
+	var (
+		otpID     string
+		otpName   string
+		otpSecret string
+	)
+
+	for rows.Next() {
+		err = rows.Scan(&otpID, &otpName, &otpSecret)
+		if err != nil {
+			return nil, fmt.Errorf("otp/rows.Scan: %w", err)
+		}
+		res.OneTimeCodes[otpID] = models.OneTimeCode{
+			ID:     otpID,
+			Name:   otpName,
+			Secret: otpSecret,
+		}
+	}
+	if rows.Err(); err != nil {
+		return nil, fmt.Errorf("otp/rows.Err: %w", err)
+	}
+
+	query = `
+	SELECT
+		recoveryID, recoveryName
+	FROM
+		recovery
+	WHERE
+		recoveryOwnerID = $1;
+	`
+	rows, err = tx.QueryContext(ctx, query, userID)
+	if err != nil {
+		return nil, fmt.Errorf("recovery/tx.QueryContext: %w", err)
+	}
+
+	var (
+		recoveryID   string
+		recoveryName string
+	)
+
+	for rows.Next() {
+		err = rows.Scan(&recoveryID, &recoveryName)
+		if err != nil {
+			return nil, fmt.Errorf("recovery/rows.Scan: %w", err)
+		}
+		res.RecoveryCodes[recoveryID] = models.Recovery{
+			ID:    recoveryID,
+			Name:  recoveryName,
+			Codes: set.NewString(),
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("recovery/rows.Err: %w", err)
+	}
+
+	for _, recovery := range res.RecoveryCodes {
+		query := `
+		SELECT
+			recoveryCodesCode
+		FROM
+			recoveryCodes
+		WHERE
+			recoveryCodesID = $1;
+		`
+		var recoveryCode string
+
+		rows, err = tx.QueryContext(ctx, query, recovery.ID)
+		if err != nil {
+			return nil, fmt.Errorf("recoveryCodes/tx.QueryContext: %w", err)
+		}
+
+		for rows.Next() {
+			err = rows.Scan(&recoveryCode)
+			if err != nil {
+				return nil, fmt.Errorf("recoveryCodes/rows.Scan: %w", err)
+			}
+			res.RecoveryCodes[recovery.ID].Codes.Push(recoveryCode)
+		}
+		if err := rows.Err(); err != nil {
+			return nil, fmt.Errorf("recoveryCodes/rows.Err: %w", err)
+		}
+	}
+
+	return &res, nil
+}
+
+func (cs *coreStorage) getTwoFactor(ctx context.Context, userID string) (*models.TwoFactor, error) {
+	tx, err := cs.db.Begin()
+	if err != nil {
+		return nil, fmt.Errorf("cs.db.Begin: %w", err)
+	}
+
+	res, err := getTwoFactorFromTx(ctx, tx, userID)
+	if err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("getTwoFactorFromTx: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("tx.Commit: %w", err)
+	}
+
+	return res, nil
+}
+
+func removeTwoFactorFromTx(ctx context.Context, tx *sql.Tx, userID string) error {
+	query := pragma(`
+	DELETE FROM
+		otp
+	WHERE
+		otpOwnerID = $1;
+	`)
+	_, err := tx.ExecContext(ctx, query, userID)
+	if err != nil {
+		return fmt.Errorf("tx.ExecContext: %w", err)
+	}
+
+	query = pragma(`
+	DELETE FROM
+		recovery
+	WHERE
+		recoveryOwnerID = $1;
+	`)
+	_, err = tx.ExecContext(ctx, query, userID)
+	if err != nil {
+		return fmt.Errorf("tx.ExecContext: %w", err)
+	}
+
+	return nil
+}
+
+func (cs *coreStorage) removeTwoFactor(ctx context.Context, userID string) error {
+	cs.writeGuard.Lock()
+	defer cs.writeGuard.Unlock()
+
+	tx, err := cs.db.Begin()
+	if err != nil {
+		return fmt.Errorf("cs.db.Begin: %w", err)
+	}
+
+	err = removeTwoFactorFromTx(ctx, tx, userID)
+	if err != nil {
+		tx.Rollback()
+		return fmt.Errorf("removeTwoFactorFromTx: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("tx.Commit: %w", err)
+
+	}
+	return nil
+}
+
+func insertTwoFactorWithTx(ctx context.Context, tx *sql.Tx, userID string, tf models.TwoFactor) error {
+	otpInsertStmt, err := tx.PrepareContext(ctx, pragma(`
+	INSERT INTO otp
+		(otpID, otpName, otpSecret, otpOwnerID)
+	VALUES
+		($1, $2, $3, $4);
+	`))
+	if err != nil {
+		return fmt.Errorf("tx.PrepareContext: %w", err)
+	}
+
+	for _, otp := range tf.OneTimeCodes {
+		_, err = otpInsertStmt.ExecContext(ctx,
+			otp.ID,
+			otp.Name,
+			otp.Secret,
+			userID,
+		)
+		if err != nil {
+			return fmt.Errorf("otpInsertStmt.ExecContext: %w", err)
+		}
+	}
+
+	recoveryInsertStmt, err := tx.PrepareContext(ctx, pragma(`
+	INSERT INTO recovery
+		(recoveryID, recoveryName, recoveryOwnerID)
+	VALUES
+		($1, $2, $3);
+	`))
+	if err != nil {
+		return fmt.Errorf("tx.PrepareContext: %w", err)
+	}
+
+	recoveryCodesInsertStmt, err := tx.PrepareContext(ctx, pragma(`
+	INSERT INTO recoveryCodes
+		(recoveryCodesCode, recoveryCodesID)
+	VALUES
+		($1, $2);
+	`))
+	if err != nil {
+		return fmt.Errorf("tx.PrepareContext: %w", err)
+	}
+
+	for _, recovery := range tf.RecoveryCodes {
+		_, err = recoveryInsertStmt.ExecContext(ctx,
+			recovery.ID,
+			recovery.Name,
+			userID,
+		)
+		if err != nil {
+			return fmt.Errorf("recoveryInsertStmt.ExecContext: %w", err)
+		}
+
+		for _, code := range recovery.Codes.Items() {
+			_, err = recoveryCodesInsertStmt.ExecContext(ctx, code, recovery.ID)
+			if err != nil {
+				return fmt.Errorf("recoveryCodesInsertStmt.ExecContext: %w", err)
+			}
+		}
+	}
+
+	return nil
+}
+
+func (cs *coreStorage) updateTwoFactor(ctx context.Context, userID string, f func(*models.TwoFactor) error) error {
+	cs.writeGuard.Lock()
+	defer cs.writeGuard.Unlock()
+
+	tx, err := cs.db.Begin()
+	if err != nil {
+		return fmt.Errorf("cs.db.Begin: %w", err)
+	}
+
+	tf, err := getTwoFactorFromTx(ctx, tx, userID)
+	if err != nil {
+		tx.Rollback()
+		return fmt.Errorf("getTwoFactorFromTx: %w", err)
+	}
+
+	err = removeTwoFactorFromTx(ctx, tx, userID)
+	if err != nil {
+		tx.Rollback()
+		return fmt.Errorf("removeTwoFactorFromTx: %w", err)
+	}
+
+	err = f(tf)
+	if err != nil {
+		tx.Rollback()
+		return fmt.Errorf("f(tf) update function error: %w", err)
+	}
+
+	err = insertTwoFactorWithTx(ctx, tx, userID, *tf)
+	if err != nil {
+		tx.Rollback()
+		return fmt.Errorf("insertTwoFactorWithTx: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("tx.Commit: %w", err)
+
 	}
 
 	return nil
