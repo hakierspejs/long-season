@@ -11,6 +11,7 @@ import (
 type Factory interface {
 	Users() Users
 	Devices() Devices
+	TwoFactor() TwoFactor
 }
 
 // UserEntry represents user data stored in data storage.

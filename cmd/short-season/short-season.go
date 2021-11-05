@@ -102,7 +102,7 @@ type body struct {
 	Addresses []string `json:"addresses"`
 }
 
-func usersStorage(ctx *cli.Context) (*memory.UsersStorage, func(), error) {
+func usersStorage(ctx *cli.Context) (storage.Users, func(), error) {
 	if ctx.String("database") == "" {
 		return nil, nil, fmt.Errorf("database flag is not set. see admin command.")
 	}
@@ -243,7 +243,7 @@ func app() *cli.App {
 					}
 
 					for _, device := range devices {
-						_, err = devicesStorage.NewByOwner(localCtx, device.Owner, device)
+						_, err = devicesStorage.New(localCtx, device.Owner, device)
 						if err != nil {
 							return err
 						}

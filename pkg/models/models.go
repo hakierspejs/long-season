@@ -162,6 +162,7 @@ type Config struct {
 	Debug         bool
 	Host          string
 	Port          string
+	DatabaseType  string
 	DatabasePath  string
 	JWTSecret     string
 	UpdateSecret  string

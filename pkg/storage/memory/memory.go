@@ -35,15 +35,15 @@ type Factory struct {
 
 // Users returns storage interface for manipulating
 // users data.
-func (f Factory) Users() *UsersStorage {
+func (f Factory) Users() storage.Users {
 	return f.users
 }
 
-func (f Factory) Devices() *DevicesStorage {
+func (f Factory) Devices() storage.Devices {
 	return f.devices
 }
 
-func (f Factory) TwoFactor() *TwoFactorStorage {
+func (f Factory) TwoFactor() storage.TwoFactor {
 	return f.twoFactor
 }
 
