@@ -11,7 +11,10 @@ CREATE TABLE devices (
     deviceOwnerID TEXT NOT NULL,
     deviceTag TEXT,
     deviceMAC BLOB NOT NULL,
-    FOREIGN KEY(deviceOwnerID) REFERENCES users(userID)
+    CONSTRAINT fkDevices
+        FOREIGN KEY(deviceOwnerID)
+        REFERENCES users(userID)
+        ON DELETE CASCADE
 );
 
 CREATE TABLE otp (
@@ -19,32 +22,30 @@ CREATE TABLE otp (
     otpName TEXT NOT NULL,
     otpSecret BLOB NOT NULL,
     otpOwnerID TEXT NOT NULL,
-    FOREIGN KEY(otpOwnerID) REFERENCES users(userID)
+    CONSTRAINT fkOtp
+        FOREIGN KEY(otpOwnerID)
+        REFERENCES users(userID)
+        ON DELETE CASCADE
 );
 
 CREATE TABLE recovery (
     recoveryID TEXT PRIMARY KEY,
     recoveryName TEXT NOT NULL,
     recoveryOwnerID TEXT NOT NULL,
-    FOREIGN KEY(recoveryOwnerID) REFERENCES users(userID)
+    CONSTRAINT fkRecovery
+        FOREIGN KEY(recoveryOwnerID)
+        REFERENCES users(userID)
+        ON DELETE CASCADE
 );
 
 CREATE TABLE recoveryCodes (
     recoveryCodesCode TEXT NOT NULL,
     recoveryCodesID TEXT NOT NULL,
-    FOREIGN KEY(recoveryCodesID) REFERENCES recovery(recoveryID)
+    CONSTRAINT fkRecoveryCodes
+        FOREIGN KEY(recoveryCodesID)
+        REFERENCES recovery(recoveryID)
+        ON DELETE CASCADE
 );
-
--- Remove all recovery codes when user attempt to
--- remove recovery two factor method.
-CREATE TRIGGER cleanRecoveryCodes
-    AFTER DELETE ON recovery
-BEGIN
-    DELETE FROM
-        recoveryCodes
-    WHERE
-        recoveryCodes.recoveryCodesID = old.recoveryID;
-END;
 
 -- Remove recovery codes metadata after usage of last recovery
 -- code.
