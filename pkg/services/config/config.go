@@ -19,8 +19,11 @@ const (
 	portEnv     = "LS_PORT"
 	defaultPort = "3000"
 
-	boltENV       = "LS_BOLT_DB"
-	defaultBoltDB = "long-season.db"
+	dbFileEnv     = "LS_DB_FILE"
+	defaultDBFile = "long-season.db"
+
+	dbTypeEnv     = "LS_DB_TYPE"
+	defaultDBType = "bolt"
 
 	jwtSecretEnv     = "LS_JWT_SECRET"
 	defaultJWTSecret = "default-super-secret"
@@ -57,7 +60,8 @@ func Env() *models.Config {
 		Debug:         parseBoolEnv(DefaultEnv(debugEnv, defaultDebug)),
 		Host:          DefaultEnv(hostEnv, defaultHost),
 		Port:          DefaultEnv(portEnv, defaultPort),
-		DatabasePath:  DefaultEnv(boltENV, defaultBoltDB),
+		DatabasePath:  DefaultEnv(dbFileEnv, defaultDBFile),
+		DatabaseType:  DefaultEnv(dbTypeEnv, defaultDBType),
 		JWTSecret:     DefaultEnv(jwtSecretEnv, defaultJWTSecret),
 		UpdateSecret:  DefaultEnv(updateSecretEnv, defaultUpdateSecret),
 		AppName:       DefaultEnv(appNameEnv, defaultAppName),

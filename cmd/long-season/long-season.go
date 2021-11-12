@@ -9,7 +9,6 @@ import (
 
 	"github.com/cristalhq/jwt/v3"
 	"github.com/go-chi/cors"
-	bolt "go.etcd.io/bbolt"
 
 	"github.com/hakierspejs/long-season/pkg/services/config"
 	"github.com/hakierspejs/long-season/pkg/services/handlers"
@@ -19,7 +18,7 @@ import (
 	"github.com/hakierspejs/long-season/pkg/services/session"
 	"github.com/hakierspejs/long-season/pkg/services/status"
 	"github.com/hakierspejs/long-season/pkg/storage"
-	"github.com/hakierspejs/long-season/pkg/storage/memory"
+	"github.com/hakierspejs/long-season/pkg/storage/abstract"
 	"github.com/hakierspejs/long-season/pkg/storage/temp"
 	"github.com/hakierspejs/long-season/web"
 )
@@ -27,24 +26,20 @@ import (
 func main() {
 	config := config.Env()
 
-	boltDB, err := bolt.Open(config.DatabasePath, 0666, nil)
+	factoryStorage, closer, err := abstract.Factory(config.DatabasePath, config.DatabaseType)
 	if err != nil {
 		log.Fatal(err.Error())
 	}
-	defer boltDB.Close()
-
-	factoryStorage, err := memory.New(boltDB)
-	if err != nil {
-		log.Fatal(err.Error())
-	}
+	defer closer()
 
 	onlineUsersStorage := temp.NewOnlineUsers()
+	statusTx := temp.NewStatusTx()
 
 	ctx := context.Background()
 	macChannel, macDeamon := status.NewDaemon(ctx, status.DaemonArgs{
 		OnlineUsers:   onlineUsersStorage,
 		Devices:       factoryStorage.Devices(),
-		Counters:      factoryStorage.StatusTx(),
+		Counters:      statusTx,
 		RefreshTime:   config.RefreshTime,
 		SingleAddrTTL: config.SingleAddrTTL,
 	})
@@ -88,7 +83,7 @@ func main() {
 		Opener:      opener,
 		Users:       factoryStorage.Users(),
 		Devices:     factoryStorage.Devices(),
-		StatusTx:    factoryStorage.StatusTx(),
+		StatusTx:    statusTx,
 		TwoFactor:   factoryStorage.TwoFactor(),
 		OnlineUsers: onlineUsersStorage,
 		UserAdapter: userAdapter,
