@@ -48,12 +48,15 @@ func migrateWithFS(db *sql.DB, fileSystem fs.FS) error {
 	return sourceInstance.Close()
 }
 
+// Factory implements storage factory interface.
 type Factory struct {
 	UsersStorage     *Users
 	DevicesStorage   *Devices
 	TwoFactorStorage *TwoFactor
 }
 
+// NewFactory returns Factory, database closer for sqlite connection and
+// error if something went wrong.
 func NewFactory(filename string) (*Factory, func() error, error) {
 	db, err := sql.Open("sqlite", filename)
 	if err != nil {
@@ -86,14 +89,20 @@ func NewFactory(filename string) (*Factory, func() error, error) {
 	}, closer, nil
 }
 
+// Users returns sqlite implementation of
+// storage Users interface.
 func (f *Factory) Users() storage.Users {
 	return f.UsersStorage
 }
 
+// Devices returns sqlite implementation of
+// storage Devices interface.
 func (f *Factory) Devices() storage.Devices {
 	return f.DevicesStorage
 }
 
+// TwoFactor returns sqlite implementation of
+// storage TwoFactor interface.
 func (f *Factory) TwoFactor() storage.TwoFactor {
 	return f.TwoFactorStorage
 }
