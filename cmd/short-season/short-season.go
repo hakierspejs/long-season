@@ -3,14 +3,11 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"context"
-	"encoding/gob"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
-	"strconv"
 
 	"github.com/hakierspejs/long-season/pkg/models"
 	"github.com/hakierspejs/long-season/pkg/services/exim"
@@ -27,58 +24,6 @@ const (
 	usersBucket   = "ls::users"
 	devicesBucket = "ls::devices"
 )
-
-func readOldUsers(db *bolt.DB) ([]models.User, error) {
-	result := []models.User{}
-
-	if err := db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(usersBucket))
-
-		return b.ForEach(func(k, v []byte) error {
-			user := new(models.User)
-			buff := bytes.NewBuffer(v)
-			// Check if given key is an integer.
-			if _, err := strconv.Atoi(string(k)); err == nil {
-				err := gob.NewDecoder(buff).Decode(user)
-				if err != nil {
-					return fmt.Errorf("decoding user from gob failed: %w", err)
-				}
-			}
-			result = append(result, *user)
-			return nil
-		})
-	}); err != nil {
-		return result, err
-	}
-
-	return result, nil
-}
-
-func readOldDevices(db *bolt.DB) ([]models.Device, error) {
-	result := []models.Device{}
-
-	if err := db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(devicesBucket))
-
-		return b.ForEach(func(k, v []byte) error {
-			device := new(models.Device)
-			buff := bytes.NewBuffer(v)
-			// Check if given key is an integer.
-			if _, err := strconv.Atoi(string(k)); err == nil {
-				err := gob.NewDecoder(buff).Decode(device)
-				if err != nil {
-					return fmt.Errorf("decoding user from gob failed: %w", err)
-				}
-			}
-			result = append(result, *device)
-			return nil
-		})
-	}); err != nil {
-		return result, err
-	}
-
-	return result, nil
-}
 
 func putRequest(url string, headers map[string]string, data io.Reader) (*http.Response, error) {
 	client := &http.Client{}
@@ -176,79 +121,6 @@ func app() *cli.App {
 					if err != nil {
 						return err
 					}
-					return nil
-				},
-			},
-			{
-				Name:  "migrate",
-				Usage: "migrate old bolt database to new long-season version",
-				Flags: []cli.Flag{
-					&cli.StringFlag{
-						Name:    "old-database",
-						Aliases: []string{"o", "od", "odb"},
-						Usage:   "path to old bolt database",
-						Value:   "long-season.db",
-					},
-					&cli.StringFlag{
-						Name:    "new-database",
-						Aliases: []string{"n", "nd", "ndb"},
-						Usage:   "name of new database that will be created",
-						Value:   "new-long-season.db",
-					},
-				},
-				Action: func(ctx *cli.Context) error {
-					old := ctx.String("old-database")
-
-					oldDB, err := bolt.Open(old, 0666, nil)
-					if err != nil {
-						return err
-					}
-					defer oldDB.Close()
-
-					users, err := readOldUsers(oldDB)
-					if err != nil {
-						return err
-					}
-
-					devices, err := readOldDevices(oldDB)
-					if err != nil {
-						return err
-					}
-
-					newDBFilename := ctx.String("new-database")
-					newDB, err := bolt.Open(newDBFilename, 0666, nil)
-					if err != nil {
-						return err
-					}
-
-					factory, err := memory.New(newDB)
-					if err != nil {
-						return err
-					}
-
-					usersStorage := factory.Users()
-					devicesStorage := factory.Devices()
-
-					localCtx := context.Background()
-					for _, user := range users {
-						_, err = usersStorage.New(localCtx, storage.UserEntry{
-							ID:             user.ID,
-							Nickname:       user.Nickname,
-							HashedPassword: user.Password,
-							Private:        user.Private,
-						})
-						if err != nil {
-							return err
-						}
-					}
-
-					for _, device := range devices {
-						_, err = devicesStorage.New(localCtx, device.Owner, device)
-						if err != nil {
-							return err
-						}
-					}
-
 					return nil
 				},
 			},
