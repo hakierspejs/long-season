@@ -9,15 +9,16 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/urfave/cli/v2"
+	bolt "go.etcd.io/bbolt"
+	"golang.org/x/crypto/bcrypt"
+
 	"github.com/hakierspejs/long-season/pkg/models"
 	"github.com/hakierspejs/long-season/pkg/services/exim"
 	"github.com/hakierspejs/long-season/pkg/services/users"
 	"github.com/hakierspejs/long-season/pkg/storage"
+	"github.com/hakierspejs/long-season/pkg/storage/abstract"
 	"github.com/hakierspejs/long-season/pkg/storage/memory"
-	"golang.org/x/crypto/bcrypt"
-
-	"github.com/urfave/cli/v2"
-	bolt "go.etcd.io/bbolt"
 )
 
 const (
@@ -131,8 +132,14 @@ func app() *cli.App {
 					&cli.StringFlag{
 						Name:    "database",
 						Aliases: []string{"d", "db"},
-						Usage:   "path to bolt database",
+						Usage:   "path to database",
 						Value:   "long-season.db",
+					},
+					&cli.StringFlag{
+						Name:    "database-type",
+						Aliases: []string{"dt", "dbt"},
+						Usage:   "type of database",
+						Value:   "bolt",
 					},
 				},
 				Action: func(ctx *cli.Context) error {
@@ -143,25 +150,19 @@ func app() *cli.App {
 						Name:  "export",
 						Usage: "export all data from database as single json object to stdout",
 						Action: func(ctx *cli.Context) error {
-							if ctx.String("database") == "" {
-								return fmt.Errorf("database flag is not set. see admin command.")
-							}
+							dbPath := ctx.String("database")
+							dbType := ctx.String("database-type")
 
-							boltDB, err := bolt.Open(ctx.String("database"), 0666, nil)
+							factory, closer, err := abstract.Factory(dbPath, dbType)
 							if err != nil {
-								return fmt.Errorf("bolt.Open: %w", err)
+								return fmt.Errorf("abstract.Factory: %w", err)
 							}
-							defer boltDB.Close()
-
-							factoryStorage, err := memory.New(boltDB)
-							if err != nil {
-								return fmt.Errorf("memory.New: %w", err)
-							}
+							defer closer()
 
 							dump, err := exim.Export(ctx.Context, exim.ExportRequest{
-								UsersStorage:     factoryStorage.Users(),
-								DevicesStorage:   factoryStorage.Devices(),
-								TwoFactorStorage: factoryStorage.TwoFactor(),
+								UsersStorage:     factory.Users(),
+								DevicesStorage:   factory.Devices(),
+								TwoFactorStorage: factory.TwoFactor(),
 							})
 							if err != nil {
 								return fmt.Errorf("exim.Export: %w", err)
@@ -178,20 +179,14 @@ func app() *cli.App {
 						Name:  "import",
 						Usage: "import data as json object from stdin into database",
 						Action: func(ctx *cli.Context) error {
-							if ctx.String("database") == "" {
-								return fmt.Errorf("database flag is not set. see admin command.")
-							}
+							dbPath := ctx.String("database")
+							dbType := ctx.String("database-type")
 
-							boltDB, err := bolt.Open(ctx.String("database"), 0666, nil)
+							factory, closer, err := abstract.Factory(dbPath, dbType)
 							if err != nil {
-								return fmt.Errorf("bolt.Open: %w", err)
+								return fmt.Errorf("abstract.Factory: %w", err)
 							}
-							defer boltDB.Close()
-
-							factoryStorage, err := memory.New(boltDB)
-							if err != nil {
-								return fmt.Errorf("memory.New: %w", err)
-							}
+							defer closer()
 
 							dump := exim.Data{}
 
@@ -201,9 +196,9 @@ func app() *cli.App {
 
 							err = exim.Import(ctx.Context, exim.ImportRequest{
 								Dump:             dump,
-								UsersStorage:     factoryStorage.Users(),
-								DevicesStorage:   factoryStorage.Devices(),
-								TwoFactorStorage: factoryStorage.TwoFactor(),
+								UsersStorage:     factory.Users(),
+								DevicesStorage:   factory.Devices(),
+								TwoFactorStorage: factory.TwoFactor(),
 							})
 							if err != nil {
 								return fmt.Errorf("exim.Import: %w", err)
