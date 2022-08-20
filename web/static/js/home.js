@@ -61,7 +61,7 @@ const HACKER_STATE = {
 
 const UNKNOWN_STATE = {
   FOREVER_ALONE: "There is one unknown device in the hackerspace.",
-  PARTY: (num) => "There are " + num + " unknown devices in the hakerspace.",
+  PARTY: (num) => "There are " + num + " unknown devices in the hackerspace.",
 };
 
 const homeStorage = valoo({
