@@ -57,7 +57,7 @@ const submitData = (store) => {
         case 400:
           response.json()
             .then((data) => {
-              err(data.message);
+              err(data.error.message);
             })
             .catch(() => {
               err(ERROR_MSGS.default);
