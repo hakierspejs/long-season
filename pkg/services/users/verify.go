@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	invalidNicknameMsg = "username should contains from 4 to 32 numerical and alphabetical characters"
+	invalidNicknameMsg = "username should contains from 2 to 32 numerical and alphabetical characters"
 	invalidPasswordMsg = "password should contains from 6 to 50 any characters, excluding whitespace characters"
 )
 
@@ -31,7 +31,7 @@ var (
 )
 
 var (
-	nicknameRegex = regexp.MustCompile(`^[a-zA-Z0-9]{4,32}$`)
+	nicknameRegex = regexp.MustCompile(`^[a-zA-Z0-9]{2,32}$`)
 	passwordRegex = regexp.MustCompile(`^[^[:space:]]{6,50}$`)
 )
 
