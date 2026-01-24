@@ -7,8 +7,8 @@ import (
 	"net"
 	"net/http"
 
-	"github.com/go-chi/chi"
-	"github.com/go-chi/chi/middleware"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 
 	"github.com/hakierspejs/long-season/pkg/models"
 	"github.com/hakierspejs/long-season/pkg/services/handlers"
