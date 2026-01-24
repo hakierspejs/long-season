@@ -3,7 +3,7 @@ env:
   - CGO_ENABLED=0
 
 builds:
-  - main: ./cmd/short-season/short-season.go
+  - main: ./cmd/short-season/main.go
     id: "cli"
     binary: short-season
     goos:
@@ -25,7 +25,7 @@ builds:
       - goos: darwin
         goarch: arm
 
-  - main: ./cmd/long-season/long-season.go
+  - main: ./cmd/long-season/main.go
     id: "server"
     binary: long-season
     goos:
