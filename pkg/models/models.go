@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/cristalhq/jwt/v3"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/hakierspejs/long-season/pkg/models/set"
 )
 
@@ -179,7 +179,7 @@ func (c Config) Address() string {
 
 // Claims represents custom claims for jwt authentication.
 type Claims struct {
-	jwt.StandardClaims
+	jwt.RegisteredClaims
 	UserID   string                 `json:"id"`
 	Nickname string                 `json:"nck"`
 	Values   map[string]interface{} `json:"vls,omitempty"`

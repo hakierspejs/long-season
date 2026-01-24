@@ -4,13 +4,12 @@ package jojo
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
-	"github.com/cristalhq/jwt/v3"
+	"github.com/golang-jwt/jwt/v5"
 
 	"github.com/hakierspejs/long-season/pkg/models"
 	"github.com/hakierspejs/long-season/pkg/services/happier"
@@ -22,9 +21,6 @@ import (
 type JWT struct {
 	// Secret is jwt secret. The longer secret is, the better.
 	Secret []byte
-
-	// Algorithm is JWT algorithm used for signing
-	Algorithm jwt.Algorithm
 
 	// AppName is issuer application name.
 	AppName string
@@ -39,18 +35,9 @@ const internalServerErrorResponse = "Internal server error. Please try again lat
 func (j *JWT) Tokenize(ctx context.Context, s session.State) (string, error) {
 	errFactory := happier.FromContext(ctx)
 
-	signer, err := jwt.NewSignerHS(j.Algorithm, []byte(j.Secret))
-	if err != nil {
-		return "", errFactory.InternalServerError(
-			fmt.Errorf("jwt.NewSignerHS: %w", err),
-			internalServerErrorResponse,
-		)
-	}
-
-	builder := jwt.NewBuilder(signer)
 	now := time.Now()
-	token, err := builder.Build(&models.Claims{
-		StandardClaims: jwt.StandardClaims{
+	claims := &models.Claims{
+		RegisteredClaims: jwt.RegisteredClaims{
 			Issuer:    j.AppName,
 			Audience:  []string{"ls-apiv1"},
 			Subject:   "auth",
@@ -61,15 +48,18 @@ func (j *JWT) Tokenize(ctx context.Context, s session.State) (string, error) {
 		Nickname: s.Nickname,
 		UserID:   s.UserID,
 		Values:   s.Values,
-	})
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	tokenString, err := token.SignedString(j.Secret)
 	if err != nil {
 		return "", errFactory.InternalServerError(
-			fmt.Errorf("builder.Build: %w", err),
+			fmt.Errorf("token.SignedString: %w", err),
 			internalServerErrorResponse,
 		)
 	}
 
-	return token.String(), nil
+	return tokenString, nil
 }
 
 // Save is method for returning session data or session identifier to client.
@@ -90,7 +80,7 @@ func (j *JWT) Save(ctx context.Context, w http.ResponseWriter, s session.State) 
 	return nil
 }
 
-func (j *JWT) parseToken(ctx context.Context, token string) (*session.State, error) {
+func (j *JWT) parseToken(ctx context.Context, tokenString string) (*session.State, error) {
 	fail := func(err error) (*session.State, error) {
 		return nil, happier.FromContext(ctx).Unauthorized(
 			fmt.Errorf("jojo: failed to parse token: %w", err),
@@ -98,32 +88,26 @@ func (j *JWT) parseToken(ctx context.Context, token string) (*session.State, err
 		)
 	}
 
-	verifier, err := jwt.NewVerifierHS(j.Algorithm, j.Secret)
+	claims := &models.Claims{}
+	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return j.Secret, nil
+	})
 	if err != nil {
 		return fail(err)
 	}
 
-	newToken, err := jwt.ParseAndVerifyString(token, verifier)
-	if err != nil {
-		return fail(err)
-	}
-
-	newClaims := new(models.Claims)
-	err = json.Unmarshal(newToken.RawClaims(), newClaims)
-	if err != nil {
-		return fail(err)
-	}
-
-	now := time.Now()
-	if !newClaims.IsValidAt(now) {
-		return fail(fmt.Errorf("token had expired"))
+	if !token.Valid {
+		return fail(fmt.Errorf("token is not valid"))
 	}
 
 	return &session.State{
-		ID:       newClaims.ID,
-		UserID:   newClaims.UserID,
-		Nickname: newClaims.Nickname,
-		Values:   newClaims.Values,
+		ID:       claims.ID,
+		UserID:   claims.UserID,
+		Nickname: claims.Nickname,
+		Values:   claims.Values,
 	}, nil
 }
 

@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/cristalhq/jwt/v3"
 	"github.com/go-chi/cors"
 
 	"github.com/hakierspejs/long-season/pkg/services/config"
@@ -70,7 +69,6 @@ func main() {
 
 	jwtSession := &jojo.JWT{
 		Secret:    []byte(config.JWTSecret),
-		Algorithm: jwt.HS256,
 		AppName:   config.AppName,
 		CookieKey: "jwt-token",
 	}

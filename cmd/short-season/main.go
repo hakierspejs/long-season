@@ -3,13 +3,14 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 	bolt "go.etcd.io/bbolt"
 	"golang.org/x/crypto/bcrypt"
 
@@ -48,12 +49,12 @@ type body struct {
 	Addresses []string `json:"addresses"`
 }
 
-func usersStorage(ctx *cli.Context) (storage.Users, func(), error) {
-	if ctx.String("database") == "" {
+func usersStorage(cmd *cli.Command) (storage.Users, func(), error) {
+	if cmd.String("database") == "" {
 		return nil, nil, fmt.Errorf("database flag is not set. see admin command.")
 	}
 
-	boltPath := ctx.String("database")
+	boltPath := cmd.String("database")
 	boltDB, err := bolt.Open(boltPath, 0666, nil)
 	if err != nil {
 		return nil, nil, err
@@ -70,8 +71,8 @@ func usersStorage(ctx *cli.Context) (storage.Users, func(), error) {
 	return factoryStorage.Users(), closer, nil
 }
 
-func app() *cli.App {
-	return &cli.App{
+func app() *cli.Command {
+	return &cli.Command{
 		Name:  "short-season",
 		Usage: "command line interface tool for managing long-season",
 		Flags: []cli.Flag{
@@ -90,9 +91,9 @@ func app() *cli.App {
 			{
 				Name:  "macs",
 				Usage: "upload list of mac addresses to given long-season API",
-				Action: func(ctx *cli.Context) error {
-					api := ctx.String("api")
-					apiKey := ctx.String("api-key")
+				Action: func(ctx context.Context, cmd *cli.Command) error {
+					api := cmd.String("api")
+					apiKey := cmd.String("api-key")
 
 					b := new(body)
 
@@ -142,16 +143,16 @@ func app() *cli.App {
 						Value:   "bolt",
 					},
 				},
-				Action: func(ctx *cli.Context) error {
-					return cli.ShowCommandHelp(ctx, ctx.Command.Name)
+				Action: func(ctx context.Context, cmd *cli.Command) error {
+					return cli.DefaultShowCommandHelp(ctx, cmd, cmd.Name)
 				},
-				Subcommands: []*cli.Command{
+				Commands: []*cli.Command{
 					{
 						Name:  "export",
 						Usage: "export all data from database as single json object to stdout",
-						Action: func(ctx *cli.Context) error {
-							dbPath := ctx.String("database")
-							dbType := ctx.String("database-type")
+						Action: func(ctx context.Context, cmd *cli.Command) error {
+							dbPath := cmd.String("database")
+							dbType := cmd.String("database-type")
 
 							factory, closer, err := abstract.Factory(dbPath, dbType)
 							if err != nil {
@@ -159,7 +160,7 @@ func app() *cli.App {
 							}
 							defer closer()
 
-							dump, err := exim.Export(ctx.Context, exim.ExportRequest{
+							dump, err := exim.Export(ctx, exim.ExportRequest{
 								UsersStorage:     factory.Users(),
 								DevicesStorage:   factory.Devices(),
 								TwoFactorStorage: factory.TwoFactor(),
@@ -178,9 +179,9 @@ func app() *cli.App {
 					{
 						Name:  "import",
 						Usage: "import data as json object from stdin into database",
-						Action: func(ctx *cli.Context) error {
-							dbPath := ctx.String("database")
-							dbType := ctx.String("database-type")
+						Action: func(ctx context.Context, cmd *cli.Command) error {
+							dbPath := cmd.String("database")
+							dbType := cmd.String("database-type")
 
 							factory, closer, err := abstract.Factory(dbPath, dbType)
 							if err != nil {
@@ -194,7 +195,7 @@ func app() *cli.App {
 								return fmt.Errorf("json.NewDecoder.Decode: %w", err)
 							}
 
-							err = exim.Import(ctx.Context, exim.ImportRequest{
+							err = exim.Import(ctx, exim.ImportRequest{
 								Dump:             dump,
 								UsersStorage:     factory.Users(),
 								DevicesStorage:   factory.Devices(),
@@ -212,27 +213,26 @@ func app() *cli.App {
 						Usage: "show users stored in given database",
 						Flags: []cli.Flag{
 							&cli.StringFlag{
-								Name:       "user-id",
-								Aliases:    []string{"id", "i"},
-								HasBeenSet: false,
-								Required:   false,
+								Name:     "user-id",
+								Aliases:  []string{"id", "i"},
+								Required: false,
 							},
 						},
-						Action: func(ctx *cli.Context) error {
-							storage, closer, err := usersStorage(ctx)
+						Action: func(ctx context.Context, cmd *cli.Command) error {
+							storage, closer, err := usersStorage(cmd)
 							if err != nil {
 								return err
 							}
 							defer closer()
 
-							users, err := storage.All(ctx.Context)
+							users, err := storage.All(ctx)
 							if err != nil {
 								return err
 							}
 
 							var user *models.User = nil
-							if ctx.IsSet("user-id") {
-								target := ctx.String("user-id")
+							if cmd.IsSet("user-id") {
+								target := cmd.String("user-id")
 								for _, u := range users {
 									if u.ID == target {
 										user = &models.User{
@@ -257,23 +257,23 @@ func app() *cli.App {
 
 							return json.NewEncoder(os.Stdout).Encode(&users)
 						},
-						Subcommands: []*cli.Command{
+						Commands: []*cli.Command{
 							{
 								Name:    "delete",
 								Aliases: []string{"d"},
 								Usage:   "delete user with given id",
-								Action: func(ctx *cli.Context) error {
-									if !ctx.IsSet("user-id") {
+								Action: func(ctx context.Context, cmd *cli.Command) error {
+									if !cmd.IsSet("user-id") {
 										return fmt.Errorf("set user-id flag with users subcommand")
 									}
 
-									storage, closer, err := usersStorage(ctx)
+									storage, closer, err := usersStorage(cmd)
 									defer closer()
 									if err != nil {
 										return err
 									}
 
-									return storage.Remove(ctx.Context, ctx.String("user-id"))
+									return storage.Remove(ctx, cmd.String("user-id"))
 								},
 							},
 							{
@@ -294,15 +294,15 @@ func app() *cli.App {
 										Required: true,
 									},
 								},
-								Action: func(ctx *cli.Context) error {
-									if !ctx.IsSet("nickname") || !ctx.IsSet("password") {
+								Action: func(ctx context.Context, cmd *cli.Command) error {
+									if !cmd.IsSet("nickname") || !cmd.IsSet("password") {
 										return fmt.Errorf("please set nickname and password for new user")
 									}
 
-									newNickname := ctx.String("nickname")
-									newPassword := ctx.String("password")
+									newNickname := cmd.String("nickname")
+									newPassword := cmd.String("password")
 
-									s, closer, err := usersStorage(ctx)
+									s, closer, err := usersStorage(cmd)
 									if err != nil {
 										return err
 									}
@@ -315,7 +315,7 @@ func app() *cli.App {
 										return err
 									}
 
-									_, err = s.New(ctx.Context, storage.UserEntry{
+									_, err = s.New(ctx, storage.UserEntry{
 										Nickname:       newNickname,
 										HashedPassword: hashedPassword,
 										Private:        false,
@@ -341,24 +341,24 @@ func app() *cli.App {
 										Value:   "",
 									},
 								},
-								Action: func(ctx *cli.Context) error {
-									if !ctx.IsSet("user-id") {
+								Action: func(ctx context.Context, cmd *cli.Command) error {
+									if !cmd.IsSet("user-id") {
 										return fmt.Errorf("set user-id flag with users subcommand")
 									}
 
-									s, closer, err := usersStorage(ctx)
+									s, closer, err := usersStorage(cmd)
 									defer closer()
 									if err != nil {
 										return err
 									}
 
-									user, err := s.Read(ctx.Context, ctx.String("user-id"))
+									user, err := s.Read(ctx, cmd.String("user-id"))
 									if err != nil {
 										return err
 									}
 
 									newHashedPassword := []byte{}
-									if newPassword := ctx.String("password"); newPassword != "" {
+									if newPassword := cmd.String("password"); newPassword != "" {
 										newHashedPassword, err = bcrypt.GenerateFromPassword(
 											[]byte(newPassword), bcrypt.DefaultCost,
 										)
@@ -376,12 +376,12 @@ func app() *cli.App {
 										Password: user.HashedPassword,
 										Private:  user.Private,
 									}, &users.Changes{
-										Nickname: ctx.String("nickname"),
+										Nickname: cmd.String("nickname"),
 										Password: newHashedPassword,
 										Online:   nil,
 									})
 
-									return s.Update(ctx.Context, newUser.ID, func(u *storage.UserEntry) error {
+									return s.Update(ctx, newUser.ID, func(u *storage.UserEntry) error {
 										u.Nickname = newUser.Nickname
 										u.HashedPassword = newUser.Password
 										return nil
@@ -397,7 +397,7 @@ func app() *cli.App {
 }
 
 func main() {
-	if err := app().Run(os.Args); err != nil {
+	if err := app().Run(context.Background(), os.Args); err != nil {
 		fmt.Fprintf(os.Stderr, "short-season: %s\n", err.Error())
 		os.Exit(1)
 	}

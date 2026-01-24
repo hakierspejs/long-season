@@ -1,4 +1,4 @@
-FROM golang:1.19.6-alpine
+FROM golang:1.25.6-alpine
 
 WORKDIR $GOPATH/bin
 
