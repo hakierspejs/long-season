@@ -28,6 +28,7 @@ func (ua *UserAdapter) User(ctx context.Context, u UserEntry) (*models.User, err
 		},
 		Password: u.HashedPassword,
 		Private:  u.Private,
+		Announce: u.Announce,
 	}, nil
 }
 

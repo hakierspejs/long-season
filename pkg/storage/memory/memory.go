@@ -91,10 +91,11 @@ type UsersStorage struct {
 }
 
 const (
-	userIDKey          = "ls::user::id"
-	userNicknameKey    = "ls::user::nickname"
-	userPasswordKey    = "ls::user::password"
-	userPrivateModeKey = "ls::user::private_mode"
+	userIDKey           = "ls::user::id"
+	userNicknameKey     = "ls::user::nickname"
+	userPasswordKey     = "ls::user::password"
+	userPrivateModeKey  = "ls::user::private_mode"
+	userAnnounceModeKey = "ls::user::announce_mode"
 )
 
 func boolToBytes(b bool) []byte {
@@ -144,6 +145,13 @@ func userFromBucket(b *bolt.Bucket) (*storage.UserEntry, error) {
 		result.Private = bytesToBool(priv)
 	}
 
+	announce := b.Get([]byte(userAnnounceModeKey))
+	if announce == nil {
+		result.Announce = !result.Private
+	} else {
+		result.Announce = bytesToBool(announce)
+	}
+
 	return result, nil
 }
 
@@ -174,6 +182,7 @@ func storeUserInBucket(user storage.UserEntry, b *bolt.Bucket) error {
 		{[]byte(userNicknameKey), []byte(user.Nickname)},
 		{[]byte(userPasswordKey), user.HashedPassword},
 		{[]byte(userPrivateModeKey), boolToBytes(user.Private)},
+		{[]byte(userAnnounceModeKey), boolToBytes(user.Announce)},
 	}
 
 	for _, item := range kvs {

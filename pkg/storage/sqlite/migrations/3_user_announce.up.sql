@@ -1,0 +1,1 @@
+ALTER TABLE users ADD COLUMN userAnnounce int NOT NULL DEFAULT 1;

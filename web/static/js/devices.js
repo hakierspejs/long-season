@@ -17,21 +17,34 @@ const deviceComp = ({ tag, id }) =>
   );
 
 const privMode = valoo(false);
+const announceMode = valoo(true);
 
-const privModeCheckbox = ({ store, onClick }) => {
+const checkbox = (
+  { store, onClick, disabled },
+  id,
+  checkedText,
+  uncheckedText,
+) => {
   const checkbox = el("input", { "type": "checkbox" });
-
-  const text = el("div", { "id": "priv-mode-text" }, "");
+  const text = el("div", { "id": id + "-text" }, "");
 
   // set checked value
   checkbox.checked = store();
-  text.textContent = store() ? " Enabled" : " Disabled";
+  text.textContent = " " + (store() ? checkedText : uncheckedText);
 
   // assign new checkbox checked value to given store
   store((checked) => {
     checkbox.checked = checked;
-    text.textContent = checked ? " Enabled" : " Disabled";
+    text.textContent = " " + (checked ? checkedText : uncheckedText);
   });
+
+  // optionally reflect a reactive disabled store
+  if (disabled) {
+    checkbox.disabled = disabled();
+    disabled((value) => {
+      checkbox.disabled = value;
+    });
+  }
 
   checkbox.onclick = onClick;
 
@@ -40,12 +53,23 @@ const privModeCheckbox = ({ store, onClick }) => {
     {},
     el(
       "label",
-      { "id": "priv-mode-label" },
+      { "id": id + "-label" },
       checkbox,
       text,
     ),
   );
 };
+
+const privModeCheckbox = (state) =>
+  checkbox(state, "priv-mode", "Enabled", "Disabled");
+
+const announceModeCheckbox = (state) =>
+  checkbox(
+    state,
+    "announce-mode",
+    "Announcing presence changes",
+    "Not announcing presence changes",
+  );
 
 // Returns array with devices components constructed from
 // given aray with devices objects.
@@ -227,6 +251,42 @@ const renderPrivMode = (store) => {
     .catch(handleErrors);
 };
 
+const renderAnnounceMode = (store) => {
+  userData()
+    .then((data) => {
+      store(data.announce);
+      store(toggleAnnounceMode);
+
+      const checkbox = announceModeCheckbox({
+        store: store,
+        onClick: () => {
+          store(!store());
+        },
+        disabled: privMode,
+      });
+
+      document.getElementById("announce-form").append(checkbox);
+    })
+    .catch(handleErrors);
+};
+
+const toggleAnnounceMode = (mode) => {
+  userData()
+    .then((data) => {
+      return fetch("/api/v1/users/" + data.id, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({ announce: mode }),
+      });
+    })
+    .then(checkResponse)
+    .then(responseJSON)
+    .catch(handleErrors);
+};
+
 const togglePrivateMode = (mode) => {
   userData()
     .then((data) => {
@@ -322,3 +382,5 @@ fetchDevices();
 
 // Render private mode checkbox
 renderPrivMode(privMode);
+
+renderAnnounceMode(announceMode);

@@ -29,6 +29,10 @@ type UserEntry struct {
 	// Private is flag for enabling private-mode that hides
 	// user activity from others.
 	Private bool
+
+	// Announce flag specifies whether the user wants a notification
+	// to be sent to the chat when they enter or leave the hackerspace.
+	Announce bool
 }
 
 // Users interface handles generic create, read,

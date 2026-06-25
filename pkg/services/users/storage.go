@@ -46,6 +46,7 @@ func Add(ctx context.Context, args AddUserRequest) (string, error) {
 		Nickname:       args.Nickname,
 		HashedPassword: pass,
 		Private:        false,
+		Announce:       true,
 	})
 	if errors.Is(err, serrors.ErrNicknameTaken) {
 		return "", errFactory.Conflict(

@@ -22,7 +22,7 @@ import (
 //go:embed migrations
 var migrations embed.FS
 
-const migrationsCurrentVersion = 2
+const migrationsCurrentVersion = 3
 
 func migrateWithFS(db *sql.DB, fileSystem fs.FS) error {
 	sourceInstance, err := iofs.New(fileSystem, "migrations")
@@ -133,9 +133,9 @@ type coreStorage struct {
 func (cs *coreStorage) newUser(ctx context.Context, u storage.UserEntry) (string, error) {
 	query := pragma(`
 	INSERT INTO users
-		(userID, userNickname, userPassword, userPrivate)
+		(userID, userNickname, userPassword, userPrivate, userAnnounce)
 	VALUES
-		($1, $2, $3, $4);
+		($1, $2, $3, $4, $5);
 	`)
 
 	cs.writeGuard.Lock()
@@ -148,6 +148,7 @@ func (cs *coreStorage) newUser(ctx context.Context, u storage.UserEntry) (string
 		u.Nickname,
 		u.HashedPassword,
 		sqliteBoolean(u.Private),
+		sqliteBoolean(u.Announce),
 	)
 	if err != nil {
 		return "", fmt.Errorf("cs.db.ExecContext: %w", err)
@@ -159,7 +160,7 @@ func (cs *coreStorage) newUser(ctx context.Context, u storage.UserEntry) (string
 func (cs *coreStorage) readUser(ctx context.Context, id string) (*storage.UserEntry, error) {
 	query := `
 	SELECT
-		userNickname, userPassword, userPrivate
+		userNickname, userPassword, userPrivate, userAnnounce
 	FROM
 		users
 	WHERE
@@ -169,11 +170,13 @@ func (cs *coreStorage) readUser(ctx context.Context, id string) (*storage.UserEn
 		userNickname string
 		userPassword []byte
 		userPrivate  int
+		userAnnounce int
 	)
 	err := cs.db.QueryRowContext(ctx, query, id).Scan(
 		&userNickname,
 		&userPassword,
 		&userPrivate,
+		&userAnnounce,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("cs.db.QueryRowContext: %w", err)
@@ -184,6 +187,7 @@ func (cs *coreStorage) readUser(ctx context.Context, id string) (*storage.UserEn
 		Nickname:       userNickname,
 		HashedPassword: userPassword,
 		Private:        userPrivate >= 1,
+		Announce:       userAnnounce >= 1,
 	}, nil
 }
 
@@ -196,7 +200,7 @@ func copyBytes(src []byte) []byte {
 func (cs *coreStorage) allUsers(ctx context.Context) ([]storage.UserEntry, error) {
 	query := `
 	SELECT
-		userID, userNickname, userPassword, userPrivate
+		userID, userNickname, userPassword, userPrivate, userAnnounce
 	FROM
 		users
 	`
@@ -206,6 +210,7 @@ func (cs *coreStorage) allUsers(ctx context.Context) ([]storage.UserEntry, error
 		userNickname string
 		userPassword []byte
 		userPrivate  int
+		userAnnounce int
 	)
 
 	rows, err := cs.db.QueryContext(ctx, query)
@@ -222,6 +227,7 @@ func (cs *coreStorage) allUsers(ctx context.Context) ([]storage.UserEntry, error
 			&userNickname,
 			&userPassword,
 			&userPrivate,
+			&userAnnounce,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("rows.Scan: %w", err)
@@ -232,6 +238,7 @@ func (cs *coreStorage) allUsers(ctx context.Context) ([]storage.UserEntry, error
 			Nickname:       userNickname,
 			HashedPassword: copyBytes(userPassword),
 			Private:        userPrivate >= 1,
+			Announce:       userAnnounce >= 1,
 		})
 	}
 
@@ -268,7 +275,7 @@ func (cs *coreStorage) updateUser(ctx context.Context, id string, f func(*storag
 
 	selectUserQuery := `
 	SELECT
-		userNickname, userPassword, userPrivate
+		userNickname, userPassword, userPrivate, userAnnounce
 	FROM
 		users
 	WHERE
@@ -279,12 +286,14 @@ func (cs *coreStorage) updateUser(ctx context.Context, id string, f func(*storag
 		userNickname string
 		userPassword []byte
 		userPrivate  int
+		userAnnounce int
 	)
 
 	err = tx.QueryRowContext(ctx, selectUserQuery, id).Scan(
 		&userNickname,
 		&userPassword,
 		&userPrivate,
+		&userAnnounce,
 	)
 	if err != nil {
 		tx.Rollback()
@@ -296,6 +305,7 @@ func (cs *coreStorage) updateUser(ctx context.Context, id string, f func(*storag
 		Nickname:       userNickname,
 		HashedPassword: userPassword,
 		Private:        userPrivate >= 1,
+		Announce:       userAnnounce >= 1,
 	}
 
 	err = f(entry)
@@ -308,7 +318,7 @@ func (cs *coreStorage) updateUser(ctx context.Context, id string, f func(*storag
 	UPDATE
 		users
 	SET
-		userNickname = $2, userPassword = $3, userPrivate = $4
+		userNickname = $2, userPassword = $3, userPrivate = $4, userAnnounce = $5
 	WHERE
 		userID = $1;
 	`)
@@ -320,6 +330,7 @@ func (cs *coreStorage) updateUser(ctx context.Context, id string, f func(*storag
 		entry.Nickname,
 		entry.HashedPassword,
 		sqliteBoolean(entry.Private),
+		sqliteBoolean(entry.Announce),
 	)
 	if err != nil {
 		tx.Rollback()

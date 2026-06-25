@@ -36,6 +36,7 @@ func StrictEquals(a, b models.User) bool {
 		a.Online == b.Online,
 		a.ID == b.ID,
 		a.Private == b.Private,
+		a.Announce == b.Announce,
 	)
 }
 

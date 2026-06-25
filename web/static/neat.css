@@ -80,6 +80,9 @@ button:last-child, .button:last-child {
     font-weight: bold;
 }
 
+.settings {
+    display: grid;
+}
 
 /* Desktop sizes */
 @media only screen and (min-width: 600px) {
@@ -89,6 +92,11 @@ button:last-child, .button:last-child {
     body {
         margin-left: 60px;
         margin-right: 60px;
+    }
+
+    .settings {
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
     }
 }
 
